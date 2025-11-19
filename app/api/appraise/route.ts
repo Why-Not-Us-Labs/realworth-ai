@@ -65,6 +65,10 @@ export async function POST(req: NextRequest) {
         responseSchema: responseSchema,
       },
     });
+
+    if (!appraisalResponse.text) {
+      throw new Error("No text response from AI for appraisal.");
+    }
     const appraisalData = JSON.parse(appraisalResponse.text.trim());
 
     // Step 2: Regenerate the image
@@ -78,10 +82,12 @@ export async function POST(req: NextRequest) {
     });
 
     let imageDataUrl: string | null = null;
-    for (const part of imageResponse.candidates[0].content.parts) {
-      if (part.inlineData) {
-        imageDataUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-        break;
+    if (imageResponse.candidates?.[0]?.content?.parts) {
+      for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData) {
+          imageDataUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          break;
+        }
       }
     }
 
