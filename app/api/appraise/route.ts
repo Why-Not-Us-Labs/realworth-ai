@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -9,6 +10,11 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY });
+
+// Initialize Supabase client for storage
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -93,21 +99,52 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    let imageDataUrl: string | null = null;
+    let imageBuffer: Buffer | null = null;
+    let imageMimeType: string | null = null;
+
     if (imageResponse.candidates?.[0]?.content?.parts) {
       for (const part of imageResponse.candidates[0].content.parts) {
         if (part.inlineData) {
-          imageDataUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+          imageMimeType = part.inlineData.mimeType;
           break;
         }
       }
     }
 
-    if (!appraisalData || !imageDataUrl) {
+    if (!appraisalData || !imageBuffer || !imageMimeType) {
       throw new Error("AI response was incomplete.");
     }
 
-    return NextResponse.json({ appraisalData, imageDataUrl });
+    // Step 3: Upload image to Supabase Storage
+    // Generate unique filename using timestamp and random string
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(7);
+    const fileExt = imageMimeType.split('/')[1] || 'png';
+    const fileName = `${timestamp}-${randomStr}.${fileExt}`;
+
+    // For now, store in a public folder (we'll add user-specific folders when auth is available in API route)
+    const filePath = `public/${fileName}`;
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('appraisal-images')
+      .upload(filePath, imageBuffer, {
+        contentType: imageMimeType,
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Error uploading image to storage:', uploadError);
+      throw new Error(`Failed to upload image: ${uploadError.message}`);
+    }
+
+    // Get public URL for the uploaded image
+    const { data: { publicUrl } } = supabase.storage
+      .from('appraisal-images')
+      .getPublicUrl(filePath);
+
+    return NextResponse.json({ appraisalData, imageDataUrl: publicUrl });
 
   } catch (error) {
     console.error('Error in appraisal API route:', error);
