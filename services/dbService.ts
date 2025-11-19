@@ -1,5 +1,5 @@
 
-import { AppraisalResult } from '@/types';
+import { AppraisalResult } from '@/lib/types';
 
 class DBService {
   private getHistoryKey(userId: string): string {
