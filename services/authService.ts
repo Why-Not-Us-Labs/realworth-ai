@@ -50,7 +50,11 @@ class AuthService {
 
             google.accounts.id.prompt((notification) => {
               if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                console.warn("Google One Tap was not displayed:", notification.getNotDisplayedReason());
+                const reason = notification.getNotDisplayedReason();
+                console.warn("Google One Tap was not displayed:", reason);
+                reject(new Error(`Google One Tap prompt was not displayed: ${reason || 'unknown reason'}`));
+              } else if (notification.isDismissedMoment && notification.isDismissedMoment()) {
+                reject(new Error("Google One Tap prompt was dismissed by user"));
               }
             });
           } else if (attempts < 20) {
