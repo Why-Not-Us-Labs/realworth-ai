@@ -1,0 +1,14 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #F1F5F9; /* Opal/Slate-100 */
+  color: #1E293B; /* Slate-800 */
+}
+.gradient-text {
+  background: linear-gradient(to right, #2DD4BF, #06B6D4); /* Teal-400 to Cyan-500 */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
