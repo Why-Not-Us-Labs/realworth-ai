@@ -6,10 +6,30 @@ interface IconProps {
 }
 
 export const LogoIcon: React.FC<IconProps> = ({ className }) => (
-  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className || "text-teal-500"}>
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    <path d="M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="4 4"/>
-    <path d="M12 22V12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg width="32" height="32" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    {/* Treasure chest body */}
+    <rect x="140" y="280" width="232" height="140" rx="8" fill="#14B8A6" stroke="#1e293b" strokeWidth="16"/>
+
+    {/* Chest lock */}
+    <rect x="240" y="340" width="32" height="40" rx="4" fill="#1e293b"/>
+
+    {/* Chest lid (open) */}
+    <path d="M 140 280 L 140 200 Q 140 180 160 170 L 352 170 Q 372 180 372 200 L 372 280" fill="#14B8A6" stroke="#1e293b" strokeWidth="16"/>
+
+    {/* Lid inner */}
+    <path d="M 160 270 L 160 210 L 352 210 L 352 270" fill="#2dd4bf" stroke="#1e293b" strokeWidth="8"/>
+
+    {/* Gems inside - various diamonds/sparkles */}
+    <polygon points="256,220 270,240 256,260 242,240" fill="#06b6d4"/>
+    <polygon points="210,230 220,245 210,260 200,245" fill="#14B8A6"/>
+    <polygon points="302,230 312,245 302,260 292,245" fill="#22d3ee"/>
+    <polygon points="230,250 238,262 230,274 222,262" fill="#2dd4bf"/>
+    <polygon points="282,250 290,262 282,274 274,262" fill="#14B8A6"/>
+
+    {/* Sparkles around gems */}
+    <circle cx="190" cy="235" r="6" fill="#14B8A6"/>
+    <circle cx="256" cy="205" r="6" fill="#2dd4bf"/>
+    <circle cx="322" cy="235" r="6" fill="#06b6d4"/>
   </svg>
 );
 
