@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { AppraisalResult } from '@/types';
+import { AppraisalResult } from '@/lib/types';
 
 interface HistoryListProps {
   history: AppraisalResult[];

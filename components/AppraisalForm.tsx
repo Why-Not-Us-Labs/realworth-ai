@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AppraisalRequest } from '@/types';
-import { CONDITIONS } from '@/constants';
+import { AppraisalRequest } from '@/lib/types';
+import { CONDITIONS } from '@/lib/constants';
 import { FileUpload } from './FileUpload';
 import { SparklesIcon, SpinnerIcon } from './icons';
 

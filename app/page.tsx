@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
-import { AppraisalResult, AppraisalRequest } from '@/types';
+import { AppraisalResult, AppraisalRequest } from '@/lib/types';
 import { useAppraisal } from '@/hooks/useAppraisal';
 import { Loader } from '@/components/Loader';
 import { ResultCard } from '@/components/ResultCard';

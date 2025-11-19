@@ -1,5 +1,5 @@
 
-import { User } from '@/types';
+import { User } from '@/lib/types';
 
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 export const isGoogleClientIdConfigured = !!GOOGLE_CLIENT_ID;

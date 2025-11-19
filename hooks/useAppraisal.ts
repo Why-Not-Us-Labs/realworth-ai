@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { AppraisalRequest, AppraisalResult } from '@/types';
+import { AppraisalRequest, AppraisalResult } from '@/lib/types';
 
 type AppraisalOutput = {
     appraisalData: Omit<AppraisalResult, 'id' | 'image'>;

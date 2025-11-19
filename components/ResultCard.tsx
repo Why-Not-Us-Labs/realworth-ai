@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useContext, useEffect } from 'react';
-import { AppraisalResult } from '@/types';
+import { AppraisalResult } from '@/lib/types';
 import { SparklesIcon } from './icons';
 import { AuthContext } from './contexts/AuthContext';
 
