@@ -3,6 +3,9 @@ import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// App Router config - extend timeout for AI processing
+export const maxDuration = 60;
+
 const API_KEY = process.env.GEMINI_API_KEY;
 
 if (!API_KEY) {
