@@ -211,7 +211,14 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error in appraisal API route:', error);
-    return NextResponse.json({ error: 'Failed to get appraisal from AI.' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Error in appraisal API route:', errorMessage);
+    console.error('Stack trace:', errorStack);
+
+    // Return more specific error for debugging
+    return NextResponse.json({
+      error: `Failed to get appraisal from AI. ${errorMessage}`
+    }, { status: 500 });
   }
 }
