@@ -13,18 +13,59 @@ import { SparklesIcon, GemIcon } from '@/components/icons';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
 import { DailyChallenges } from '@/components/DailyChallenges';
+import { ScanMode } from '@/components/ScanMode';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
 
-type View = 'HOME' | 'FORM' | 'LOADING' | 'RESULT';
+type View = 'HOME' | 'FORM' | 'LOADING' | 'RESULT' | 'SCAN';
 
 export default function Home() {
   const [view, setView] = useState<View>('HOME');
   const [history, setHistory] = useState<AppraisalResult[]>([]);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
+  const [scanProcessing, setScanProcessing] = useState(false);
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading } = useContext(AuthContext);
+
+  // Handle scan mode capture
+  const handleScanCapture = async (imageData: string) => {
+    if (!user) return;
+
+    setScanProcessing(true);
+
+    // Convert base64 to File for the appraisal API
+    const response = await fetch(imageData);
+    const blob = await response.blob();
+    const file = new File([blob], 'scan-capture.jpg', { type: 'image/jpeg' });
+
+    const result = await getAppraisal({
+      files: [file],
+      condition: 'Good' // Default condition for scan mode
+    });
+
+    if (result && result.appraisalData && result.imageDataUrl) {
+      const allImages = [
+        ...(result.imageUrls || []),
+        result.imageDataUrl
+      ].filter((url, index, self) => self.indexOf(url) === index);
+
+      const newResult = {
+        ...result.appraisalData,
+        id: Date.now().toString(),
+        image: result.imageDataUrl,
+        images: allImages
+      };
+
+      const savedAppraisal = await dbService.saveAppraisal(user.id, newResult);
+      if (savedAppraisal) {
+        setHistory(prev => [savedAppraisal, ...prev]);
+        dbService.getUserStreaks(user.id).then(setStreaks);
+      }
+    }
+
+    setScanProcessing(false);
+  };
 
   // Load history and streaks from database when user logs in
   useEffect(() => {
@@ -97,6 +138,8 @@ export default function Home() {
         return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} />;
       case 'RESULT':
         return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} />;
+      case 'SCAN':
+        return null; // ScanMode is rendered as overlay
       case 'HOME':
       default:
         return (
@@ -109,13 +152,32 @@ export default function Home() {
                 It's a win-win! Declutter your home and discover hidden treasures. Snap a photo to see what your items are worth. It's fun, easy, and you might just find a fortune!
               </p>
             </div>
-            <button
-              onClick={() => setView('FORM')}
-              className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-8 rounded-full text-xl transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30 inline-flex items-center gap-3"
-            >
-              <SparklesIcon />
-              Start Your First Appraisal
-            </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={() => setView('FORM')}
+                className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-8 rounded-full text-xl transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30 inline-flex items-center gap-3"
+              >
+                <SparklesIcon />
+                Start Appraisal
+              </button>
+              {user && (
+                <button
+                  onClick={() => setView('SCAN')}
+                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 px-8 rounded-full text-xl transition-transform transform hover:scale-105 shadow-lg shadow-slate-800/30 inline-flex items-center gap-3"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Scan Mode
+                </button>
+              )}
+            </div>
+            {user && (
+              <p className="text-sm text-slate-500 mt-4">
+                Scan Mode: Auto-detect and bulk scan items with AI
+              </p>
+            )}
           </div>
         );
     }
@@ -128,6 +190,15 @@ export default function Home() {
         <div className="w-full bg-white rounded-2xl shadow-lg mb-8">
           {renderView()}
         </div>
+
+      {/* Scan Mode Overlay */}
+      {view === 'SCAN' && (
+        <ScanMode
+          onCapture={handleScanCapture}
+          onClose={() => setView('HOME')}
+          isProcessing={scanProcessing}
+        />
+      )}
         {user && (
           <>
             {history.length > 0 ? (
