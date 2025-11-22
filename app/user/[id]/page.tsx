@@ -4,6 +4,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { LogoIcon, GemIcon, UserIcon } from '@/components/icons';
+import { FriendButton } from '@/components/FriendButton';
 
 // Initialize Supabase client for server-side
 const supabase = createClient(
@@ -20,7 +21,7 @@ async function getUserWithTreasures(id: string) {
   // Get user info
   const { data: user, error: userError } = await supabase
     .from('users')
-    .select('id, name, picture')
+    .select('id, name, picture, username')
     .eq('id', id)
     .single();
 
@@ -130,26 +131,32 @@ export default async function UserProfilePage({ params }: UserPageProps) {
       {/* Profile Header */}
       <div className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="flex items-center gap-4">
-            {user.picture ? (
-              <img
-                src={user.picture}
-                alt={user.name}
-                className="w-16 h-16 rounded-full"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
-                <UserIcon className="w-8 h-8 text-slate-400" />
-              </div>
-            )}
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{user.name}</h1>
-              <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
-                <span>{treasures.length} {treasures.length === 1 ? 'treasure' : 'treasures'}</span>
-                <span>•</span>
-                <span>Total value: {formatCurrency(totalValue)}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              {user.picture ? (
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  className="w-16 h-16 rounded-full"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
+                  <UserIcon className="w-8 h-8 text-slate-400" />
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">{user.name}</h1>
+                {user.username && (
+                  <p className="text-sm text-slate-500">@{user.username}</p>
+                )}
+                <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
+                  <span>{treasures.length} {treasures.length === 1 ? 'treasure' : 'treasures'}</span>
+                  <span>•</span>
+                  <span>Total value: {formatCurrency(totalValue)}</span>
+                </div>
               </div>
             </div>
+            <FriendButton targetUserId={user.id} targetUserName={user.name} />
           </div>
         </div>
       </div>

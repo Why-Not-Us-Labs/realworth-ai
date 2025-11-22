@@ -390,6 +390,219 @@ class DBService {
       await this.saveAppraisal(userId, appraisal);
     }
   }
+
+  /**
+   * Update user's username
+   */
+  public async updateUsername(userId: string, username: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ username })
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Error updating username:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in updateUsername:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if username is available
+   */
+  public async checkUsername(username: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .single();
+
+      if (error && error.code === 'PGRST116') {
+        return true; // Not found = available
+      }
+      return !data;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Send a friend request
+   */
+  public async sendFriendRequest(requesterId: string, addresseeId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .insert({
+          requester_id: requesterId,
+          addressee_id: addresseeId,
+          status: 'pending'
+        });
+
+      if (error) {
+        console.error('Error sending friend request:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in sendFriendRequest:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Respond to a friend request
+   */
+  public async respondToFriendRequest(
+    friendshipId: string,
+    response: 'accepted' | 'declined'
+  ): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .update({ status: response, updated_at: new Date().toISOString() })
+        .eq('id', friendshipId);
+
+      if (error) {
+        console.error('Error responding to friend request:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in respondToFriendRequest:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get friendship status between two users
+   */
+  public async getFriendshipStatus(
+    userId: string,
+    otherUserId: string
+  ): Promise<{ status: string; friendshipId?: string; isRequester?: boolean } | null> {
+    try {
+      const { data, error } = await supabase
+        .from('friendships')
+        .select('id, status, requester_id')
+        .or(`and(requester_id.eq.${userId},addressee_id.eq.${otherUserId}),and(requester_id.eq.${otherUserId},addressee_id.eq.${userId})`)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // No relationship
+        console.error('Error getting friendship status:', error);
+        return null;
+      }
+
+      return {
+        status: data.status,
+        friendshipId: data.id,
+        isRequester: data.requester_id === userId
+      };
+    } catch (error) {
+      console.error('Error in getFriendshipStatus:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get pending friend requests for a user
+   */
+  public async getPendingRequests(userId: string): Promise<Array<{
+    id: string;
+    requester: { id: string; name: string; picture: string; username?: string };
+    created_at: string;
+  }>> {
+    try {
+      const { data, error } = await supabase
+        .from('friendships')
+        .select(`
+          id,
+          created_at,
+          requester:requester_id (id, name, picture, username)
+        `)
+        .eq('addressee_id', userId)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getting pending requests:', error);
+        return [];
+      }
+
+      return (data || []).map(item => ({
+        id: item.id,
+        requester: item.requester as any,
+        created_at: item.created_at
+      }));
+    } catch (error) {
+      console.error('Error in getPendingRequests:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get user's friends list
+   */
+  public async getFriends(userId: string): Promise<Array<{
+    id: string;
+    name: string;
+    picture: string;
+    username?: string;
+  }>> {
+    try {
+      const { data, error } = await supabase
+        .from('friendships')
+        .select(`
+          requester:requester_id (id, name, picture, username),
+          addressee:addressee_id (id, name, picture, username)
+        `)
+        .eq('status', 'accepted')
+        .or(`requester_id.eq.${userId},addressee_id.eq.${userId}`);
+
+      if (error) {
+        console.error('Error getting friends:', error);
+        return [];
+      }
+
+      // Extract the friend (the other person in the relationship)
+      return (data || []).map(item => {
+        const requester = item.requester as any;
+        const addressee = item.addressee as any;
+        return requester.id === userId ? addressee : requester;
+      });
+    } catch (error) {
+      console.error('Error in getFriends:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Remove a friendship
+   */
+  public async removeFriend(friendshipId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('friendships')
+        .delete()
+        .eq('id', friendshipId);
+
+      if (error) {
+        console.error('Error removing friend:', error);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error in removeFriend:', error);
+      return false;
+    }
+  }
 }
 
 export const dbService = new DBService();
