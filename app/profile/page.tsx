@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
+import { DailyChallenges } from '@/components/DailyChallenges';
 import { HistoryList } from '@/components/HistoryList';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
@@ -114,13 +115,20 @@ export default function ProfilePage() {
 
         {/* Stats */}
         {history.length > 0 && (
-          <GamificationStats
-            itemCount={itemCount}
-            totalValue={totalValue}
-            currency={history[0]?.currency || 'USD'}
-            currentStreak={streaks.currentStreak}
-            longestStreak={streaks.longestStreak}
-          />
+          <>
+            <GamificationStats
+              itemCount={itemCount}
+              totalValue={totalValue}
+              currency={history[0]?.currency || 'USD'}
+              currentStreak={streaks.currentStreak}
+              longestStreak={streaks.longestStreak}
+            />
+            <DailyChallenges
+              history={history}
+              currentStreak={streaks.currentStreak}
+              longestStreak={streaks.longestStreak}
+            />
+          </>
         )}
 
         {/* Achievements */}

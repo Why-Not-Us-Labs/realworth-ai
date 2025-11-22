@@ -12,6 +12,7 @@ import { HistoryList } from '@/components/HistoryList';
 import { SparklesIcon } from '@/components/icons';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
+import { DailyChallenges } from '@/components/DailyChallenges';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
 
@@ -131,6 +132,11 @@ export default function Home() {
                   itemCount={itemCount}
                   totalValue={totalValue}
                   currency={history[0]?.currency || 'USD'}
+                  currentStreak={streaks.currentStreak}
+                  longestStreak={streaks.longestStreak}
+                />
+                <DailyChallenges
+                  history={history}
                   currentStreak={streaks.currentStreak}
                   longestStreak={streaks.longestStreak}
                 />
