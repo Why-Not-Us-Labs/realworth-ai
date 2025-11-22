@@ -9,7 +9,7 @@ import { useAppraisal } from '@/hooks/useAppraisal';
 import { Loader } from '@/components/Loader';
 import { ResultCard } from '@/components/ResultCard';
 import { HistoryList } from '@/components/HistoryList';
-import { SparklesIcon } from '@/components/icons';
+import { SparklesIcon, GemIcon } from '@/components/icons';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
 import { DailyChallenges } from '@/components/DailyChallenges';
@@ -157,15 +157,15 @@ export default function Home() {
                 />
               </>
             ) : (
-              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-                <div className="text-6xl mb-4">💎</div>
-                <h3 className="text-2xl font-bold text-slate-800 mb-2">Your Treasure Vault is Empty</h3>
-                <p className="text-slate-600 mb-6 max-w-md mx-auto">
-                  Start discovering hidden treasures! Snap photos of items around your home to find out what they're really worth.
+              <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+                <GemIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">Your Collection is Empty</h3>
+                <p className="text-slate-500 mb-6 max-w-sm mx-auto text-sm">
+                  Start discovering hidden treasures. Snap photos of items around your home to find out what they're worth.
                 </p>
                 <button
                   onClick={() => setView('FORM')}
-                  className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30"
+                  className="bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-5 rounded-lg transition-colors"
                 >
                   Find Your First Treasure
                 </button>

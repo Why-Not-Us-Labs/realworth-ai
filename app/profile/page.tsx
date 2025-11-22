@@ -9,6 +9,7 @@ import { Achievements } from '@/components/Achievements';
 import { DailyChallenges } from '@/components/DailyChallenges';
 import { HistoryList } from '@/components/HistoryList';
 import { AuthContext } from '@/components/contexts/AuthContext';
+import { LockIcon, MapIcon } from '@/components/icons';
 import { dbService } from '@/services/dbService';
 import { AppraisalResult } from '@/lib/types';
 
@@ -62,15 +63,15 @@ export default function ProfilePage() {
       <>
         <Header />
         <main className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-6xl mb-4">🔒</div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-2">Sign In Required</h2>
-            <p className="text-slate-600 mb-6">
-              Sign in to view your profile, track your treasures, and compete on the leaderboard!
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+            <LockIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-slate-800 mb-2">Sign In Required</h2>
+            <p className="text-slate-500 mb-6 text-sm">
+              Sign in to view your profile and track your treasures.
             </p>
             <Link
               href="/"
-              className="inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105"
+              className="inline-block bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-5 rounded-lg transition-colors"
             >
               Go to Home
             </Link>
@@ -147,15 +148,15 @@ export default function ProfilePage() {
             }}
           />
         ) : (
-          <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-            <div className="text-6xl mb-4">🗺️</div>
-            <h3 className="text-2xl font-bold text-slate-800 mb-2">Start Your Treasure Hunt!</h3>
-            <p className="text-slate-600 mb-6 max-w-md mx-auto">
-              Your collection is empty. Snap photos of items around your home to discover hidden treasures!
+          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
+            <MapIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-800 mb-2">Start Your Collection</h3>
+            <p className="text-slate-500 mb-6 max-w-sm mx-auto text-sm">
+              Your collection is empty. Snap photos of items to discover hidden treasures.
             </p>
             <Link
               href="/"
-              className="inline-block bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30"
+              className="inline-block bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-5 rounded-lg transition-colors"
             >
               Find Your First Treasure
             </Link>
