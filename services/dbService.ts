@@ -194,6 +194,31 @@ class DBService {
   }
 
   /**
+   * Get user streak data
+   */
+  public async getUserStreaks(userId: string): Promise<{ currentStreak: number; longestStreak: number }> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('current_streak, longest_streak')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) {
+        return { currentStreak: 0, longestStreak: 0 };
+      }
+
+      return {
+        currentStreak: data.current_streak || 0,
+        longestStreak: data.longest_streak || 0,
+      };
+    } catch (error) {
+      console.error('Error fetching user streaks:', error);
+      return { currentStreak: 0, longestStreak: 0 };
+    }
+  }
+
+  /**
    * Toggle public/private status of an appraisal
    */
   public async togglePublic(userId: string, appraisalId: string, isPublic: boolean): Promise<boolean> {

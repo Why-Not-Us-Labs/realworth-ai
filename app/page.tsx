@@ -21,15 +21,18 @@ export default function Home() {
   const [view, setView] = useState<View>('HOME');
   const [history, setHistory] = useState<AppraisalResult[]>([]);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
+  const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading } = useContext(AuthContext);
 
-  // Load history from database when user logs in or on initial load
+  // Load history and streaks from database when user logs in
   useEffect(() => {
     if (user && !isAuthLoading) {
       dbService.getHistory(user.id).then(setHistory);
+      dbService.getUserStreaks(user.id).then(setStreaks);
     } else if (!user && !isAuthLoading) {
-      setHistory([]); // Clear history on logout
+      setHistory([]);
+      setStreaks({ currentStreak: 0, longestStreak: 0 });
     }
   }, [user, isAuthLoading]);
 
@@ -56,6 +59,8 @@ export default function Home() {
         if (savedAppraisal) {
           // Add the saved appraisal (with DB-generated ID) to history
           setHistory(prev => [savedAppraisal, ...prev]);
+          // Refresh streaks after new appraisal
+          dbService.getUserStreaks(user.id).then(setStreaks);
         }
       }
       setView('RESULT');
@@ -122,7 +127,13 @@ export default function Home() {
           <>
             {history.length > 0 ? (
               <>
-                <GamificationStats itemCount={itemCount} totalValue={totalValue} currency={history[0]?.currency || 'USD'} />
+                <GamificationStats
+                  itemCount={itemCount}
+                  totalValue={totalValue}
+                  currency={history[0]?.currency || 'USD'}
+                  currentStreak={streaks.currentStreak}
+                  longestStreak={streaks.longestStreak}
+                />
                 <Achievements history={history} />
                 <HistoryList
                   history={history}
