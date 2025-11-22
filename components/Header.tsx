@@ -24,6 +24,12 @@ export const Header: React.FC = () => {
             >
               Discover
             </Link>
+            <Link
+              href="/leaderboard"
+              className="text-slate-600 hover:text-teal-600 font-medium transition-colors"
+            >
+              Leaderboard
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
