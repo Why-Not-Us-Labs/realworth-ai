@@ -62,6 +62,10 @@ export default function Home() {
           setHistory(prev => [savedAppraisal, ...prev]);
           // Refresh streaks after new appraisal
           dbService.getUserStreaks(user.id).then(setStreaks);
+        } else {
+          // Show error if save failed
+          console.error('Failed to save appraisal to database');
+          alert('Your appraisal was generated but failed to save. Please try again or contact support.');
         }
       }
       setView('RESULT');
