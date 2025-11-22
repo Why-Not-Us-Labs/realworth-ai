@@ -117,19 +117,37 @@ export default function Home() {
         <div className="w-full bg-white rounded-2xl shadow-lg mb-8">
           {renderView()}
         </div>
-        {user && history.length > 0 && (
+        {user && (
           <>
-            <GamificationStats itemCount={itemCount} totalValue={totalValue} currency={history[0]?.currency || 'USD'} />
-            <HistoryList
-              history={history}
-              onSelect={handleSelectHistoryItem}
-              userId={user.id}
-              onUpdate={(updatedItem) => {
-                setHistory(prev => prev.map(item =>
-                  item.id === updatedItem.id ? updatedItem : item
-                ));
-              }}
-            />
+            {history.length > 0 ? (
+              <>
+                <GamificationStats itemCount={itemCount} totalValue={totalValue} currency={history[0]?.currency || 'USD'} />
+                <HistoryList
+                  history={history}
+                  onSelect={handleSelectHistoryItem}
+                  userId={user.id}
+                  onUpdate={(updatedItem) => {
+                    setHistory(prev => prev.map(item =>
+                      item.id === updatedItem.id ? updatedItem : item
+                    ));
+                  }}
+                />
+              </>
+            ) : (
+              <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+                <div className="text-6xl mb-4">💎</div>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Your Treasure Vault is Empty</h3>
+                <p className="text-slate-600 mb-6 max-w-md mx-auto">
+                  Start discovering hidden treasures! Snap photos of items around your home to find out what they're really worth.
+                </p>
+                <button
+                  onClick={() => setView('FORM')}
+                  className="bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30"
+                >
+                  Find Your First Treasure
+                </button>
+              </div>
+            )}
           </>
         )}
       </main>
