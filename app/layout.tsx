@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "@/components/contexts/AuthContext";
 import "./globals.css";
 
@@ -45,6 +46,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>{children}</AuthProvider>
         <Analytics />
+        <SpeedInsights />
         <Script
           src="https://accounts.google.com/gsi/client"
           strategy="afterInteractive"
