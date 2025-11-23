@@ -153,7 +153,7 @@ You must also provide validation feedback:
     const appraisalTextPart = { text: `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}` };
     
     const appraisalResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: { role: 'user', parts: [...imageParts, appraisalTextPart] },
       config: {
         systemInstruction: appraisalSystemInstruction,
@@ -170,7 +170,7 @@ You must also provide validation feedback:
     // Step 2: Regenerate the image
     const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
     const imageResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-preview-05-20',
+      model: 'gemini-3-pro-image-preview',
       contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
       config: {
         responseModalities: [Modality.IMAGE],

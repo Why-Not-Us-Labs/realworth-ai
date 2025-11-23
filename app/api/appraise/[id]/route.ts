@@ -141,7 +141,7 @@ export async function PATCH(
       const textPart = { text: `This item has ${updatedUrls.length} photos. Analyze all images together for the most accurate appraisal.` };
 
       const appraisalResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-pro-preview',
         contents: { role: 'user', parts: [...imageParts, textPart] },
         config: {
           systemInstruction,
@@ -159,7 +159,7 @@ export async function PATCH(
       // Regenerate image
       const imageRegenTextPart = { text: "Regenerate this image exactly as it is." };
       const imageResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-preview-05-20',
+        model: 'gemini-3-pro-image-preview',
         contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
         config: {
           responseModalities: [Modality.IMAGE],
