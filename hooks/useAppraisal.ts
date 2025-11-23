@@ -9,6 +9,13 @@ type AppraisalOutput = {
     imageUrls?: string[];
     imagePath?: string;
     userId?: string;
+    collectionId?: string;
+    collectionName?: string;
+    validation?: {
+        status: string;
+        notes: string;
+        seriesIdentifier: string;
+    };
 } | null;
 
 // Upload image directly to Supabase Storage (bypasses Vercel limits)
@@ -166,6 +173,7 @@ export const useAppraisal = () => {
           imageUrls: successfulUploads.map(u => u.url),
           imagePaths: successfulUploads.map(u => u.path),
           condition: request.condition,
+          collectionId: request.collectionId,
         }),
       });
 

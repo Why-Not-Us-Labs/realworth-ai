@@ -118,7 +118,16 @@ class DBService {
    * Save a new appraisal
    * Uploads image to Supabase Storage and stores the URL
    */
-  public async saveAppraisal(userId: string, appraisal: Omit<AppraisalResult, 'id' | 'timestamp'>): Promise<AppraisalResult | null> {
+  public async saveAppraisal(
+    userId: string,
+    appraisal: Omit<AppraisalResult, 'id' | 'timestamp'>,
+    collectionData?: {
+      collectionId?: string;
+      seriesIdentifier?: string;
+      validationStatus?: string;
+      validationNotes?: string;
+    }
+  ): Promise<AppraisalResult | null> {
     try {
       // Generate UUID for the appraisal
       const appraisalId = crypto.randomUUID();
@@ -135,26 +144,55 @@ class DBService {
         }
       }
 
+      // Prepare insert data with proper null handling
+      const insertData: any = {
+        id: appraisalId,
+        user_id: userId,
+        item_name: appraisal.itemName,
+        author: appraisal.author || null,
+        era: appraisal.era || null,
+        category: appraisal.category,
+        description: appraisal.description || null,
+        price_low: appraisal.priceRange.low,
+        price_high: appraisal.priceRange.high,
+        currency: appraisal.currency || 'USD',
+        reasoning: appraisal.reasoning || null,
+        image_url: imageUrl || null,
+      };
+
+      // Add optional fields only if they exist (to avoid schema errors)
+      if (appraisal.references && appraisal.references.length > 0) {
+        insertData.references = appraisal.references;
+      }
+      
+      if (appraisal.images && appraisal.images.length > 0) {
+        insertData.image_urls = appraisal.images;
+      } else if (imageUrl) {
+        insertData.image_urls = [imageUrl];
+      }
+
+      // Set default is_public if not provided
+      if (appraisal.isPublic !== undefined) {
+        insertData.is_public = appraisal.isPublic;
+      }
+
+      // Add collection data if provided
+      if (collectionData?.collectionId) {
+        insertData.collection_id = collectionData.collectionId;
+        if (collectionData.seriesIdentifier) {
+          insertData.series_identifier = collectionData.seriesIdentifier;
+        }
+        if (collectionData.validationStatus) {
+          insertData.validation_status = collectionData.validationStatus;
+        }
+        if (collectionData.validationNotes) {
+          insertData.validation_notes = collectionData.validationNotes;
+        }
+      }
+
       const { data, error } = await supabase
         .from('appraisals')
-        .insert([
-          {
-            id: appraisalId,
-            user_id: userId,
-            item_name: appraisal.itemName,
-            author: appraisal.author,
-            era: appraisal.era,
-            category: appraisal.category,
-            description: appraisal.description,
-            price_low: appraisal.priceRange.low,
-            price_high: appraisal.priceRange.high,
-            currency: appraisal.currency,
-            reasoning: appraisal.reasoning,
-            "references": appraisal.references || [],
-            image_url: imageUrl,
-            image_urls: appraisal.images || (imageUrl ? [imageUrl] : []),
-          },
-        ])
+        .insert([insertData])
         .select()
         .single();
 

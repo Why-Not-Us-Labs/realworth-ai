@@ -4,7 +4,7 @@
 import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
-import { AppraisalResult, AppraisalRequest } from '@/lib/types';
+import { AppraisalResult, AppraisalRequest, CollectionSummary } from '@/lib/types';
 import { useAppraisal } from '@/hooks/useAppraisal';
 import { Loader } from '@/components/Loader';
 import { ResultCard } from '@/components/ResultCard';
@@ -16,6 +16,9 @@ import { DailyChallenges } from '@/components/DailyChallenges';
 import { ScanMode } from '@/components/ScanMode';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
+import { collectionService } from '@/services/collectionService';
+import { useScanQueue } from '@/hooks/useScanQueue';
+import { ScanQueue } from '@/components/ScanQueue';
 
 type View = 'HOME' | 'FORM' | 'LOADING' | 'RESULT' | 'SCAN';
 
@@ -24,27 +27,40 @@ export default function Home() {
   const [history, setHistory] = useState<AppraisalResult[]>([]);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
-  const [scanProcessing, setScanProcessing] = useState(false);
+  const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading } = useContext(AuthContext);
 
-  // Handle scan mode capture
-  const handleScanCapture = async (imageData: string) => {
+  // Queue system for bulk scanning
+  const scanQueue = useScanQueue({
+    onItemComplete: (item) => {
+      console.log('Scan completed:', item.id);
+    },
+    onItemError: (item, error) => {
+      console.error('Scan error:', item.id, error);
+    },
+    maxConcurrent: 2, // Process 2 items at a time
+  });
+
+  // Process items from queue
+  useEffect(() => {
     if (!user) return;
 
-    setScanProcessing(true);
+    const processItem = async (imageData: string) => {
+      // Convert base64 to File for the appraisal API
+      const response = await fetch(imageData);
+      const blob = await response.blob();
+      const file = new File([blob], 'scan-capture.jpg', { type: 'image/jpeg' });
 
-    // Convert base64 to File for the appraisal API
-    const response = await fetch(imageData);
-    const blob = await response.blob();
-    const file = new File([blob], 'scan-capture.jpg', { type: 'image/jpeg' });
+      const result = await getAppraisal({
+        files: [file],
+        condition: 'Good' // Default condition for scan mode
+      });
 
-    const result = await getAppraisal({
-      files: [file],
-      condition: 'Good' // Default condition for scan mode
-    });
+      if (!result || !result.appraisalData || !result.imageDataUrl) {
+        throw new Error('Failed to get appraisal result');
+      }
 
-    if (result && result.appraisalData && result.imageDataUrl) {
       const allImages = [
         ...(result.imageUrls || []),
         result.imageDataUrl
@@ -59,22 +75,50 @@ export default function Home() {
 
       const savedAppraisal = await dbService.saveAppraisal(user.id, newResult);
       if (savedAppraisal) {
-        setHistory(prev => [savedAppraisal, ...prev]);
-        dbService.getUserStreaks(user.id).then(setStreaks);
+        // Use functional update to prevent race conditions with concurrent saves
+        setHistory(prev => {
+          // Check if already exists (prevent duplicates)
+          if (prev.some(item => item.id === savedAppraisal.id)) {
+            return prev;
+          }
+          return [savedAppraisal, ...prev];
+        });
+        // Update streaks (non-blocking)
+        dbService.getUserStreaks(user.id).then(setStreaks).catch(err => {
+          console.error('Error updating streaks:', err);
+          // Don't fail the entire operation if streak update fails
+        });
+        return savedAppraisal;
       }
-    }
 
-    setScanProcessing(false);
+      throw new Error('Failed to save appraisal to database');
+    };
+
+    // Process queue items when there are pending items and capacity
+    const pendingCount = scanQueue.stats.pending;
+    const processingCount = scanQueue.stats.processing;
+    
+    if (pendingCount > 0 && processingCount < 2) {
+      scanQueue.processNext(processItem);
+    }
+  }, [scanQueue.stats.pending, scanQueue.stats.processing, user, getAppraisal, scanQueue.processNext]);
+
+  // Handle scan mode capture - add to queue instead of processing immediately
+  const handleScanCapture = (imageData: string) => {
+    if (!user) return;
+    scanQueue.addToQueue(imageData);
   };
 
-  // Load history and streaks from database when user logs in
+  // Load history, streaks, and collections from database when user logs in
   useEffect(() => {
     if (user && !isAuthLoading) {
       dbService.getHistory(user.id).then(setHistory);
       dbService.getUserStreaks(user.id).then(setStreaks);
+      collectionService.getCollections(user.id).then(setCollections);
     } else if (!user && !isAuthLoading) {
       setHistory([]);
       setStreaks({ currentStreak: 0, longestStreak: 0 });
+      setCollections([]);
     }
   }, [user, isAuthLoading]);
 
@@ -97,12 +141,24 @@ export default function Home() {
       setCurrentResult(newResult);
       // If user is logged in, save to database immediately
       if (user) {
-        const savedAppraisal = await dbService.saveAppraisal(user.id, newResult);
+        // Prepare collection data if adding to a collection
+        const collectionData = request.collectionId ? {
+          collectionId: request.collectionId,
+          seriesIdentifier: result.validation?.seriesIdentifier,
+          validationStatus: result.validation?.status,
+          validationNotes: result.validation?.notes,
+        } : undefined;
+
+        const savedAppraisal = await dbService.saveAppraisal(user.id, newResult, collectionData);
         if (savedAppraisal) {
           // Add the saved appraisal (with DB-generated ID) to history
           setHistory(prev => [savedAppraisal, ...prev]);
           // Refresh streaks after new appraisal
           dbService.getUserStreaks(user.id).then(setStreaks);
+          // Refresh collections if we added to one
+          if (request.collectionId) {
+            collectionService.getCollections(user.id).then(setCollections);
+          }
         } else {
           // Show error if save failed
           console.error('Failed to save appraisal to database');
@@ -135,7 +191,7 @@ export default function Home() {
       case 'LOADING':
         return <Loader />;
       case 'FORM':
-        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} />;
+        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} collections={collections} />;
       case 'RESULT':
         return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} />;
       case 'SCAN':
@@ -193,11 +249,22 @@ export default function Home() {
 
       {/* Scan Mode Overlay */}
       {view === 'SCAN' && (
-        <ScanMode
-          onCapture={handleScanCapture}
-          onClose={() => setView('HOME')}
-          isProcessing={scanProcessing}
-        />
+        <>
+          <ScanMode
+            onCapture={handleScanCapture}
+            onClose={() => setView('HOME')}
+            isProcessing={scanQueue.stats.processing > 0}
+          />
+          {/* Queue status overlay - only show when there are items */}
+          {scanQueue.stats.total > 0 && (
+            <ScanQueue
+              queue={scanQueue.queue}
+              stats={scanQueue.stats}
+              onClearCompleted={scanQueue.clearCompleted}
+              onRemoveItem={scanQueue.removeItem}
+            />
+          )}
+        </>
       )}
         {user && (
           <>

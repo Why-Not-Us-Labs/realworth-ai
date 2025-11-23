@@ -65,7 +65,10 @@ const responseSchema = {
         },
         required: ["title", "url"]
       }
-    }
+    },
+    seriesIdentifier: { type: Type.STRING, description: "If this item is part of a series or collection, identify its position (e.g., 'Book 3', '1942-D', 'Issue #47'). Leave empty if not applicable." },
+    validationStatus: { type: Type.STRING, description: "If validating for a collection: 'valid' if item belongs, 'warning' if it has issues, 'mismatch' if it doesn't belong. Leave empty if not validating." },
+    validationNotes: { type: Type.STRING, description: "Explanation for the validation status. Why does or doesn't this item belong to the collection?" }
   },
   required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references"]
 };
@@ -74,10 +77,11 @@ export async function POST(req: NextRequest) {
   try {
     // Accept JSON body with image URLs (uploaded directly to Supabase Storage)
     const body = await req.json();
-    const { imageUrls, imagePaths, condition } = body as {
+    const { imageUrls, imagePaths, condition, collectionId } = body as {
       imageUrls: string[];
       imagePaths: string[];
       condition: string;
+      collectionId?: string;
     };
 
     // Get auth token from Authorization header
@@ -98,6 +102,35 @@ export async function POST(req: NextRequest) {
       userId = user?.id || null;
     }
 
+    // Fetch collection details if collectionId is provided
+    let collectionContext = '';
+    let collectionName = '';
+    if (collectionId && userId) {
+      const { data: collection } = await supabase
+        .from('collections')
+        .select('name, description, category, expected_items')
+        .eq('id', collectionId)
+        .eq('user_id', userId)
+        .single();
+
+      if (collection) {
+        collectionName = collection.name;
+        const existingItems = collection.expected_items || [];
+        collectionContext = `
+IMPORTANT - Collection Validation:
+This item is being added to a collection called "${collection.name}".
+${collection.description ? `Collection description: ${collection.description}` : ''}
+${collection.category ? `Collection category: ${collection.category}` : ''}
+${existingItems.length > 0 ? `Expected items in collection: ${existingItems.join(', ')}` : ''}
+
+You must also provide validation feedback:
+- If this item clearly belongs to this collection, set validationStatus to "valid"
+- If this item might belong but has issues (wrong edition, condition mismatch), set validationStatus to "warning" with explanation
+- If this item does NOT belong to this collection (wrong series, different author), set validationStatus to "mismatch" with explanation
+- Identify the item's position in the series if applicable (e.g., "Book 3", "1942 Penny")`;
+      }
+    }
+
     // Fetch images from storage URLs and convert to base64
     const imageParts = await Promise.all(imageUrls.map(async (url) => {
       const response = await fetch(url);
@@ -115,11 +148,11 @@ export async function POST(req: NextRequest) {
     }));
 
     // Step 1: Get the detailed appraisal data
-    const appraisalSystemInstruction = "You are an expert appraiser and archivist named 'RealWorth.ai'. Your task is to analyze images of an item and provide a detailed appraisal in a structured JSON format. If the item is a book, prioritize extracting its title, author, and publication year. Use the title for 'itemName', the author for 'author', and the year for 'era'. The 'description' should be a summary of the book. For other items, provide a descriptive name, era, and physical description. You must also determine a single-word 'category'. Provide an estimated market value and a rationale based on the item's details and its visual condition provided by the user. IMPORTANT: You must also provide 2-4 references with real URLs to external marketplaces (e.g., eBay, AbeBooks, Amazon, Heritage Auctions, Sotheby's, Christie's) or price guides that support your valuation. These references should be actual, publicly accessible URLs that users can visit to verify the pricing.";
-    const appraisalTextPart = { text: `User-specified Condition: ${condition}` };
+    const appraisalSystemInstruction = `You are an expert appraiser and archivist named 'RealWorth.ai'. Your task is to analyze images of an item and provide a detailed appraisal in a structured JSON format. If the item is a book, prioritize extracting its title, author, and publication year. Use the title for 'itemName', the author for 'author', and the year for 'era'. The 'description' should be a summary of the book. For other items, provide a descriptive name, era, and physical description. You must also determine a single-word 'category'. Provide an estimated market value and a rationale based on the item's details and its visual condition provided by the user. IMPORTANT: You must also provide 2-4 references with real URLs to external marketplaces (e.g., eBay, AbeBooks, Amazon, Heritage Auctions, Sotheby's, Christie's) or price guides that support your valuation. These references should be actual, publicly accessible URLs that users can visit to verify the pricing.${collectionContext}`;
+    const appraisalTextPart = { text: `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}` };
     
     const appraisalResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: { role: 'user', parts: [...imageParts, appraisalTextPart] },
       config: {
         systemInstruction: appraisalSystemInstruction,
@@ -136,7 +169,7 @@ export async function POST(req: NextRequest) {
     // Step 2: Regenerate the image
     const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
     const imageResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
+      model: 'gemini-3-pro-image-preview',
       contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
       config: {
         responseModalities: [Modality.IMAGE],
@@ -217,7 +250,14 @@ export async function POST(req: NextRequest) {
       imagePath, // Return path if storage was used
       imageUrls, // All uploaded image URLs
       userId: userId || undefined,
-      usedStorage: !!imagePath // Indicate if storage was used
+      usedStorage: !!imagePath, // Indicate if storage was used
+      collectionId: collectionId || undefined,
+      collectionName: collectionName || undefined,
+      validation: collectionId ? {
+        status: appraisalData.validationStatus || 'valid',
+        notes: appraisalData.validationNotes || '',
+        seriesIdentifier: appraisalData.seriesIdentifier || ''
+      } : undefined
     });
 
   } catch (error) {
