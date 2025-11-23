@@ -2,7 +2,8 @@ import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-export const maxDuration = 60;
+// Requires Vercel Pro plan for > 60 seconds
+export const maxDuration = 120;
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -140,7 +141,7 @@ export async function PATCH(
       const textPart = { text: `This item has ${updatedUrls.length} photos. Analyze all images together for the most accurate appraisal.` };
 
       const appraisalResponse = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
+        model: 'gemini-2.5-flash',
         contents: { role: 'user', parts: [...imageParts, textPart] },
         config: {
           systemInstruction,
@@ -158,7 +159,7 @@ export async function PATCH(
       // Regenerate image
       const imageRegenTextPart = { text: "Regenerate this image exactly as it is." };
       const imageResponse = await ai.models.generateContent({
-        model: 'gemini-3-pro-image-preview',
+        model: 'gemini-2.5-flash-preview-05-20',
         contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
         config: {
           responseModalities: [Modality.IMAGE],
