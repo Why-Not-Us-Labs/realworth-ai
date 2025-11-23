@@ -309,36 +309,64 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
                 <h4 className="font-semibold text-slate-800">Valuation Rationale</h4>
                 <p className="whitespace-pre-wrap">{currentResult.reasoning}</p>
               </div>
-              {currentResult.references && currentResult.references.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-slate-800 flex items-center gap-2">
-                    <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              {/* Get Expert Opinion Section */}
+              <div>
+                <h4 className="font-semibold text-slate-800 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Want a Second Opinion?
+                </h4>
+                <p className="text-sm text-slate-500 mb-3">
+                  Get a professional appraisal from trusted experts:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(currentResult.itemName)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                  >
+                    <span className="font-medium">Search eBay</span>
+                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    Price References
-                  </h4>
-                  <p className="text-sm text-slate-500 mb-2">
-                    Our AI found these sources to support the estimated value:
-                  </p>
-                  <ul className="space-y-2">
-                    {currentResult.references.map((ref, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <svg className="w-4 h-4 text-teal-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                        <a
-                          href={ref.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-600 hover:text-teal-700 hover:underline transition-colors"
-                        >
-                          {ref.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+                  </a>
+                  <a
+                    href="https://www.valuemystuff.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                  >
+                    <span className="font-medium">ValueMyStuff</span>
+                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <a
+                    href="https://www.ha.com/free-auction-appraisal.s"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                  >
+                    <span className="font-medium">Heritage Auctions</span>
+                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                  <a
+                    href="https://www.mearto.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                  >
+                    <span className="font-medium">Mearto</span>
+                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
                 </div>
-              )}
+              </div>
             </div>
 
             <button
