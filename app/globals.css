@@ -12,3 +12,8 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Safe area padding for iPhone notch */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}

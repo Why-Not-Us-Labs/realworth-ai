@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AuthProvider } from "@/components/contexts/AuthContext";
+import BottomTabNav from "@/components/BottomTabNav";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -43,8 +44,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.className} pb-16 md:pb-0`}>
         <AuthProvider>{children}</AuthProvider>
+        <BottomTabNav />
         <Analytics />
         <SpeedInsights />
         <Script
