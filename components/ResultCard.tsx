@@ -7,6 +7,7 @@ import { SparklesIcon } from './icons';
 import { AuthContext } from './contexts/AuthContext';
 import { Confetti } from './Confetti';
 import { getValueReaction, getFunComparison, shouldCelebrate, getShareText } from '@/lib/funComparisons';
+import { AddPhotosModal } from './AddPhotosModal';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -18,8 +19,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
   const { user, signIn } = useContext(AuthContext);
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showAddPhotos, setShowAddPhotos] = useState(false);
+  const [currentResult, setCurrentResult] = useState(result);
+  const [valueChange, setValueChange] = useState<{ previous: { low: number; high: number }; new: { low: number; high: number } } | null>(null);
 
-  const avgValue = (result.priceRange.low + result.priceRange.high) / 2;
+  const avgValue = (currentResult.priceRange.low + currentResult.priceRange.high) / 2;
+  const imageCount = currentResult.images?.length || 1;
   const reaction = getValueReaction(avgValue);
   const comparison = getFunComparison(avgValue);
   const celebrate = shouldCelebrate(avgValue);
@@ -53,12 +58,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
   };
 
   const handleShare = async () => {
-    const shareText = getShareText(result.itemName, avgValue);
+    const shareText = getShareText(currentResult.itemName, avgValue);
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${result.itemName} - Worth ${formatCurrency(avgValue)}!`,
+          title: `${currentResult.itemName} - Worth ${formatCurrency(avgValue)}!`,
           text: shareText,
           url: window.location.origin,
         });
@@ -72,7 +77,69 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
     }
   };
 
-  const isGreatFind = result.priceRange.high >= 500;
+  const handleAddPhotosSuccess = (result: {
+    imageCount: number;
+    reanalyzed: boolean;
+    appraisalData?: any;
+    previousValue?: { low: number; high: number };
+    newValue?: { low: number; high: number };
+  }) => {
+    setShowAddPhotos(false);
+
+    if (result.reanalyzed && result.appraisalData) {
+      // Update the current result with new analysis
+      const updatedResult: AppraisalResult = {
+        ...currentResult,
+        itemName: result.appraisalData.itemName,
+        author: result.appraisalData.author,
+        era: result.appraisalData.era,
+        category: result.appraisalData.category,
+        description: result.appraisalData.description,
+        priceRange: result.appraisalData.priceRange,
+        currency: result.appraisalData.currency,
+        reasoning: result.appraisalData.reasoning,
+        references: result.appraisalData.references,
+        images: new Array(result.imageCount).fill(''), // placeholder for image count
+      };
+
+      setCurrentResult(updatedResult);
+
+      // Show value change if different
+      if (result.previousValue && result.newValue) {
+        const prevAvg = (result.previousValue.low + result.previousValue.high) / 2;
+        const newAvg = (result.newValue.low + result.newValue.high) / 2;
+        if (Math.abs(prevAvg - newAvg) > 1) {
+          setValueChange({
+            previous: result.previousValue,
+            new: result.newValue,
+          });
+          // Clear value change message after 10 seconds
+          setTimeout(() => setValueChange(null), 10000);
+        }
+      }
+
+      // Update history
+      setHistory(prev => prev.map(item =>
+        item.id === currentResult.id ? updatedResult : item
+      ));
+
+      // Celebrate if value increased significantly
+      if (result.newValue && result.previousValue) {
+        const increase = result.newValue.high - result.previousValue.high;
+        if (increase > 100) {
+          setShowConfetti(true);
+        }
+      }
+    } else {
+      // Just update image count
+      setCurrentResult(prev => ({
+        ...prev,
+        images: new Array(result.imageCount).fill(''),
+      }));
+    }
+  };
+
+  const isGreatFind = currentResult.priceRange.high >= 500;
 
   return (
     <>
@@ -86,29 +153,53 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
 
         <div className="grid md:grid-cols-2 gap-8 items-start">
           <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-100 relative">
-            <img src={result.image} alt={result.itemName} className="w-full h-full object-cover" />
+            <img src={currentResult.image} alt={currentResult.itemName} className="w-full h-full object-cover" />
             {isGreatFind && (
               <div className="absolute top-4 left-4 bg-amber-400 text-amber-900 text-xs font-semibold px-3 py-1 rounded-full">
                 Great Find
               </div>
             )}
             <div className="absolute top-4 right-4 bg-black/40 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm">
-              {result.category}
+              {currentResult.category}
             </div>
+            {/* Image count badge */}
+            {imageCount > 1 && (
+              <div className="absolute bottom-4 left-4 bg-black/60 text-white text-xs font-bold px-3 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {imageCount} photos
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col h-full">
-            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">{result.itemName}</h2>
-            {result.author && result.author.toLowerCase() !== 'n/a' && (
-              <p className="text-lg text-slate-600 -mt-1">by {result.author}</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900">{currentResult.itemName}</h2>
+            {currentResult.author && currentResult.author.toLowerCase() !== 'n/a' && (
+              <p className="text-lg text-slate-600 -mt-1">by {currentResult.author}</p>
             )}
-            <p className="text-lg text-slate-500 mt-1">{result.era}</p>
+            <p className="text-lg text-slate-500 mt-1">{currentResult.era}</p>
+
+            {/* Value Change Notification */}
+            {valueChange && (
+              <div className="my-4 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                  <span className="font-semibold">Value Updated!</span>
+                </div>
+                <p className="text-sm text-amber-700 mt-1">
+                  Previous: {formatCurrency(valueChange.previous.low)} - {formatCurrency(valueChange.previous.high)}
+                </p>
+              </div>
+            )}
 
             {/* Value Card */}
             <div className="my-6 p-6 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
               <p className="text-sm font-semibold uppercase tracking-wider opacity-90">Estimated Value</p>
               <p className="text-4xl sm:text-5xl font-black mt-1">
-                {formatCurrency(result.priceRange.low)} - {formatCurrency(result.priceRange.high)}
+                {formatCurrency(currentResult.priceRange.low)} - {formatCurrency(currentResult.priceRange.high)}
               </p>
 
               {/* Fun Comparison */}
@@ -119,27 +210,43 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
               </div>
             </div>
 
-            {/* Share Button */}
-            <button
-              onClick={handleShare}
-              className="mb-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center gap-2"
-            >
-              {copied ? (
-                <>
+            {/* Action Buttons */}
+            <div className="flex gap-3 mb-4">
+              {/* Add Photos Button - only show if logged in */}
+              {user && (
+                <button
+                  onClick={() => setShowAddPhotos(true)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Copied to clipboard!
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                  Share This Discovery
-                </>
+                  Add Photos
+                </button>
               )}
-            </button>
+
+              {/* Share Button */}
+              <button
+                onClick={handleShare}
+                className={`${user ? 'flex-1' : 'w-full'} bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2`}
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                  </>
+                )}
+              </button>
+            </div>
 
             {!user && (
               <div className="mb-6 p-4 rounded-lg bg-teal-50 border border-teal-200 text-center">
@@ -154,13 +261,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
             <div className="space-y-4 text-slate-600 flex-grow">
               <div>
                 <h4 className="font-semibold text-slate-800">AI-Generated Description</h4>
-                <p className="whitespace-pre-wrap">{result.description}</p>
+                <p className="whitespace-pre-wrap">{currentResult.description}</p>
               </div>
               <div>
                 <h4 className="font-semibold text-slate-800">Valuation Rationale</h4>
-                <p className="whitespace-pre-wrap">{result.reasoning}</p>
+                <p className="whitespace-pre-wrap">{currentResult.reasoning}</p>
               </div>
-              {result.references && result.references.length > 0 && (
+              {currentResult.references && currentResult.references.length > 0 && (
                 <div>
                   <h4 className="font-semibold text-slate-800 flex items-center gap-2">
                     <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,7 +279,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
                     Our AI found these sources to support the estimated value:
                   </p>
                   <ul className="space-y-2">
-                    {result.references.map((ref, index) => (
+                    {currentResult.references.map((ref, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <svg className="w-4 h-4 text-teal-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -202,6 +309,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
           </div>
         </div>
       </div>
+
+      {/* Add Photos Modal */}
+      {showAddPhotos && (
+        <AddPhotosModal
+          appraisalId={currentResult.id}
+          currentImageCount={imageCount}
+          onClose={() => setShowAddPhotos(false)}
+          onSuccess={handleAddPhotosSuccess}
+        />
+      )}
     </>
   );
 };

@@ -641,6 +641,154 @@ class DBService {
       return false;
     }
   }
+
+  /**
+   * Get a single appraisal by ID
+   */
+  public async getAppraisal(userId: string, appraisalId: string): Promise<AppraisalResult | null> {
+    try {
+      const { data, error } = await supabase
+        .from('appraisals')
+        .select('*')
+        .eq('id', appraisalId)
+        .eq('user_id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching appraisal:', error);
+        return null;
+      }
+
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        itemName: data.item_name,
+        author: data.author || '',
+        era: data.era || '',
+        category: data.category,
+        description: data.description || '',
+        priceRange: {
+          low: Number(data.price_low),
+          high: Number(data.price_high),
+        },
+        currency: data.currency,
+        reasoning: data.reasoning || '',
+        references: data.references || [],
+        image: data.image_url || '',
+        images: data.image_urls || [],
+        timestamp: new Date(data.created_at).getTime(),
+        isPublic: data.is_public || false,
+      };
+    } catch (error) {
+      console.error('Error in getAppraisal:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Add images to an existing appraisal
+   */
+  public async addImagesToAppraisal(
+    userId: string,
+    appraisalId: string,
+    newImageUrls: string[]
+  ): Promise<{ success: boolean; imageUrls?: string[] }> {
+    try {
+      // Get current appraisal
+      const { data: appraisal, error: fetchError } = await supabase
+        .from('appraisals')
+        .select('image_urls, image_count')
+        .eq('id', appraisalId)
+        .eq('user_id', userId)
+        .single();
+
+      if (fetchError || !appraisal) {
+        console.error('Error fetching appraisal for image addition:', fetchError);
+        return { success: false };
+      }
+
+      // Combine existing and new image URLs
+      const existingUrls = appraisal.image_urls || [];
+      const updatedUrls = [...existingUrls, ...newImageUrls];
+
+      // Update the appraisal
+      const { error: updateError } = await supabase
+        .from('appraisals')
+        .update({
+          image_urls: updatedUrls,
+          image_count: updatedUrls.length,
+        })
+        .eq('id', appraisalId)
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('Error adding images to appraisal:', updateError);
+        return { success: false };
+      }
+
+      return { success: true, imageUrls: updatedUrls };
+    } catch (error) {
+      console.error('Error in addImagesToAppraisal:', error);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Update appraisal after re-analysis with new images
+   */
+  public async updateAppraisalAnalysis(
+    userId: string,
+    appraisalId: string,
+    updatedData: {
+      itemName?: string;
+      author?: string;
+      era?: string;
+      category?: string;
+      description?: string;
+      priceRange?: { low: number; high: number };
+      currency?: string;
+      reasoning?: string;
+      references?: Array<{ title: string; url: string }>;
+      image?: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const updatePayload: Record<string, unknown> = {
+        last_analyzed_at: new Date().toISOString(),
+      };
+
+      if (updatedData.itemName) updatePayload.item_name = updatedData.itemName;
+      if (updatedData.author) updatePayload.author = updatedData.author;
+      if (updatedData.era) updatePayload.era = updatedData.era;
+      if (updatedData.category) updatePayload.category = updatedData.category;
+      if (updatedData.description) updatePayload.description = updatedData.description;
+      if (updatedData.priceRange) {
+        updatePayload.price_low = updatedData.priceRange.low;
+        updatePayload.price_high = updatedData.priceRange.high;
+      }
+      if (updatedData.currency) updatePayload.currency = updatedData.currency;
+      if (updatedData.reasoning) updatePayload.reasoning = updatedData.reasoning;
+      if (updatedData.references) updatePayload.references = updatedData.references;
+      if (updatedData.image) updatePayload.image_url = updatedData.image;
+
+      const { error } = await supabase
+        .from('appraisals')
+        .update(updatePayload)
+        .eq('id', appraisalId)
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error updating appraisal analysis:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in updateAppraisalAnalysis:', error);
+      return false;
+    }
+  }
 }
 
 export const dbService = new DBService();
