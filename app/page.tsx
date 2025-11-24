@@ -30,6 +30,7 @@ export default function Home() {
   const [history, setHistory] = useState<AppraisalResult[]>([]);
   const [archivedHistory, setArchivedHistory] = useState<AppraisalResult[]>([]);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
+  const [isFromHistory, setIsFromHistory] = useState(false);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [collections, setCollections] = useState<CollectionSummary[]>([]);
   const { getAppraisal, isLoading, error } = useAppraisal();
@@ -181,6 +182,7 @@ export default function Home() {
         image: result.imageDataUrl,
         images: allImages
       };
+      setIsFromHistory(false);
       setCurrentResult(newResult);
       // If user is logged in, save to database immediately
       if (user) {
@@ -223,6 +225,7 @@ export default function Home() {
   };
   
   const handleSelectHistoryItem = (item: AppraisalResult) => {
+    setIsFromHistory(true);
     setCurrentResult(item);
     setView('RESULT');
   }
@@ -239,7 +242,7 @@ export default function Home() {
       case 'FORM':
         return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} collections={collections} />;
       case 'RESULT':
-        return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} />;
+        return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} isFromHistory={isFromHistory} />;
       case 'SCAN':
         return null; // ScanMode is rendered as overlay
       case 'HOME':

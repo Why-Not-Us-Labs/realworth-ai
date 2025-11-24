@@ -15,9 +15,10 @@ interface ResultCardProps {
   result: AppraisalResult;
   onStartNew: () => void;
   setHistory: React.Dispatch<React.SetStateAction<AppraisalResult[]>>;
+  isFromHistory?: boolean; // Don't show confetti for items clicked from history
 }
 
-export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setHistory }) => {
+export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setHistory, isFromHistory = false }) => {
   const { user, signIn } = useContext(AuthContext);
   const { isPro } = useSubscription(user?.id || null);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -27,7 +28,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
   const [currentResult, setCurrentResult] = useState(result);
   const [valueChange, setValueChange] = useState<{ previous: { low: number; high: number }; new: { low: number; high: number } } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const hasCelebratedRef = useRef<string | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Animation on mount
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   const avgValue = (currentResult.priceRange.low + currentResult.priceRange.high) / 2;
   const imageCount = currentResult.images?.length || 1;
@@ -50,15 +56,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
   const comparison = getFunComparison(avgValue);
   const celebrate = shouldCelebrate(avgValue);
 
-  // Trigger confetti on mount for valuable items (only once per result)
+  // Trigger confetti ONLY on first view (not from history)
   useEffect(() => {
-    if (celebrate && hasCelebratedRef.current !== result.id) {
-      hasCelebratedRef.current = result.id;
+    if (celebrate && !isFromHistory) {
       setShowConfetti(true);
-      // Reset showConfetti after animation completes to prevent re-triggering
       setTimeout(() => setShowConfetti(false), 3500);
     }
-  }, [celebrate, result.id]);
+  }, []); // Empty deps - only run once on mount
 
   // Effect to auto-save the current appraisal once the user signs in
   useEffect(() => {
@@ -169,7 +173,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
     <>
       <Confetti trigger={showConfetti} />
 
-      <div className="p-6 sm:p-8">
+      <div className={`p-6 sm:p-8 transition-all duration-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Reaction Header */}
         <div className="text-center mb-6">
           <h3 className="text-lg font-semibold text-slate-800">{reaction.text}</h3>
@@ -305,6 +309,21 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
                 </svg>
                 Chat about this item
               </button>
+            )}
+
+            {/* Chat Teaser for non-Pro users */}
+            {user && !isPro && (
+              <div className="w-full mb-4 p-3 bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-violet-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    <span className="text-sm text-violet-700 font-medium">AI Chat</span>
+                  </div>
+                  <span className="text-xs bg-violet-100 text-violet-600 px-2 py-0.5 rounded font-medium">Pro</span>
+                </div>
+              </div>
             )}
 
             {!user && (
