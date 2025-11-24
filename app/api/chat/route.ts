@@ -114,7 +114,7 @@ Be helpful and provide specific, actionable advice based on their actual collect
       async start(controller) {
         try {
           const response = await ai.models.generateContentStream({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-2.5-flash',
             contents: messages,
             config: {
               systemInstruction,
