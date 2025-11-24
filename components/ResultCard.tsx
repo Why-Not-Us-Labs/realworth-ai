@@ -8,6 +8,8 @@ import { AuthContext } from './contexts/AuthContext';
 import { Confetti } from './Confetti';
 import { getValueReaction, getFunComparison, shouldCelebrate, getShareText } from '@/lib/funComparisons';
 import { AddPhotosModal } from './AddPhotosModal';
+import ChatInterface from './ChatInterface';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -17,9 +19,11 @@ interface ResultCardProps {
 
 export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setHistory }) => {
   const { user, signIn } = useContext(AuthContext);
+  const { isPro } = useSubscription(user?.id || null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showAddPhotos, setShowAddPhotos] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [currentResult, setCurrentResult] = useState(result);
   const [valueChange, setValueChange] = useState<{ previous: { low: number; high: number }; new: { low: number; high: number } } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -290,6 +294,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
               </button>
             </div>
 
+            {/* Chat Button - Pro Feature */}
+            {user && isPro && (
+              <button
+                onClick={() => setShowChat(true)}
+                className="w-full mb-4 bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white font-semibold py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Chat about this item
+              </button>
+            )}
+
             {!user && (
               <div className="mb-6 p-4 rounded-lg bg-teal-50 border border-teal-200 text-center">
                 <h4 className="font-bold text-teal-800">Like what you see?</h4>
@@ -388,6 +405,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
           onClose={() => setShowAddPhotos(false)}
           onSuccess={handleAddPhotosSuccess}
         />
+      )}
+
+      {/* Chat Modal */}
+      {showChat && user && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-lg h-[600px] max-h-[80vh]">
+            <ChatInterface
+              userId={user.id}
+              appraisalId={currentResult.id}
+              appraisalContext={currentResult}
+              onClose={() => setShowChat(false)}
+            />
+          </div>
+        </div>
       )}
     </>
   );
