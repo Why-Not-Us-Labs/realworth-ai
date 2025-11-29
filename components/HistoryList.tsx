@@ -163,8 +163,8 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onSelect, userId, onUpd
         </div>
       </button>
 
-      {/* Action Buttons */}
-      <div className="absolute top-3 right-3 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Action Buttons - always visible on mobile, hover-reveal on desktop */}
+      <div className="absolute top-3 right-3 flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 sm:pointer-events-none sm:group-hover:pointer-events-auto transition-opacity">
         {/* Public/Private Toggle */}
         <button
           onClick={handleTogglePublic}
