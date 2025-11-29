@@ -164,17 +164,17 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onSelect, userId, onUpd
       </button>
 
       {/* Action Buttons - always visible on mobile, hover-reveal on desktop */}
-      <div className="absolute top-3 right-3 flex items-center gap-2 sm:opacity-0 sm:group-hover:opacity-100 sm:pointer-events-none sm:group-hover:pointer-events-auto transition-opacity">
+      <div className="absolute top-2 right-2 flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 sm:pointer-events-none sm:group-hover:pointer-events-auto transition-opacity">
         {/* Public/Private Toggle */}
         <button
           onClick={handleTogglePublic}
           disabled={isToggling}
-          className={`p-2 rounded-full text-xs font-medium transition-all shadow-sm ${
+          className={`w-9 h-9 flex items-center justify-center rounded-full text-xs font-medium transition-all shadow-md border active:scale-95 ${
             item.isPublic
-              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              ? 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100'
+              : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
           }`}
-          title={item.isPublic ? 'Public - Click to make private' : 'Private - Click to make public'}
+          aria-label={item.isPublic ? 'Public - Tap to make private' : 'Private - Tap to make public'}
         >
           {item.isPublic ? <GlobeIcon /> : <LockIcon />}
         </button>
@@ -182,12 +182,12 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onSelect, userId, onUpd
         {/* Share Button */}
         <button
           onClick={handleShare}
-          className={`p-2 rounded-full transition-all shadow-sm ${
+          className={`w-9 h-9 flex items-center justify-center rounded-full transition-all shadow-md border active:scale-95 ${
             copied
-              ? 'bg-green-100 text-green-700'
-              : 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+              ? 'bg-green-50 text-green-600 border-green-200'
+              : 'bg-white text-teal-600 border-teal-200 hover:bg-teal-50'
           }`}
-          title={copied ? 'Link copied!' : 'Copy share link'}
+          aria-label={copied ? 'Link copied!' : 'Copy share link'}
         >
           {copied ? <CheckIcon /> : <ShareIcon />}
         </button>
@@ -197,12 +197,12 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ item, onSelect, userId, onUpd
           <button
             onClick={handleArchive}
             disabled={isArchiving}
-            className={`p-2 rounded-full transition-all shadow-sm ${
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all shadow-md border active:scale-95 ${
               isArchived
-                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
-                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                ? 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100'
+                : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
             }`}
-            title={isArchived ? 'Unarchive' : 'Archive'}
+            aria-label={isArchived ? 'Unarchive' : 'Archive'}
           >
             {isArchived ? <UnarchiveIcon /> : <ArchiveIcon />}
           </button>
