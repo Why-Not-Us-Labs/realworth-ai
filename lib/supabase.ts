@@ -17,16 +17,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Server-side admin client (bypasses RLS) - only use in API routes
 export const getSupabaseAdmin = () => {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ||
-                         process.env.NEXT_PUBLIC_SUPABASE_SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!serviceRoleKey) {
-    console.warn('[SupabaseAdmin] No service role key found, using anon key (RLS will apply)');
-    console.warn('[SupabaseAdmin] Checked env vars: SUPABASE_SERVICE_ROLE_KEY, NEXT_PUBLIC_SUPABASE_SUPABASE_SERVICE_ROLE_KEY');
+    // Only warn once in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[SupabaseAdmin] No SUPABASE_SERVICE_ROLE_KEY found, using anon key (RLS will apply)');
+    }
     return supabase;
   }
 
-  console.log('[SupabaseAdmin] Using service role key (bypassing RLS)');
   return createClient(supabaseUrl!, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,

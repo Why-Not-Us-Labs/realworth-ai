@@ -1,6 +1,9 @@
 {
   "functions": {
     "app/api/appraise/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/chat/route.ts": {
       "maxDuration": 60
     }
   }

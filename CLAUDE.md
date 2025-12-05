@@ -19,12 +19,12 @@ git push origin main # Auto-deploys to Vercel
 
 - **Framework**: Next.js 14 (App Router) with TypeScript
 - **Styling**: Tailwind CSS
-- **AI**: Google Gemini 3 Pro (`@google/genai`) for appraisals, image regeneration, and chat
+- **AI**: Google Gemini (`@google/genai`) - `gemini-3-pro-preview` for appraisals, `gemini-3-pro-image-preview` for image regeneration
 - **Auth**: Supabase Auth (Google OAuth)
 - **Database**: Supabase PostgreSQL with RLS
 - **Storage**: Supabase Storage (appraisal-images bucket)
 - **Payments**: Stripe (subscriptions, webhooks, customer portal)
-- **Hosting**: Vercel (120s timeout configured for AI processing)
+- **Hosting**: Vercel (120s timeout for appraise, 60s for chat)
 
 ## Architecture
 
@@ -91,12 +91,18 @@ STRIPE_SECRET_KEY="..."                   # Server-side only
 STRIPE_WEBHOOK_SECRET="..."               # For webhook verification
 ```
 
-## Stripe MCP Integration
+## MCP Integrations
 
-The Stripe MCP is configured for this project. To verify:
+**Stripe MCP** - Configured for this project. To verify:
 ```
 List my Stripe products to confirm the Stripe MCP is connected.
 ```
+
+**Supabase MCP** - Configured for database operations. To verify:
+```
+List my Supabase projects to confirm the Supabase MCP is connected.
+```
+Project ID: `gwoahdeybyjfonoahmvv`
 
 ## Design Conventions
 
@@ -107,6 +113,8 @@ List my Stripe products to confirm the Stripe MCP is connected.
 
 ## Important Notes
 
-- API route timeout set to 120s (`maxDuration = 120`) for AI processing - requires Vercel Pro
+- API route timeouts configured in `vercel.json`: 120s for `/api/appraise`, 60s for `/api/chat` - requires Vercel Pro
 - Supabase client in `lib/supabase.ts` is for client-side; API routes create authenticated clients with user tokens
+- `getSupabaseAdmin()` returns a service-role client that bypasses RLS - use only in API routes/webhooks
 - Free tier limit of 10 appraisals/month enforced in `subscriptionService.ts`
+- Super admin emails are hardcoded in `subscriptionService.ts` and bypass all limits

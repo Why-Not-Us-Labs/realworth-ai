@@ -24,8 +24,11 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
   onSuccess,
 }) => {
   const [session, setSession] = useState<Session | null>(null);
+  const [mounted, setMounted] = useState(false);
 
+  // Ensure client-side only rendering
   useEffect(() => {
+    setMounted(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
     });
@@ -143,6 +146,8 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
     'Any damage or wear',
     'Size reference',
   ];
+
+  if (!mounted) return null;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

@@ -11,6 +11,7 @@ import { HistoryList } from '@/components/HistoryList';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { LockIcon, MapIcon, CheckIcon, UsersIcon, UserIcon } from '@/components/icons';
 import { dbService } from '@/services/dbService';
+import { supabase } from '@/lib/supabase';
 import { AppraisalResult } from '@/lib/types';
 import { ProfileHeaderSkeleton, GamificationStatsSkeleton, HistoryGridSkeleton } from '@/components/Skeleton';
 
@@ -32,24 +33,44 @@ export default function ProfilePage() {
   const [pendingRequests, setPendingRequests] = useState<Array<{ id: string; requester: { id: string; name: string; picture: string; username?: string }; created_at: string }>>([]);
 
   useEffect(() => {
-    if (user && !isAuthLoading) {
+    // Only run when auth is done loading and we have a user
+    if (isAuthLoading) return;
+    
+    if (user) {
       setIsLoading(true);
+      const userId = user.id; // Capture user.id to avoid dependency on user object reference
+      
       Promise.all([
-        dbService.getHistory(user.id),
-        dbService.getUserStreaks(user.id),
-        dbService.getFriends(user.id),
-        dbService.getPendingRequests(user.id)
-      ]).then(([historyData, streakData, friendsData, requestsData]) => {
-        setHistory(historyData);
-        setStreaks(streakData);
-        setFriends(friendsData);
-        setPendingRequests(requestsData);
+        dbService.getHistory(userId),
+        dbService.getUserStreaks(userId),
+        dbService.getFriends(userId),
+        dbService.getPendingRequests(userId),
+        // Load username from users table
+        supabase.from('users').select('username').eq('id', userId).single()
+      ]).then(([historyData, streakData, friendsData, requestsData, usernameResult]) => {
+        setHistory(historyData || []);
+        setStreaks(streakData || { currentStreak: 0, longestStreak: 0 });
+        setFriends(friendsData || []);
+        setPendingRequests(requestsData || []);
+        // Set username if available
+        if (usernameResult?.data?.username) {
+          setUsername(usernameResult.data.username);
+        }
         setIsLoading(false);
+      }).catch((error) => {
+        console.error('Error loading profile data:', error);
+        // Always set loading to false, even on error
+        setIsLoading(false);
+        // Set defaults on error
+        setHistory([]);
+        setStreaks({ currentStreak: 0, longestStreak: 0 });
+        setFriends([]);
+        setPendingRequests([]);
       });
-    } else if (!user && !isAuthLoading) {
+    } else {
       setIsLoading(false);
     }
-  }, [user, isAuthLoading]);
+  }, [user?.id, isAuthLoading]); // Use user?.id instead of user to prevent unnecessary re-renders
 
   const handleSaveUsername = async () => {
     if (!user) return;

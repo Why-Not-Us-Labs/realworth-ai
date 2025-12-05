@@ -1,5 +1,5 @@
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
@@ -13,8 +13,15 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://realworth.ai'),
   title: "RealWorth.ai",
   description: "Turn your clutter into cash. Snap a photo and get an instant AI valuation.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "RealWorth",
+  },
   icons: {
     icon: "/logo.svg",
     apple: "/apple-touch-icon.png",
@@ -39,6 +46,14 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#14B8A6",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -55,12 +70,30 @@ export default function RootLayout({
           <ChatFAB />
         </AuthProvider>
         <BottomTabNav />
+        {/* Portal container for modals */}
+        <div id="modal-root" />
         <Analytics />
         <SpeedInsights />
         <Script
           src="https://accounts.google.com/gsi/client"
           strategy="afterInteractive"
         />
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(
+                  function(registration) {
+                    console.log('ServiceWorker registered:', registration.scope);
+                  },
+                  function(err) {
+                    console.log('ServiceWorker registration failed:', err);
+                  }
+                );
+              });
+            }
+          `}
+        </Script>
       </body>
     </html>
   );

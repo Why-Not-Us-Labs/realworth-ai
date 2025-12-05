@@ -27,15 +27,21 @@ export default function UpgradeModal({
   const [accessCode, setAccessCode] = useState('');
   const [accessCodeError, setAccessCodeError] = useState('');
   const [accessCodeSuccess, setAccessCodeSuccess] = useState('');
+  const [mounted, setMounted] = useState(false);
+
+  // Ensure client-side only rendering
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Track when upgrade modal is opened
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && mounted) {
       trackUpgradeClick(feature || 'modal');
     }
-  }, [isOpen, feature]);
+  }, [isOpen, feature, mounted]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleUpgrade = async () => {
     setIsLoading(true);

@@ -92,8 +92,29 @@ export async function POST(req: NextRequest) {
     // Create Supabase client
     const supabase = createAuthenticatedClient(authToken);
 
+    // Input validation
     if (!imageUrls || imageUrls.length === 0) {
       return NextResponse.json({ error: 'No images provided.' }, { status: 400 });
+    }
+
+    // Limit number of images to prevent abuse
+    const MAX_IMAGES = 5;
+    if (imageUrls.length > MAX_IMAGES) {
+      return NextResponse.json(
+        { error: `Maximum ${MAX_IMAGES} images allowed per appraisal.` },
+        { status: 400 }
+      );
+    }
+
+    // Validate image URLs are from our storage
+    const validUrlPattern = /^https:\/\/[a-z]+\.supabase\.co\/storage\/v1\/object\/public\//;
+    for (const url of imageUrls) {
+      if (!validUrlPattern.test(url)) {
+        return NextResponse.json(
+          { error: 'Invalid image URL. Images must be uploaded through the app.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Get user ID if authenticated

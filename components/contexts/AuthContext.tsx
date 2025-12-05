@@ -24,10 +24,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Check for existing session on mount
-    authService.getCurrentUser().then((currentUser) => {
-      setUser(currentUser);
-      setIsAuthLoading(false);
-    });
+    authService.getCurrentUser()
+      .then((currentUser) => {
+        setUser(currentUser);
+        setIsAuthLoading(false);
+      })
+      .catch((error) => {
+        console.error('Error checking auth session:', error);
+        setUser(null);
+        setIsAuthLoading(false);
+      });
 
     // Listen for auth state changes
     const { data: authListener } = authService.onAuthStateChange((newUser) => {

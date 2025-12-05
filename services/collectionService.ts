@@ -57,6 +57,7 @@ class CollectionService {
 
   /**
    * Get all collections for a user
+   * Optimized: Single query for all collection items instead of N+1
    */
   public async getCollections(userId: string): Promise<CollectionSummary[]> {
     try {
@@ -71,21 +72,37 @@ class CollectionService {
         throw error;
       }
 
-      // Get item counts and values for each collection
-      const summaries: CollectionSummary[] = [];
+      if (!collections || collections.length === 0) {
+        return [];
+      }
 
-      for (const collection of collections || []) {
-        const { data: items } = await supabase
-          .from('appraisals')
-          .select('price_low, price_high, image_url')
-          .eq('collection_id', collection.id);
+      // Get all collection IDs
+      const collectionIds = collections.map(c => c.id);
 
-        const itemCount = items?.length || 0;
-        const totalValueLow = items?.reduce((sum, item) => sum + Number(item.price_low), 0) || 0;
-        const totalValueHigh = items?.reduce((sum, item) => sum + Number(item.price_high), 0) || 0;
-        const thumbnailUrl = items?.[0]?.image_url || undefined;
+      // OPTIMIZED: Single query to get all items for all collections
+      const { data: allItems } = await supabase
+        .from('appraisals')
+        .select('collection_id, price_low, price_high, image_url, created_at')
+        .in('collection_id', collectionIds)
+        .order('created_at', { ascending: true });
 
-        summaries.push({
+      // Group items by collection_id using a Map for O(n) performance
+      const itemsByCollection = new Map<string, typeof allItems>();
+      for (const item of allItems || []) {
+        const existing = itemsByCollection.get(item.collection_id) || [];
+        existing.push(item);
+        itemsByCollection.set(item.collection_id, existing);
+      }
+
+      // Build summaries with pre-fetched data
+      const summaries: CollectionSummary[] = collections.map(collection => {
+        const items = itemsByCollection.get(collection.id) || [];
+        const itemCount = items.length;
+        const totalValueLow = items.reduce((sum, item) => sum + Number(item.price_low), 0);
+        const totalValueHigh = items.reduce((sum, item) => sum + Number(item.price_high), 0);
+        const thumbnailUrl = items[0]?.image_url || undefined;
+
+        return {
           id: collection.id,
           name: collection.name,
           description: collection.description,
@@ -100,8 +117,8 @@ class CollectionService {
           visibility: collection.visibility,
           goalDate: collection.goal_date,
           thumbnailUrl,
-        });
-      }
+        };
+      });
 
       return summaries;
     } catch (error) {
