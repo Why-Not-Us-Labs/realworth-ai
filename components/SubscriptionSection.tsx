@@ -11,6 +11,7 @@ interface SubscriptionSectionProps {
   isLoading: boolean;
   error?: string | null;
   openPortal: () => Promise<void>;
+  cancelSubscription: () => Promise<{ success: boolean; cancelAt?: string; error?: string }>;
   onRetry?: () => void;
 }
 
@@ -20,9 +21,13 @@ export function SubscriptionSection({
   isLoading,
   error,
   openPortal,
+  cancelSubscription,
   onRetry,
 }: SubscriptionSectionProps) {
   const [isRedirecting, setIsRedirecting] = React.useState(false);
+  const [showCancelModal, setShowCancelModal] = React.useState(false);
+  const [isCanceling, setIsCanceling] = React.useState(false);
+  const [cancelError, setCancelError] = React.useState<string | null>(null);
 
   // Format the renewal date nicely
   const formatDate = (dateString: string | null): string => {
@@ -57,6 +62,22 @@ export function SubscriptionSection({
       console.error('Error opening portal:', err);
       setIsRedirecting(false);
     }
+  };
+
+  const handleCancelSubscription = async () => {
+    setIsCanceling(true);
+    setCancelError(null);
+
+    const result = await cancelSubscription();
+
+    if (result.success) {
+      setShowCancelModal(false);
+      // The subscription data will be refreshed by the hook
+    } else {
+      setCancelError(result.error || 'Failed to cancel subscription');
+    }
+
+    setIsCanceling(false);
   };
 
   // Loading skeleton
@@ -263,14 +284,27 @@ export function SubscriptionSection({
         </div>
       )}
 
-      {/* Manage button */}
-      <button
-        onClick={handleManageSubscription}
-        disabled={isRedirecting}
-        className="mt-4 w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
-      >
-        {isRedirecting ? 'Redirecting...' : 'Manage Subscription'}
-      </button>
+      {/* Action buttons */}
+      <div className="mt-4 space-y-2">
+        {/* Update Payment button - always available */}
+        <button
+          onClick={handleManageSubscription}
+          disabled={isRedirecting}
+          className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+        >
+          {isRedirecting ? 'Redirecting...' : 'Update Payment Method'}
+        </button>
+
+        {/* Cancel button - only for active subscriptions */}
+        {subscription.subscriptionStatus === 'active' && (
+          <button
+            onClick={() => setShowCancelModal(true)}
+            className="w-full bg-white hover:bg-red-50 border border-red-200 text-red-600 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+          >
+            Cancel Subscription
+          </button>
+        )}
+      </div>
 
       {/* Support link */}
       <p className="mt-3 text-center text-xs text-slate-400">
@@ -282,6 +316,47 @@ export function SubscriptionSection({
           Contact support@realworth.ai
         </a>
       </p>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">
+              Cancel Subscription?
+            </h3>
+            <p className="text-slate-600 text-sm mb-4">
+              Are you sure you want to cancel? You&apos;ll keep Pro access until{' '}
+              <strong>{formatDate(subscription.subscriptionExpiresAt)}</strong>, then your account will revert to the free plan.
+            </p>
+
+            {cancelError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm">{cancelError}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelError(null);
+                }}
+                disabled={isCanceling}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 disabled:bg-slate-100 text-slate-700 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+              >
+                Keep Subscription
+              </button>
+              <button
+                onClick={handleCancelSubscription}
+                disabled={isCanceling}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
+              >
+                {isCanceling ? 'Canceling...' : 'Yes, Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

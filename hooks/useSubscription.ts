@@ -60,6 +60,32 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     }
   }, [userId]);
 
+  const cancelSubscription = useCallback(async (): Promise<{ success: boolean; cancelAt?: string; error?: string }> => {
+    if (!userId) return { success: false, error: 'Not logged in' };
+
+    try {
+      const response = await fetch('/api/stripe/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { success: false, error: data.error || 'Failed to cancel' };
+      }
+
+      // Refresh subscription data after cancellation
+      await loadSubscription();
+
+      return { success: true, cancelAt: data.cancelAt };
+    } catch (err) {
+      console.error('Error canceling subscription:', err);
+      return { success: false, error: 'Network error' };
+    }
+  }, [userId, loadSubscription]);
+
   // Check if Pro (including super admin)
   const isPro = userEmail
     ? subscriptionService.isProByEmail(userEmail, subscription)
@@ -75,6 +101,7 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     checkCanAppraise,
     incrementUsage,
     openPortal,
+    cancelSubscription,
     refresh: loadSubscription,
   };
 }

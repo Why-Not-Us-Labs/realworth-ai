@@ -42,6 +42,7 @@ export default function ProfilePage() {
     isLoading: isSubscriptionLoading,
     error: subscriptionError,
     openPortal,
+    cancelSubscription,
     refresh: refreshSubscription,
   } = useSubscription(user?.id ?? null, user?.email);
 
@@ -275,6 +276,7 @@ export default function ProfilePage() {
           isLoading={isSubscriptionLoading}
           error={subscriptionError}
           openPortal={openPortal}
+          cancelSubscription={cancelSubscription}
           onRetry={refreshSubscription}
         />
 
