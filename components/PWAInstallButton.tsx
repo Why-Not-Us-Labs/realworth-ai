@@ -142,8 +142,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
 
   // iOS Safari instruction modal
   const IOSInstallModal = () => (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl animate-slide-up">
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4 pb-[env(safe-area-inset-bottom)]">
+      <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl animate-slide-up mb-16 sm:mb-0">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-900">
             Install RealWorth
@@ -156,62 +156,45 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
           </button>
         </div>
 
-        <p className="text-slate-600 text-sm mb-5">
-          Add RealWorth to your home screen for quick access and an app-like experience:
+        <p className="text-slate-600 text-sm mb-4">
+          Add to your home screen for quick access:
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Step 1 */}
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-7 h-7 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">
               1
             </div>
-            <div>
-              <p className="text-slate-800 font-medium text-sm">
-                Tap the Share button
-              </p>
-              <p className="text-slate-500 text-xs">
-                The square with an arrow pointing up{' '}
-                <span className="inline-block text-base align-middle">⬆️</span>
-              </p>
-            </div>
+            <p className="text-slate-800 text-sm">
+              Tap <span className="font-medium">Share</span> <span className="text-base">⬆️</span> below
+            </p>
           </div>
 
           {/* Step 2 */}
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-7 h-7 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">
               2
             </div>
-            <div>
-              <p className="text-slate-800 font-medium text-sm">
-                Scroll down and tap
-              </p>
-              <p className="text-slate-500 text-xs">
-                &quot;Add to Home Screen&quot;{' '}
-                <span className="inline-block text-base align-middle">➕</span>
-              </p>
-            </div>
+            <p className="text-slate-800 text-sm">
+              Tap <span className="font-medium">&quot;Add to Home Screen&quot;</span> <span className="text-base">➕</span>
+            </p>
           </div>
 
           {/* Step 3 */}
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-7 h-7 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-sm font-bold">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">
               3
             </div>
-            <div>
-              <p className="text-slate-800 font-medium text-sm">
-                Tap &quot;Add&quot;
-              </p>
-              <p className="text-slate-500 text-xs">
-                In the top right corner
-              </p>
-            </div>
+            <p className="text-slate-800 text-sm">
+              Tap <span className="font-medium">&quot;Add&quot;</span> in top right
+            </p>
           </div>
         </div>
 
         <button
           onClick={() => setShowIOSModal(false)}
-          className="mt-6 w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+          className="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-4 rounded-xl transition-colors"
         >
           Got it!
         </button>
