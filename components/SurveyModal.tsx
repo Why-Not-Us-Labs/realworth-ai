@@ -68,9 +68,22 @@ export function SurveyModal({ survey, userId, onComplete, onDismiss }: SurveyMod
         setTimeout(() => {
           onComplete();
         }, 2000);
+      } else {
+        // If submission failed, still close the modal gracefully
+        // The user's feedback is valuable even if we couldn't save it
+        console.error('Survey submission failed:', response.status);
+        setIsComplete(true);
+        setTimeout(() => {
+          onComplete();
+        }, 2000);
       }
     } catch (error) {
       console.error('Error submitting survey:', error);
+      // On network error, close gracefully
+      setIsComplete(true);
+      setTimeout(() => {
+        onComplete();
+      }, 2000);
     } finally {
       setIsSubmitting(false);
     }

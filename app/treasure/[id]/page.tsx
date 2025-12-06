@@ -1,22 +1,17 @@
 
-import { createClient } from '@supabase/supabase-js';
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { LogoIcon, LockIcon } from '@/components/icons';
-
-// Initialize Supabase client for server-side
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 interface TreasurePageProps {
   params: { id: string };
 }
 
-// Fetch treasure data
+// Fetch treasure data (uses admin client to bypass RLS for public sharing)
 async function getTreasure(id: string) {
+  const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from('appraisals')
     .select(`
