@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import Link from 'next/link';
 import { LogoIcon, SparklesIcon } from './icons';
 import { Auth } from './Auth';
@@ -9,6 +9,7 @@ import { AuthContext } from './contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import ProBadge from './ProBadge';
 import PWAInstallButton from './PWAInstallButton';
+import { HelpButton, HelpChatWidget } from './HelpChatWidget';
 
 interface HeaderProps {
   onUpgradeClick?: () => void;
@@ -17,8 +18,11 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
   const { user } = useContext(AuthContext);
   const { isPro } = useSubscription(user?.id || null, user?.email);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   return (
+    <>
+      <HelpChatWidget isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     <header className="p-4 sm:p-6">
       <div className="max-w-4xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-6">
@@ -72,9 +76,11 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
           >
             Discover
           </Link>
+          <HelpButton onClick={() => setIsHelpOpen(true)} />
           <Auth />
         </div>
       </div>
     </header>
+    </>
   );
 };
