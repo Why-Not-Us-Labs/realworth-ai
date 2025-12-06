@@ -18,6 +18,12 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+/* Safe area padding for curved phone edges */
+.px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 /* Slide up animation for modals */
 @keyframes slide-up {
   from {

@@ -65,7 +65,7 @@ export default function RootLayout({
       <head>
         <GoogleAnalytics />
       </head>
-      <body className={`${inter.className} pb-16 md:pb-0`}>
+      <body className={`${inter.className} pb-[72px] md:pb-0`}>
         <AuthProvider>
           {children}
           <ChatFAB />
