@@ -23,6 +23,8 @@ import { ScanQueue } from '@/components/ScanQueue';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeModal from '@/components/UpgradeModal';
 import UsageMeter from '@/components/UsageMeter';
+import { SurveyModal } from '@/components/SurveyModal';
+import { useSurvey } from '@/hooks/useSurvey';
 
 type View = 'HOME' | 'FORM' | 'LOADING' | 'RESULT' | 'SCAN';
 
@@ -39,6 +41,12 @@ export default function Home() {
   const { isPro, usageCount, checkCanAppraise, incrementUsage, refresh: refreshSubscription } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
+
+  // Survey system - triggers after certain appraisal counts
+  const { activeSurvey, checkForSurvey, dismissSurvey, completeSurvey } = useSurvey({
+    userId: user?.id,
+    appraisalCount: history.length,
+  });
 
   // Queue system for bulk scanning
   const scanQueue = useScanQueue({
@@ -204,6 +212,9 @@ export default function Home() {
           // Increment usage count for free tier
           incrementUsage();
           refreshSubscription();
+          // Check for survey after successful appraisal
+          // Small delay to let the user see their result first
+          setTimeout(() => checkForSurvey(), 2000);
           // Refresh collections if we added to one
           if (request.collectionId) {
             collectionService.getCollections(user.id).then(setCollections);
@@ -425,6 +436,16 @@ export default function Home() {
           userEmail={user.email}
           userName={user.name}
           feature={upgradeFeature}
+        />
+      )}
+
+      {/* Survey Modal */}
+      {activeSurvey && (
+        <SurveyModal
+          survey={activeSurvey}
+          userId={user?.id}
+          onComplete={completeSurvey}
+          onDismiss={dismissSurvey}
         />
       )}
     </>
