@@ -20,7 +20,7 @@ interface ResultCardProps {
 
 export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setHistory, isFromHistory = false }) => {
   const { user, signIn } = useContext(AuthContext);
-  const { isPro } = useSubscription(user?.id || null);
+  const { isPro } = useSubscription(user?.id || null, user?.email);
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showAddPhotos, setShowAddPhotos] = useState(false);

@@ -9,7 +9,7 @@ import { SparklesIcon } from './icons';
 
 export default function ChatFAB() {
   const { user } = useContext(AuthContext);
-  const { isPro } = useSubscription(user?.id || null);
+  const { isPro } = useSubscription(user?.id || null, user?.email);
   const [showChat, setShowChat] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
 
