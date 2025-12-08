@@ -17,7 +17,7 @@ function getStripe() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, userEmail, userName } = await request.json();
+    const { userId, userEmail, userName, billingInterval = 'monthly' } = await request.json();
 
     if (!userId || !userEmail) {
       return NextResponse.json(
@@ -35,8 +35,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.STRIPE_PRO_PRICE_ID) {
-      console.error('STRIPE_PRO_PRICE_ID not configured');
+    // Determine which price ID to use based on billing interval
+    const isAnnual = billingInterval === 'annual';
+    const priceId = isAnnual
+      ? process.env.STRIPE_PRO_ANNUAL_PRICE_ID
+      : process.env.STRIPE_PRO_PRICE_ID;
+
+    if (!priceId) {
+      console.error(`Price ID not configured for ${billingInterval} billing`);
       return NextResponse.json(
         { error: 'Price ID not configured' },
         { status: 500 }
@@ -90,7 +96,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: process.env.STRIPE_PRO_PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -99,6 +105,7 @@ export async function POST(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://realworth.ai'}?subscription=canceled`,
       metadata: {
         userId: userId,
+        billingInterval: billingInterval,
       },
     });
 

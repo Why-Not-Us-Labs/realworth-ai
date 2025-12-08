@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { trackUpgradeClick, trackCheckoutStart } from '@/lib/analytics';
 
+type BillingInterval = 'monthly' | 'annual';
+
 interface UpgradeModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -28,6 +30,7 @@ export default function UpgradeModal({
   const [accessCodeError, setAccessCodeError] = useState('');
   const [accessCodeSuccess, setAccessCodeSuccess] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('annual');
 
   // Ensure client-side only rendering
   useEffect(() => {
@@ -50,7 +53,7 @@ export default function UpgradeModal({
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, userEmail, userName }),
+        body: JSON.stringify({ userId, userEmail, userName, billingInterval }),
       });
 
       const data = await response.json();
@@ -130,12 +133,52 @@ export default function UpgradeModal({
           <Feature icon="support" text="Priority Support" description="Get help when you need it" />
         </div>
 
+        {/* Billing Toggle */}
+        <div className="mb-4">
+          <div className="flex bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setBillingInterval('monthly')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                billingInterval === 'monthly'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingInterval('annual')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                billingInterval === 'annual'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Annual
+              <span className="ml-1 text-xs text-teal-600 font-semibold">Save 17%</span>
+            </button>
+          </div>
+        </div>
+
         {/* Price */}
         <div className="text-center mb-6">
-          <div className="text-4xl font-bold text-gray-900">
-            $9.99<span className="text-lg font-normal text-gray-500">/month</span>
-          </div>
-          <p className="text-sm text-gray-500 mt-1">Cancel anytime</p>
+          {billingInterval === 'monthly' ? (
+            <>
+              <div className="text-4xl font-bold text-gray-900">
+                $9.99<span className="text-lg font-normal text-gray-500">/month</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Cancel anytime</p>
+            </>
+          ) : (
+            <>
+              <div className="text-4xl font-bold text-gray-900">
+                $99<span className="text-lg font-normal text-gray-500">/year</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Just $8.25/month &bull; <span className="text-teal-600 font-medium">2 months free!</span>
+              </p>
+            </>
+          )}
         </div>
 
         {/* Actions */}

@@ -40,6 +40,16 @@ export function SubscriptionSection({
     });
   };
 
+  // Determine if subscription is annual based on expiration date
+  // Annual subscriptions will have expiration > 60 days from now
+  const isAnnualSubscription = (expiresAt: string | null): boolean => {
+    if (!expiresAt) return false;
+    const expiration = new Date(expiresAt);
+    const now = new Date();
+    const daysUntilExpiration = (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return daysUntilExpiration > 60;
+  };
+
   // Get status display info
   const getStatusDisplay = (status: string) => {
     switch (status) {
@@ -165,7 +175,7 @@ export function SubscriptionSection({
           href="/#pricing"
           className="block w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm text-center"
         >
-          Upgrade for $9.99/month
+          Upgrade to Pro
         </Link>
       </div>
     );
@@ -261,8 +271,12 @@ export function SubscriptionSection({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-slate-500">Price:</span>
-          <span className="text-slate-800 font-medium">$9.99/month</span>
+          <span className="text-slate-500">Plan:</span>
+          <span className="text-slate-800 font-medium">
+            {isAnnualSubscription(subscription.subscriptionExpiresAt)
+              ? '$99/year'
+              : '$9.99/month'}
+          </span>
         </div>
       </div>
 
