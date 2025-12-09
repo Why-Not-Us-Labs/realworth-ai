@@ -22,11 +22,12 @@ interface Survey {
 interface SurveyModalProps {
   survey: Survey;
   userId?: string | null;
+  appraisalCount?: number;
   onComplete: () => void;
   onDismiss: () => void;
 }
 
-export function SurveyModal({ survey, userId, onComplete, onDismiss }: SurveyModalProps) {
+export function SurveyModal({ survey, userId, appraisalCount, onComplete, onDismiss }: SurveyModalProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,6 +61,7 @@ export function SurveyModal({ survey, userId, onComplete, onDismiss }: SurveyMod
           surveyId: survey.id,
           userId,
           answers,
+          appraisalCount, // Track when user last completed survey
         }),
       });
 

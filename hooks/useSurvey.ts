@@ -67,12 +67,12 @@ export function useSurvey({ userId, appraisalCount }: UseSurveyOptions) {
   }, []);
 
   // Auto-check for surveys when appraisal count changes
-  // Only check after certain thresholds to avoid excessive API calls
+  // Check at every 50 appraisals (50, 100, 150, 200, etc.)
   useEffect(() => {
-    // Check at appraisal counts 3, 5, 10, 20, etc.
-    const checkThresholds = [3, 5, 10, 20, 50, 100];
+    // Only check at multiples of 50 (and at least 50)
+    const shouldCheck = appraisalCount >= 50 && appraisalCount % 50 === 0;
 
-    if (checkThresholds.includes(appraisalCount) && !hasChecked) {
+    if (shouldCheck && !hasChecked) {
       checkForSurvey();
     }
   }, [appraisalCount, hasChecked, checkForSurvey]);

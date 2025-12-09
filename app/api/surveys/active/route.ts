@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
+const SURVEY_INTERVAL = 50; // Show survey every 50 appraisals
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -20,11 +22,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ survey: null });
     }
 
-    // If user is logged in, filter out dismissed and already completed surveys
-    let eligibleSurveys = surveys;
-
+    // If user is logged in, check if they're due for a survey
     if (userId) {
-      // Get dismissed surveys
+      // Get user's last survey appraisal count
+      const { data: userData } = await supabase
+        .from('users')
+        .select('last_survey_appraisal_count')
+        .eq('id', userId)
+        .single();
+
+      const lastSurveyCount = userData?.last_survey_appraisal_count || 0;
+
+      // Check if user is due for a survey (every 50 appraisals)
+      // User needs to have done at least SURVEY_INTERVAL more appraisals since last survey
+      if (appraisalCount < lastSurveyCount + SURVEY_INTERVAL) {
+        return NextResponse.json({ survey: null });
+      }
+
+      // Get dismissed surveys (permanent dismissals still respected)
       const { data: dismissals } = await supabase
         .from('survey_dismissals')
         .select('survey_id')
@@ -32,30 +47,12 @@ export async function GET(request: NextRequest) {
 
       const dismissedIds = new Set(dismissals?.map(d => d.survey_id) || []);
 
-      // Get completed surveys
-      const { data: responses } = await supabase
-        .from('survey_responses')
-        .select('survey_id')
-        .eq('user_id', userId)
-        .eq('completed', true);
+      // Filter out permanently dismissed surveys
+      const eligibleSurveys = surveys.filter(s => !dismissedIds.has(s.id));
 
-      const completedIds = new Set(responses?.map(r => r.survey_id) || []);
-
-      // Filter out dismissed and completed
-      eligibleSurveys = surveys.filter(
-        s => !dismissedIds.has(s.id) && !completedIds.has(s.id)
-      );
-    }
-
-    // Find survey that matches trigger conditions
-    for (const survey of eligibleSurveys) {
-      if (survey.trigger_type === 'appraisal_count') {
-        if (appraisalCount >= (survey.trigger_value || 0)) {
-          return NextResponse.json({ survey });
-        }
-      } else if (survey.trigger_type === 'manual') {
-        // Manual surveys are always eligible
-        return NextResponse.json({ survey });
+      // Return first eligible survey (user is due for one)
+      if (eligibleSurveys.length > 0) {
+        return NextResponse.json({ survey: eligibleSurveys[0] });
       }
     }
 

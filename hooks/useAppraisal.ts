@@ -139,6 +139,88 @@ export const useAppraisal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Upload images to storage (shared helper for both sync and queue modes)
+  const uploadImages = async (files: File[], userId: string | null): Promise<{ urls: string[]; paths: string[] } | null> => {
+    const uploadResults = await Promise.all(
+      files.map(file => uploadToStorage(file, userId))
+    );
+
+    const successfulUploads = uploadResults.filter((r): r is { url: string; path: string } => r !== null);
+
+    if (successfulUploads.length === 0) {
+      return null;
+    }
+
+    return {
+      urls: successfulUploads.map(u => u.url),
+      paths: successfulUploads.map(u => u.path),
+    };
+  };
+
+  // Queue appraisal for background processing (non-blocking)
+  const queueAppraisal = async (request: AppraisalRequest): Promise<{ queueId: string } | null> => {
+    setError(null);
+
+    // Get auth session
+    let authToken: string | undefined;
+    let userId: string | null = null;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      authToken = session?.access_token;
+      userId = session?.user?.id || null;
+    } catch (e) {
+      setError('Authentication required for queue mode');
+      return null;
+    }
+
+    if (!authToken || !userId) {
+      setError('Please sign in to use queue mode');
+      return null;
+    }
+
+    try {
+      // Step 1: Upload images to storage
+      console.log('[Queue] Uploading images...');
+      const uploads = await uploadImages(request.files, userId);
+
+      if (!uploads) {
+        throw new Error('Failed to upload images. Please try again.');
+      }
+
+      console.log(`[Queue] Uploaded ${uploads.urls.length} images`);
+
+      // Step 2: Add to queue (returns immediately)
+      const response = await fetch('/api/queue/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          imageUrls: uploads.urls,
+          condition: request.condition,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to queue appraisal');
+      }
+
+      const result = await response.json();
+      console.log('[Queue] Added to queue:', result.queueId);
+
+      return { queueId: result.queueId };
+
+    } catch (e) {
+      console.error('[Queue] Error:', e);
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      setError(errorMessage);
+      return null;
+    }
+  };
+
+  // Original synchronous appraisal (kept for backwards compatibility)
   const getAppraisal = async (request: AppraisalRequest): Promise<AppraisalOutput> => {
     setIsLoading(true);
     setError(null);
@@ -215,5 +297,5 @@ export const useAppraisal = () => {
     }
   };
 
-  return { getAppraisal, isLoading, error };
+  return { getAppraisal, queueAppraisal, isLoading, error };
 };

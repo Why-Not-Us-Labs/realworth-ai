@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AppraisalRequest, CollectionSummary } from '@/lib/types';
+import { AppraisalRequest } from '@/lib/types';
 import { CONDITIONS } from '@/lib/constants';
 import { FileUpload } from './FileUpload';
 import { SparklesIcon, SpinnerIcon } from './icons';
@@ -11,25 +11,20 @@ interface AppraisalFormProps {
   onSubmit: (request: AppraisalRequest) => void;
   isLoading: boolean;
   error: string | null;
-  collections?: CollectionSummary[];
-  defaultCollectionId?: string;
 }
 
 export const AppraisalForm: React.FC<AppraisalFormProps> = ({
   onSubmit,
   isLoading,
   error,
-  collections = [],
-  defaultCollectionId,
 }) => {
   const [files, setFiles] = useState<File[]>([]);
   const [condition, setCondition] = useState(CONDITIONS[2]); // Default to 'Good'
-  const [collectionId, setCollectionId] = useState<string>(defaultCollectionId || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length > 0) {
-      onSubmit({ files, condition, collectionId: collectionId || undefined });
+      onSubmit({ files, condition });
     }
   };
 
@@ -68,29 +63,6 @@ export const AppraisalForm: React.FC<AppraisalFormProps> = ({
           ))}
         </div>
       </div>
-
-      {collections.length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-2 text-center">
-            Add to Collection (optional)
-          </label>
-          <div className="max-w-md mx-auto">
-            <select
-              value={collectionId}
-              onChange={(e) => setCollectionId(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition bg-white text-slate-700"
-            >
-              <option value="">No collection</option>
-              {collections.map((collection) => (
-                <option key={collection.id} value={collection.id}>
-                  {collection.name}
-                  {collection.expectedCount && ` (${collection.itemCount}/${collection.expectedCount})`}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
 
       <div className="pt-4">
         <p className="text-center text-sm text-slate-500 mb-4">2. Get your AI-powered appraisal!</p>

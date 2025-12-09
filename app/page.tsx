@@ -1,11 +1,12 @@
 
 'use client';
 
-import React, { useState, useMemo, useContext, useEffect } from 'react';
+import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
-import { AppraisalResult, AppraisalRequest, CollectionSummary } from '@/lib/types';
+import { AppraisalResult, AppraisalRequest } from '@/lib/types';
 import { useAppraisal } from '@/hooks/useAppraisal';
+import { useQueue } from '@/hooks/useQueue';
 import { Loader } from '@/components/Loader';
 import { ResultCard } from '@/components/ResultCard';
 import { CelebrationScreen } from '@/components/CelebrationScreen';
@@ -15,19 +16,16 @@ import { Footer } from '@/components/Footer';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
 import { DailyChallenges } from '@/components/DailyChallenges';
-import { ScanMode } from '@/components/ScanMode';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
-import { collectionService } from '@/services/collectionService';
-import { useScanQueue } from '@/hooks/useScanQueue';
-import { ScanQueue } from '@/components/ScanQueue';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeModal from '@/components/UpgradeModal';
 import UsageMeter from '@/components/UsageMeter';
 import { SurveyModal } from '@/components/SurveyModal';
 import { useSurvey } from '@/hooks/useSurvey';
+import { QueueStatus } from '@/components/QueueStatus';
 
-type View = 'HOME' | 'FORM' | 'LOADING' | 'CELEBRATION' | 'RESULT' | 'SCAN';
+type View = 'HOME' | 'FORM' | 'LOADING' | 'CELEBRATION' | 'RESULT';
 
 interface StreakInfo {
   currentStreak: number;
@@ -47,12 +45,39 @@ export default function Home() {
   // Celebration screen state
   const [celebrationStreakInfo, setCelebrationStreakInfo] = useState<StreakInfo | null>(null);
   const [triviaPointsEarned, setTriviaPointsEarned] = useState(0);
-  const [collections, setCollections] = useState<CollectionSummary[]>([]);
-  const { getAppraisal, isLoading, error } = useAppraisal();
+  const [celebrationItemName, setCelebrationItemName] = useState<string>('');
+  const [celebrationValue, setCelebrationValue] = useState<number>(0);
+  const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
+  const { queueAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading, signIn } = useContext(AuthContext);
   const { isPro, usageCount, checkCanAppraise, incrementUsage, refresh: refreshSubscription } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Handle queue item completion - show celebration
+  const handleQueueItemComplete = useCallback((item: { id: string; appraisalId: string | null; itemName: string; value: number; currency: string }) => {
+    console.log('[Queue] Item completed:', item);
+    // Refresh history to include new appraisal
+    if (user) {
+      dbService.getHistory(user.id).then(setHistory);
+      dbService.getUserStreaks(user.id).then(setStreaks);
+      incrementUsage();
+      refreshSubscription();
+    }
+    // Show celebration for completed item
+    setCelebrationItemName(item.itemName);
+    setCelebrationValue(item.value);
+    setCelebrationCurrency(item.currency);
+    setView('CELEBRATION');
+  }, [user, incrementUsage, refreshSubscription]);
+
+  // Queue system for async processing
+  const { items: queueItems, stats: queueStats } = useQueue({
+    userId: user?.id,
+    onItemComplete: handleQueueItemComplete,
+    pollInterval: 3000,
+  });
 
   // Survey system - triggers after certain appraisal counts
   const { activeSurvey, checkForSurvey, dismissSurvey, completeSurvey } = useSurvey({
@@ -60,96 +85,16 @@ export default function Home() {
     appraisalCount: history.length,
   });
 
-  // Queue system for bulk scanning
-  const scanQueue = useScanQueue({
-    onItemComplete: (item) => {
-      console.log('Scan completed:', item.id);
-    },
-    onItemError: (item, error) => {
-      console.error('Scan error:', item.id, error);
-    },
-    maxConcurrent: 2, // Process 2 items at a time
-  });
-
-  // Process items from queue
-  useEffect(() => {
-    if (!user) return;
-
-    const processItem = async (imageData: string) => {
-      // Convert base64 to File for the appraisal API
-      const response = await fetch(imageData);
-      const blob = await response.blob();
-      const file = new File([blob], 'scan-capture.jpg', { type: 'image/jpeg' });
-
-      const result = await getAppraisal({
-        files: [file],
-        condition: 'Good' // Default condition for scan mode
-      });
-
-      if (!result || !result.appraisalData || !result.imageDataUrl) {
-        throw new Error('Failed to get appraisal result');
-      }
-
-      const allImages = [
-        ...(result.imageUrls || []),
-        result.imageDataUrl
-      ].filter((url, index, self) => self.indexOf(url) === index);
-
-      const newResult = {
-        ...result.appraisalData,
-        id: Date.now().toString(),
-        image: result.imageDataUrl,
-        images: allImages
-      };
-
-      const savedAppraisal = await dbService.saveAppraisal(user.id, newResult);
-      if (savedAppraisal) {
-        // Use functional update to prevent race conditions with concurrent saves
-        setHistory(prev => {
-          // Check if already exists (prevent duplicates)
-          if (prev.some(item => item.id === savedAppraisal.id)) {
-            return prev;
-          }
-          return [savedAppraisal, ...prev];
-        });
-        // Update streaks (non-blocking)
-        dbService.getUserStreaks(user.id).then(setStreaks).catch(err => {
-          console.error('Error updating streaks:', err);
-          // Don't fail the entire operation if streak update fails
-        });
-        return savedAppraisal;
-      }
-
-      throw new Error('Failed to save appraisal to database');
-    };
-
-    // Process queue items when there are pending items and capacity
-    const pendingCount = scanQueue.stats.pending;
-    const processingCount = scanQueue.stats.processing;
-    
-    if (pendingCount > 0 && processingCount < 2) {
-      scanQueue.processNext(processItem);
-    }
-  }, [scanQueue.stats.pending, scanQueue.stats.processing, user, getAppraisal, scanQueue.processNext]);
-
-  // Handle scan mode capture - add to queue instead of processing immediately
-  const handleScanCapture = (imageData: string) => {
-    if (!user) return;
-    scanQueue.addToQueue(imageData);
-  };
-
-  // Load history, streaks, and collections from database when user logs in
+  // Load history and streaks from database when user logs in
   useEffect(() => {
     if (user && !isAuthLoading) {
       dbService.getHistory(user.id).then(setHistory);
       dbService.getArchivedHistory(user.id).then(setArchivedHistory);
       dbService.getUserStreaks(user.id).then(setStreaks);
-      collectionService.getCollections(user.id).then(setCollections);
     } else if (!user && !isAuthLoading) {
       setHistory([]);
       setArchivedHistory([]);
       setStreaks({ currentStreak: 0, longestStreak: 0 });
-      setCollections([]);
     }
   }, [user, isAuthLoading]);
 
@@ -188,71 +133,26 @@ export default function Home() {
       }
     }
 
-    // Reset trivia points for new appraisal
-    setTriviaPointsEarned(0);
-    setView('LOADING');
-    const result = await getAppraisal(request);
-    if (result && result.appraisalData && result.imageDataUrl) {
-      // Combine all images: uploaded images + result image
-      const allImages = [
-        ...(result.imageUrls || []),
-        result.imageDataUrl
-      ].filter((url, index, self) => self.indexOf(url) === index); // Remove duplicates
+    // Queue-based flow: Upload → Queue → Return to form immediately
+    // User can continue capturing while items process in background
+    setIsUploading(true);
 
-      const newResult = {
-        ...result.appraisalData,
-        id: Date.now().toString(),
-        image: result.imageDataUrl,
-        images: allImages
-      };
-      setIsFromHistory(false);
-      setCurrentResult(newResult);
+    try {
+      const result = await queueAppraisal(request);
 
-      // Capture streak info from API response for celebration screen
-      if (result.streakInfo) {
-        setCelebrationStreakInfo(result.streakInfo);
-        // Also update the global streak state
-        setStreaks({
-          currentStreak: result.streakInfo.currentStreak,
-          longestStreak: result.streakInfo.longestStreak
-        });
+      if (result?.queueId) {
+        // Success! Item queued for processing
+        console.log('[Queue] Item queued:', result.queueId);
+        // Return to form so user can capture more items
+        setView('FORM');
+      } else {
+        // Queue failed - show error
+        console.error('[Queue] Failed to queue item');
       }
-
-      // If user is logged in, save to database immediately
-      if (user) {
-        // Prepare collection data if adding to a collection
-        const collectionData = request.collectionId ? {
-          collectionId: request.collectionId,
-          seriesIdentifier: result.validation?.seriesIdentifier,
-          validationStatus: result.validation?.status,
-          validationNotes: result.validation?.notes,
-        } : undefined;
-
-        const savedAppraisal = await dbService.saveAppraisal(user.id, newResult, collectionData);
-        if (savedAppraisal) {
-          // Add the saved appraisal (with DB-generated ID) to history
-          setHistory(prev => [savedAppraisal, ...prev]);
-          // Increment usage count for free tier
-          incrementUsage();
-          refreshSubscription();
-          // Check for survey after successful appraisal
-          // Small delay to let the user see their result first
-          setTimeout(() => checkForSurvey(), 2000);
-          // Refresh collections if we added to one
-          if (request.collectionId) {
-            collectionService.getCollections(user.id).then(setCollections);
-          }
-        } else {
-          // Show error if save failed
-          console.error('Failed to save appraisal to database');
-          alert('Your appraisal was generated but failed to save. Please try again or contact support.');
-        }
-      }
-
-      // Show celebration screen instead of going directly to result
-      setView('CELEBRATION');
-    } else {
-      setView('FORM');
+    } catch (e) {
+      console.error('[Queue] Error:', e);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -268,9 +168,14 @@ export default function Home() {
     setTriviaPointsEarned(prev => prev + points);
   };
 
-  // Handler for continuing from celebration to result
+  // Handler for continuing from celebration - go back to form to capture more
   const handleCelebrationContinue = () => {
-    setView('RESULT');
+    // In queue mode, go back to form so user can keep capturing
+    // Reset celebration state
+    setCelebrationItemName('');
+    setCelebrationValue(0);
+    setCelebrationCurrency('USD');
+    setView('FORM');
   };
   
   const handleSelectHistoryItem = (item: AppraisalResult) => {
@@ -289,6 +194,20 @@ export default function Home() {
       case 'LOADING':
         return <Loader onPointsEarned={handleTriviaPoints} />;
       case 'CELEBRATION':
+        // Queue-based celebration uses dedicated state variables
+        if (celebrationItemName) {
+          return (
+            <CelebrationScreen
+              itemName={celebrationItemName}
+              value={celebrationValue}
+              currency={celebrationCurrency}
+              streakInfo={celebrationStreakInfo}
+              triviaPoints={triviaPointsEarned}
+              onContinue={handleCelebrationContinue}
+            />
+          );
+        }
+        // Fallback for legacy sync mode (if currentResult exists)
         if (currentResult) {
           const avgValue = (currentResult.priceRange.low + currentResult.priceRange.high) / 2;
           return (
@@ -304,11 +223,9 @@ export default function Home() {
         }
         return null;
       case 'FORM':
-        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} collections={collections} />;
+        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading || isUploading} error={error} />;
       case 'RESULT':
         return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} isFromHistory={isFromHistory} />;
-      case 'SCAN':
-        return null; // ScanMode is rendered as overlay
       case 'HOME':
       default:
         return (
@@ -335,24 +252,7 @@ export default function Home() {
                 <SparklesIcon />
                 {user ? 'Start Appraisal' : 'Sign in to Start'}
               </button>
-              {user && (
-                <button
-                  onClick={() => setView('SCAN')}
-                  className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 px-8 rounded-full text-xl transition-transform transform hover:scale-105 shadow-lg shadow-slate-800/30 inline-flex items-center gap-3"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Scan Mode
-                </button>
-              )}
             </div>
-            {user && (
-              <p className="text-sm text-slate-500 mt-4">
-                Scan Mode: Auto-detect and bulk scan items with AI
-              </p>
-            )}
             {/* Mobile upgrade button - visible only on mobile where header button is hidden */}
             {user && !isPro && (
               <button
@@ -378,30 +278,6 @@ export default function Home() {
           {renderView()}
         </div>
 
-      {/* Scan Mode Overlay */}
-      {view === 'SCAN' && (
-        <>
-          <ScanMode
-            onCapture={handleScanCapture}
-            onClose={() => setView('HOME')}
-            isProcessing={scanQueue.stats.processing > 0}
-          />
-          {/* Queue status overlay - only show when there are items */}
-          {scanQueue.stats.total > 0 && (
-            <ScanQueue
-              queue={scanQueue.queue}
-              stats={scanQueue.stats}
-              onClearCompleted={scanQueue.clearCompleted}
-              onRemoveItem={scanQueue.removeItem}
-              userId={user?.id}
-              collections={collections}
-              onCollectionCreated={(newCollection) => {
-                setCollections(prev => [newCollection, ...prev]);
-              }}
-            />
-          )}
-        </>
-      )}
         {user && (
           <>
             {history.length > 0 ? (
@@ -484,6 +360,21 @@ export default function Home() {
       </main>
       <Footer />
 
+      {/* Queue Status - floating indicator for background processing */}
+      {user && (
+        <QueueStatus
+          items={queueItems}
+          stats={queueStats}
+          onViewResult={(appraisalId) => {
+            // Find the appraisal in history and show it
+            const item = history.find(h => h.id === appraisalId);
+            if (item) {
+              handleSelectHistoryItem(item);
+            }
+          }}
+        />
+      )}
+
       {/* Upgrade Modal */}
       {user && (
         <UpgradeModal
@@ -501,6 +392,7 @@ export default function Home() {
         <SurveyModal
           survey={activeSurvey}
           userId={user?.id}
+          appraisalCount={history.length}
           onComplete={completeSurvey}
           onDismiss={dismissSurvey}
         />
