@@ -109,6 +109,16 @@ export default function Home() {
     }
   }, [refreshSubscription]);
 
+  // Check for ?capture=true to auto-open capture form
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('capture') === 'true') {
+      setView('FORM');
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   // Reload histories when archive status changes
   const handleArchiveChange = () => {
     if (user) {
