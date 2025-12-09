@@ -67,11 +67,25 @@ const responseSchema = {
         required: ["title", "url"]
       }
     },
+    confidenceScore: { type: Type.NUMBER, description: "A confidence score from 0-100 indicating how certain the appraisal is. Consider: image clarity, item identifiability, market data availability, and condition assessment accuracy. 90-100 = very high (clear images, well-known item, abundant market data), 70-89 = high (good identification, solid comparables), 50-69 = moderate (some uncertainty in identification or pricing), below 50 = low confidence (poor image, rare item, limited data)." },
+    confidenceFactors: {
+      type: Type.ARRAY,
+      description: "List of 2-4 factors that contributed to the confidence score, both positive and negative.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          factor: { type: Type.STRING, description: "The factor name (e.g., 'Image Quality', 'Market Data', 'Item Identification', 'Condition Assessment')" },
+          impact: { type: Type.STRING, description: "Whether this factor is 'positive', 'neutral', or 'negative'" },
+          detail: { type: Type.STRING, description: "Brief explanation of how this factor affects confidence" }
+        },
+        required: ["factor", "impact", "detail"]
+      }
+    },
     seriesIdentifier: { type: Type.STRING, description: "If this item is part of a series or collection, identify its position (e.g., 'Book 3', '1942-D', 'Issue #47'). Leave empty if not applicable." },
     validationStatus: { type: Type.STRING, description: "If validating for a collection: 'valid' if item belongs, 'warning' if it has issues, 'mismatch' if it doesn't belong. Leave empty if not validating." },
     validationNotes: { type: Type.STRING, description: "Explanation for the validation status. Why does or doesn't this item belong to the collection?" }
   },
-  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references"]
+  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors"]
 };
 
 export async function POST(req: NextRequest) {

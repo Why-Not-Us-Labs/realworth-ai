@@ -10,6 +10,12 @@ export interface Reference {
   url: string;
 }
 
+export interface ConfidenceFactor {
+  factor: string;
+  impact: 'positive' | 'neutral' | 'negative';
+  detail: string;
+}
+
 export interface AppraisalResult {
   id: string;
   image: string; // Primary/result image (backward compatible)
@@ -26,6 +32,8 @@ export interface AppraisalResult {
   currency: string;
   reasoning: string;
   references?: Reference[];
+  confidenceScore?: number; // 0-100 confidence rating
+  confidenceFactors?: ConfidenceFactor[]; // Factors contributing to confidence
   timestamp: number;
   isPublic?: boolean; // Whether this treasure is publicly shareable
 }

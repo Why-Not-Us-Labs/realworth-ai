@@ -182,6 +182,14 @@ class DBService {
         insertData.is_public = appraisal.isPublic;
       }
 
+      // Add confidence score if provided
+      if (appraisal.confidenceScore !== undefined) {
+        insertData.confidence_score = appraisal.confidenceScore;
+      }
+      if (appraisal.confidenceFactors && appraisal.confidenceFactors.length > 0) {
+        insertData.confidence_factors = appraisal.confidenceFactors;
+      }
+
       // Add collection data if provided
       if (collectionData?.collectionId) {
         insertData.collection_id = collectionData.collectionId;
@@ -226,6 +234,8 @@ class DBService {
         currency: data.currency,
         reasoning: data.reasoning || '',
         references: data.references || [],
+        confidenceScore: data.confidence_score || undefined,
+        confidenceFactors: data.confidence_factors || undefined,
         image: data.image_url || '',
         images: data.image_urls || [],
         timestamp: new Date(data.created_at).getTime(),
