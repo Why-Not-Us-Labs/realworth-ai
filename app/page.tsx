@@ -44,12 +44,11 @@ export default function Home() {
   const [celebrationItemName, setCelebrationItemName] = useState<string>('');
   const [celebrationValue, setCelebrationValue] = useState<number>(0);
   const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
-  const { queueAppraisal, isLoading, error } = useAppraisal();
+  const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading, signIn } = useContext(AuthContext);
   const { isPro, usageCount, checkCanAppraise, incrementUsage, refresh: refreshSubscription } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
-  const [isUploading, setIsUploading] = useState(false);
 
   // Handle queue item completion - show celebration
   const handleQueueItemComplete = useCallback((item: { id: string; appraisalId: string | null; itemName: string; value: number; currency: string }) => {
@@ -129,26 +128,68 @@ export default function Home() {
       }
     }
 
-    // Queue-based flow: Upload → Queue → Return to form immediately
-    // User can continue capturing while items process in background
-    setIsUploading(true);
+    // Synchronous flow: Upload → Process → Show Result
+    setView('LOADING');
+    setIsFromHistory(false);
 
     try {
-      const result = await queueAppraisal(request);
+      const result = await getAppraisal(request);
 
-      if (result?.queueId) {
-        // Success! Item queued for processing
-        console.log('[Queue] Item queued:', result.queueId);
-        // Return to form so user can capture more items
-        setView('FORM');
+      if (result) {
+        // Build the appraisal result object
+        const allImages = result.imageUrls || [];
+        const appraisalResult: AppraisalResult = {
+          id: crypto.randomUUID(),
+          image: result.imageDataUrl,
+          images: allImages.length > 0 ? [...allImages, result.imageDataUrl] : [result.imageDataUrl],
+          itemName: result.appraisalData.itemName,
+          author: result.appraisalData.author,
+          era: result.appraisalData.era,
+          category: result.appraisalData.category,
+          description: result.appraisalData.description,
+          priceRange: result.appraisalData.priceRange,
+          currency: result.appraisalData.currency,
+          reasoning: result.appraisalData.reasoning,
+          references: result.appraisalData.references,
+          confidenceScore: result.appraisalData.confidenceScore,
+          confidenceFactors: result.appraisalData.confidenceFactors,
+          timestamp: Date.now(),
+        };
+
+        // Save to database if user is logged in
+        if (user) {
+          const savedResult = await dbService.saveAppraisal(user.id, appraisalResult);
+          if (savedResult) {
+            appraisalResult.id = savedResult.id;
+          }
+          // Refresh history and usage
+          setHistory(await dbService.getHistory(user.id));
+          setStreaks(await dbService.getUserStreaks(user.id));
+          incrementUsage();
+          refreshSubscription();
+        }
+
+        // Set up celebration
+        setCurrentResult(appraisalResult);
+        const avgValue = (appraisalResult.priceRange.low + appraisalResult.priceRange.high) / 2;
+        setCelebrationItemName(appraisalResult.itemName);
+        setCelebrationValue(avgValue);
+        setCelebrationCurrency(appraisalResult.currency);
+
+        // Store streak info if returned
+        if (result.streakInfo) {
+          setCelebrationStreakInfo(result.streakInfo);
+        }
+
+        // Show celebration screen
+        setView('CELEBRATION');
       } else {
-        // Queue failed - show error
-        console.error('[Queue] Failed to queue item');
+        // Error - stay on form to show error message
+        setView('FORM');
       }
     } catch (e) {
-      console.error('[Queue] Error:', e);
-    } finally {
-      setIsUploading(false);
+      console.error('[Appraisal] Error:', e);
+      setView('FORM');
     }
   };
 
@@ -164,14 +205,19 @@ export default function Home() {
     setTriviaPointsEarned(prev => prev + points);
   };
 
-  // Handler for continuing from celebration - go back to form to capture more
+  // Handler for continuing from celebration - show the result
   const handleCelebrationContinue = () => {
-    // In queue mode, go back to form so user can keep capturing
+    // Show the result after celebration
+    if (currentResult) {
+      setView('RESULT');
+    } else {
+      // Fallback to form if no result
+      setView('FORM');
+    }
     // Reset celebration state
     setCelebrationItemName('');
     setCelebrationValue(0);
     setCelebrationCurrency('USD');
-    setView('FORM');
   };
   
   const handleSelectHistoryItem = (item: AppraisalResult) => {
@@ -214,7 +260,7 @@ export default function Home() {
         }
         return null;
       case 'FORM':
-        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading || isUploading} error={error} />;
+        return <AppraisalForm onSubmit={handleAppraisalRequest} isLoading={isLoading} error={error} />;
       case 'RESULT':
         return currentResult && <ResultCard result={currentResult} onStartNew={handleStartNew} setHistory={setHistory} isFromHistory={isFromHistory} />;
       case 'HOME':
