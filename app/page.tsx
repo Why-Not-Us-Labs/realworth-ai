@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
 import { AppraisalResult, AppraisalRequest } from '@/lib/types';
@@ -10,12 +10,9 @@ import { useQueue } from '@/hooks/useQueue';
 import { Loader } from '@/components/Loader';
 import { ResultCard } from '@/components/ResultCard';
 import { CelebrationScreen } from '@/components/CelebrationScreen';
-import { HistoryList } from '@/components/HistoryList';
-import { SparklesIcon, GemIcon } from '@/components/icons';
+import { HomeFeed } from '@/components/HomeFeed';
+import { SparklesIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
-import { GamificationStats } from '@/components/GamificationStats';
-import { Achievements } from '@/components/Achievements';
-import { DailyChallenges } from '@/components/DailyChallenges';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -38,7 +35,6 @@ interface StreakInfo {
 export default function Home() {
   const [view, setView] = useState<View>('HOME');
   const [history, setHistory] = useState<AppraisalResult[]>([]);
-  const [archivedHistory, setArchivedHistory] = useState<AppraisalResult[]>([]);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
   const [isFromHistory, setIsFromHistory] = useState(false);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
@@ -89,11 +85,9 @@ export default function Home() {
   useEffect(() => {
     if (user && !isAuthLoading) {
       dbService.getHistory(user.id).then(setHistory);
-      dbService.getArchivedHistory(user.id).then(setArchivedHistory);
       dbService.getUserStreaks(user.id).then(setStreaks);
     } else if (!user && !isAuthLoading) {
       setHistory([]);
-      setArchivedHistory([]);
       setStreaks({ currentStreak: 0, longestStreak: 0 });
     }
   }, [user, isAuthLoading]);
@@ -118,14 +112,6 @@ export default function Home() {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
-
-  // Reload histories when archive status changes
-  const handleArchiveChange = () => {
-    if (user) {
-      dbService.getHistory(user.id).then(setHistory);
-      dbService.getArchivedHistory(user.id).then(setArchivedHistory);
-    }
-  };
 
   // Show upgrade modal with specific feature
   const promptUpgrade = (feature?: string) => {
@@ -193,11 +179,6 @@ export default function Home() {
     setCurrentResult(item);
     setView('RESULT');
   }
-
-  const { totalValue, itemCount } = useMemo(() => {
-    const total = history.reduce((acc, item) => acc + (item.priceRange.high + item.priceRange.low) / 2, 0);
-    return { totalValue: total, itemCount: history.length };
-  }, [history]);
 
   const renderView = () => {
     switch (view) {
@@ -288,85 +269,24 @@ export default function Home() {
           {renderView()}
         </div>
 
-        {user && (
-          <>
-            {history.length > 0 ? (
-              <>
-                <GamificationStats
-                  itemCount={itemCount}
-                  totalValue={totalValue}
-                  currency={history[0]?.currency || 'USD'}
-                  currentStreak={streaks.currentStreak}
-                  longestStreak={streaks.longestStreak}
-                />
-                {/* Usage meter for free users */}
-                {!isPro && (
-                  <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-                    <UsageMeter
-                      used={usageCount}
-                      limit={10}
-                      isPro={isPro}
-                      onUpgrade={() => promptUpgrade()}
-                    />
-                  </div>
-                )}
-                <DailyChallenges
-                  history={history}
-                  currentStreak={streaks.currentStreak}
-                  longestStreak={streaks.longestStreak}
-                />
-                <Achievements history={history} />
-                <HistoryList
-                  history={history}
-                  onSelect={handleSelectHistoryItem}
-                  userId={user.id}
-                  onUpdate={(updatedItem) => {
-                    setHistory(prev => prev.map(item =>
-                      item.id === updatedItem.id ? updatedItem : item
-                    ));
-                  }}
-                  archivedHistory={archivedHistory}
-                  onArchiveChange={handleArchiveChange}
-                />
-              </>
-            ) : (
-              <>
-                {/* Pro upgrade banner for new users */}
-                {!isPro && (
-                  <div className="bg-gradient-to-r from-teal-500 to-teal-600 rounded-xl p-6 mb-6 text-white">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                      <div className="text-center sm:text-left">
-                        <h3 className="text-xl font-bold mb-1">Unlock Unlimited Appraisals</h3>
-                        <p className="text-teal-100 text-sm">
-                          Go Pro for $9.99/month - AI chat, unlimited photos, priority support
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => promptUpgrade()}
-                        className="bg-white text-teal-600 font-semibold py-2.5 px-6 rounded-full hover:bg-teal-50 transition-colors whitespace-nowrap shadow-lg"
-                      >
-                        Upgrade to Pro
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <div className="bg-white rounded-xl border border-slate-200 p-8 text-center">
-                  <GemIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-800 mb-2">Your Collection is Empty</h3>
-                  <p className="text-slate-500 mb-6 max-w-sm mx-auto text-sm">
-                    Start discovering hidden treasures. Snap photos of items around your home to find out what they're worth.
-                  </p>
-                  <button
-                    onClick={() => setView('FORM')}
-                    className="bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-5 rounded-lg transition-colors"
-                  >
-                    Find Your First Treasure
-                  </button>
-                </div>
-              </>
-            )}
-          </>
+        {/* Usage meter for free logged-in users */}
+        {user && !isPro && (
+          <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+            <UsageMeter
+              used={usageCount}
+              limit={10}
+              isPro={isPro}
+              onUpgrade={() => promptUpgrade()}
+            />
+          </div>
         )}
+
+        {/* HomeFeed - Discover & My Treasures tabs */}
+        <HomeFeed
+          userHistory={history}
+          isLoggedIn={!!user}
+          onSelectItem={handleSelectHistoryItem}
+        />
       </main>
       <Footer />
 
