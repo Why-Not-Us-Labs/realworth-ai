@@ -96,6 +96,27 @@ export async function GET(
 
     console.log('[Certificate API] Generating PDF for:', appraisal.item_name);
 
+    // Pre-fetch image and convert to base64 (react-pdf can't reliably fetch external URLs in serverless)
+    let imageDataUrl: string | undefined;
+    if (appraisal.image_url) {
+      try {
+        console.log('[Certificate API] Fetching image:', appraisal.image_url);
+        const imageResponse = await fetch(appraisal.image_url);
+        if (imageResponse.ok) {
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          const base64 = Buffer.from(imageBuffer).toString('base64');
+          imageDataUrl = `data:${contentType};base64,${base64}`;
+          console.log('[Certificate API] Image converted to base64, size:', base64.length);
+        } else {
+          console.warn('[Certificate API] Failed to fetch image:', imageResponse.status);
+        }
+      } catch (imgError) {
+        console.warn('[Certificate API] Error fetching image:', imgError);
+        // Continue without image - better than failing entirely
+      }
+    }
+
     // Generate the PDF
     const pdfBuffer = await renderToBuffer(
       React.createElement(InsuranceCertificate, {
@@ -108,7 +129,7 @@ export async function GET(
         priceHigh: appraisal.price_high,
         currency: appraisal.currency || 'USD',
         reasoning: appraisal.reasoning,
-        imageUrl: appraisal.image_url,
+        imageUrl: imageDataUrl, // Use pre-fetched base64 image
         confidenceScore: appraisal.confidence_score || 75,
         confidenceFactors: confidenceFactors,
         appraisalId: appraisal.id,
