@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { LogoIcon } from '@/components/icons';
 
 // Simple hash function for credential verification
 const verifyCredentials = (username: string, password: string): boolean => {
@@ -43,26 +44,29 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-white">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <LogoIcon className="w-10 h-10" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">
             RealWorth<span className="text-slate-400 font-normal">.ai</span>
           </h1>
-          <p className="text-slate-400 mt-2">Admin Dashboard</p>
+          <p className="text-slate-500 mt-2">Admin Dashboard</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-slate-800 rounded-2xl p-8 shadow-xl border border-slate-700">
-          <h2 className="text-xl font-semibold text-white mb-6 text-center">
+        <div className="bg-white rounded-2xl p-8 shadow-xl border border-slate-200">
+          <h2 className="text-xl font-semibold text-slate-900 mb-6 text-center">
             Sign In
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Username */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
                 Username
               </label>
               <input
@@ -70,7 +74,7 @@ export default function AdminLoginPage() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
                 placeholder="Enter username"
                 required
                 autoComplete="username"
@@ -79,7 +83,7 @@ export default function AdminLoginPage() {
 
             {/* Password */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                 Password
               </label>
               <input
@@ -87,7 +91,7 @@ export default function AdminLoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
                 placeholder="Enter password"
                 required
                 autoComplete="current-password"
@@ -96,8 +100,8 @@ export default function AdminLoginPage() {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3">
-                <p className="text-red-400 text-sm text-center">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                <p className="text-red-600 text-sm text-center">{error}</p>
               </div>
             )}
 
@@ -105,7 +109,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-teal-500 hover:bg-teal-600 disabled:bg-teal-500/50 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 bg-teal-500 hover:bg-teal-600 disabled:bg-teal-300 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-teal-500/25"
             >
               {isLoading ? (
                 <>
@@ -123,7 +127,7 @@ export default function AdminLoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-slate-500 text-sm mt-6">
+        <p className="text-center text-slate-400 text-sm mt-6">
           Admin access only
         </p>
       </div>
