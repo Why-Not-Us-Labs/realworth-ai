@@ -371,6 +371,70 @@ This makes APIs resilient to:
 
 ---
 
+## 2025-12-10: checkout.session.completed Webhook Failing to Deliver (pending_webhooks: 1)
+
+### Symptoms
+- User completed Stripe checkout successfully (payment charged)
+- User returned to app still showing free tier
+- Database not updated to Pro
+- Stripe events showed `checkout.session.completed` with `pending_webhooks: 1` (pending/failed)
+- Other events like `customer.subscription.created` showed `pending_webhooks: 0` (delivered successfully)
+
+### Root Cause
+**Two-part problem:**
+
+1. **Signature verification failure**: The `checkout.session.completed` events were being sent to realworth.ai but failing signature verification. This can happen when:
+   - `STRIPE_WEBHOOK_SECRET` env var doesn't match the endpoint's signing secret
+   - Trailing newline in env var (see earlier lesson)
+   - Webhook endpoint was recreated with new secret but env var not updated
+
+2. **Event misconfiguration**: The `customer.subscription.created` event (which also contains enough info to activate Pro) was only configured on the OLD whynotus.ai webhook endpoint, not the realworth.ai one.
+
+### Solution
+**Two-pronged fix for resilience:**
+
+1. **Add backup activation handler** in `/api/stripe/webhook/route.ts`:
+   ```typescript
+   case 'customer.subscription.created': {
+     // Activate Pro if subscription is active - backup for checkout.session.completed
+     if (subscription.status === 'active') {
+       await subscriptionService.activateProSubscription(customerId, subscriptionId, expiresAt);
+     }
+     break;
+   }
+   ```
+
+2. **Update webhook endpoint events** in Stripe Dashboard:
+   - Add `customer.subscription.created` to realworth.ai webhook
+   - Add `invoice.payment_succeeded` for additional redundancy
+
+### Prevention
+- **Use multiple activation events**: Don't rely on a single event type for critical actions
+- **Events to enable for subscription activation:**
+  - `checkout.session.completed` (primary)
+  - `customer.subscription.created` (backup)
+  - `invoice.payment_succeeded` (additional backup)
+- **Verify webhook delivery**: After setting up webhooks, check "Recent deliveries" in Stripe Dashboard
+- **If pending_webhooks > 0**: Event is failing to deliver - check:
+  - Is the URL correct and reachable?
+  - Is `STRIPE_WEBHOOK_SECRET` set and matching?
+  - Look at "Recent deliveries" for actual error response
+
+### Debugging Webhook Issues
+```bash
+# List webhook endpoints
+stripe webhook_endpoints list --live
+
+# Check recent events and their delivery status
+stripe events list --limit 10 --live
+
+# Look for pending_webhooks > 0 to identify failed deliveries
+# pending_webhooks: 0 = successfully delivered
+# pending_webhooks: 1+ = pending/failed delivery
+```
+
+---
+
 ## Template for New Entries
 
 ```markdown
