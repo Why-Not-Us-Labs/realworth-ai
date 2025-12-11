@@ -50,8 +50,37 @@ export async function POST(request: NextRequest) {
     console.log('[Reactivate] Reactivating subscription for user:', userId);
     console.log('[Reactivate] Stripe subscription ID:', user.stripe_subscription_id);
 
-    // Reactivate by removing the cancel_at_period_end flag
     const stripe = getStripe();
+
+    // First, check current Stripe state to handle edge cases
+    const currentSubscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+
+    // If Stripe already shows as not canceling, just sync our DB and return success
+    if (!currentSubscription.cancel_at_period_end) {
+      console.log('[Reactivate] Subscription already active in Stripe, syncing DB');
+
+      const { error: syncError } = await supabaseAdmin
+        .from('users')
+        .update({ cancel_at_period_end: false })
+        .eq('id', userId);
+
+      if (syncError) {
+        console.error('[Reactivate] Failed to sync DB:', syncError);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subData = currentSubscription as any;
+      const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+      const renewsAt = new Date(periodEnd * 1000).toISOString();
+
+      return NextResponse.json({
+        success: true,
+        renewsAt,
+        message: 'Subscription already active',
+      });
+    }
+
+    // Reactivate by removing the cancel_at_period_end flag
     const reactivatedSubscription = await stripe.subscriptions.update(
       user.stripe_subscription_id,
       { cancel_at_period_end: false }

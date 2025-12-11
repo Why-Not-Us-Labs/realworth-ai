@@ -45,8 +45,37 @@ export async function POST(request: NextRequest) {
     console.log('[Cancel] Canceling subscription for user:', userId);
     console.log('[Cancel] Stripe subscription ID:', stripeSubscriptionId);
 
-    // Cancel at period end (user keeps access until billing cycle ends)
     const stripe = getStripe();
+
+    // First, check current Stripe state to handle edge cases
+    const currentSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+
+    // If Stripe already shows as canceling, just sync our DB and return success
+    if (currentSubscription.cancel_at_period_end) {
+      console.log('[Cancel] Subscription already scheduled for cancellation in Stripe, syncing DB');
+
+      const { error: syncError } = await supabaseAdmin
+        .from('users')
+        .update({ cancel_at_period_end: true })
+        .eq('id', userId);
+
+      if (syncError) {
+        console.error('[Cancel] Failed to sync DB:', syncError);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const subData = currentSubscription as any;
+      const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+      const cancelAt = new Date(periodEnd * 1000).toISOString();
+
+      return NextResponse.json({
+        success: true,
+        cancelAt,
+        message: 'Subscription already scheduled for cancellation',
+      });
+    }
+
+    // Cancel at period end (user keeps access until billing cycle ends)
     const canceledSubscription = await stripe.subscriptions.update(
       stripeSubscriptionId,
       { cancel_at_period_end: true }

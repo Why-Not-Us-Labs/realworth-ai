@@ -316,6 +316,61 @@ When activating a new subscription (`activateProSubscription()`), always reset `
 
 ---
 
+## 2025-12-10: Stripe API Calls Should Check Current State First (Idempotent Pattern)
+
+### Symptoms
+- Reactivate button fails with "Failed to reactivate subscription" even though user is Pro
+- Database shows `cancel_at_period_end: true` but Stripe shows `false`
+- API returns 500 error when trying to reactivate an already-active subscription
+
+### Root Cause
+The Cancel/Reactivate APIs blindly updated Stripe without first checking current state. When the DB and Stripe got out of sync (from previous crashes or race conditions), the APIs would either:
+1. Try to cancel an already-canceled subscription
+2. Try to reactivate an already-active subscription
+
+This could cause unexpected errors or confusing behavior.
+
+### Solution
+**Check Stripe's current state BEFORE making updates.** If Stripe already has the desired state, sync the DB and return success:
+
+```typescript
+// In /api/stripe/reactivate/route.ts
+const currentSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+// If Stripe already shows as not canceling, just sync DB and return
+if (!currentSubscription.cancel_at_period_end) {
+  console.log('[Reactivate] Already active in Stripe, syncing DB');
+  await supabaseAdmin.from('users').update({ cancel_at_period_end: false }).eq('id', userId);
+  return NextResponse.json({ success: true, message: 'Subscription already active' });
+}
+
+// Only now do we update Stripe
+await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false });
+```
+
+Same pattern applies to the cancel route - check if already canceling first.
+
+### Prevention
+- **Always retrieve before update** - check current Stripe state first
+- **Be idempotent** - if desired state already exists, sync DB and succeed
+- **Stripe is source of truth** - when in doubt, trust Stripe's current state
+- APIs should be resilient to being called multiple times with same intent
+
+### Pattern: Check-Sync-Update
+```
+1. Retrieve current state from Stripe
+2. If already in desired state → Sync DB → Return success
+3. If not in desired state → Update Stripe → Sync DB → Return success
+```
+
+This makes APIs resilient to:
+- Network failures that updated Stripe but crashed before DB update
+- Race conditions from multiple button clicks
+- Manual Stripe Dashboard changes
+- Webhook/API timing mismatches
+
+---
+
 ## Template for New Entries
 
 ```markdown
