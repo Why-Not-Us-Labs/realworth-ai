@@ -6,7 +6,10 @@ function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!);
 }
 
+const API_VERSION = 'v3';  // Increment to verify deployment
+
 export async function POST(request: NextRequest) {
+  console.log('[Cancel] API Version:', API_VERSION);
   try {
     const { userId } = await request.json();
 
@@ -131,7 +134,7 @@ export async function POST(request: NextRequest) {
     console.error('[Cancel] Error canceling subscription:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to cancel subscription', details: errorMessage },
+      { error: 'Failed to cancel subscription', details: errorMessage, version: API_VERSION },
       { status: 500 }
     );
   }
