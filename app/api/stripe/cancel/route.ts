@@ -109,8 +109,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[Cancel] Error canceling subscription:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to cancel subscription' },
+      { error: 'Failed to cancel subscription', details: errorMessage },
       { status: 500 }
     );
   }
