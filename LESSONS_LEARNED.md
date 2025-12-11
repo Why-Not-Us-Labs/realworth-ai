@@ -109,6 +109,44 @@ stripe prices create \
 
 ---
 
+## 2025-12-10: Double Increment Bug (Usage Counter +2 on Single Appraisal)
+
+### Symptoms
+- After one appraisal, usage meter showed "2/3 appraisals used" instead of "1/3"
+- Database `monthly_appraisal_count` was double what it should be
+
+### Root Cause
+**Both frontend AND backend were incrementing the counter:**
+
+1. **Backend** (`/api/appraise/route.ts:389`): `incrementAppraisalCount(userId)` - ✅ Correct
+2. **Frontend** (`app/page.tsx:169`): `incrementUsage()` - ❌ Redundant
+3. **Frontend** (`app/page.tsx:61`): `incrementUsage()` in `handleQueueItemComplete` - ❌ Redundant
+
+This happened because we added server-side enforcement but forgot to remove the legacy client-side increment calls.
+
+### Solution
+Removed ALL frontend `incrementUsage()` calls since the server handles this now:
+- Removed `incrementUsage()` at line 169 (sync appraisal flow)
+- Removed `incrementUsage()` at line 61 (queue completion handler)
+- Removed `incrementUsage` from useCallback dependency array
+- Removed `incrementUsage` from useSubscription destructure
+
+**Single source of truth:** The increment now ONLY happens in `/api/appraise/route.ts` after a successful appraisal.
+
+### Prevention
+- **Server handles ALL state mutations** - client only refreshes/displays state
+- When adding server-side enforcement, audit ALL client-side calls doing the same thing
+- Search for function names across the entire codebase before declaring "fixed"
+- Use `grep -r "incrementUsage\|incrementAppraisalCount" .` to find all increment calls
+
+### Debugging Pattern
+```bash
+# Find all increment calls
+grep -rn "incrementUsage\|incrementAppraisalCount" --include="*.ts" --include="*.tsx" .
+```
+
+---
+
 ## Template for New Entries
 
 ```markdown

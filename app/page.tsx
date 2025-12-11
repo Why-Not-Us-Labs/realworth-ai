@@ -47,7 +47,7 @@ export default function Home() {
   const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading, signIn } = useContext(AuthContext);
-  const { isPro, usageCount, checkCanAppraise, incrementUsage, refresh: refreshSubscription } = useSubscription(user?.id || null, user?.email);
+  const { isPro, usageCount, checkCanAppraise, refresh: refreshSubscription } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
 
@@ -58,7 +58,7 @@ export default function Home() {
     if (user) {
       dbService.getHistory(user.id).then(setHistory);
       dbService.getUserStreaks(user.id).then(setStreaks);
-      incrementUsage();
+      // Note: incrementUsage() removed - server-side increment in /api/appraise handles this
       refreshSubscription();
     }
     // Show celebration for completed item
@@ -66,7 +66,7 @@ export default function Home() {
     setCelebrationValue(item.value);
     setCelebrationCurrency(item.currency);
     setView('CELEBRATION');
-  }, [user, incrementUsage, refreshSubscription]);
+  }, [user, refreshSubscription]);
 
   // Queue system for async processing
   const { items: queueItems, stats: queueStats } = useQueue({
@@ -166,7 +166,7 @@ export default function Home() {
           // Refresh history and usage
           setHistory(await dbService.getHistory(user.id));
           setStreaks(await dbService.getUserStreaks(user.id));
-          incrementUsage();
+          // Note: incrementUsage() removed - server-side increment in /api/appraise handles this
           refreshSubscription();
         }
 
