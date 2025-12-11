@@ -178,13 +178,86 @@ export async function POST(request: NextRequest) {
         const invoice = event.data.object as Stripe.Invoice;
         const customerId = invoice.customer as string;
 
+        console.log('[Webhook] invoice.payment_failed:', {
+          customerId,
+          invoiceId: invoice.id,
+          amountDue: invoice.amount_due,
+        });
+
         await subscriptionService.updateSubscriptionStatus(customerId, 'past_due');
-        console.log(`Payment failed for customer ${customerId}`);
+        console.log(`[Webhook] Payment failed, marked as past_due for customer ${customerId}`);
+        break;
+      }
+
+      // Handle successful payments (renewals update expiration date)
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const invoiceData = invoice as any;
+        const subscriptionId = invoiceData.subscription;
+
+        console.log('[Webhook] invoice.payment_succeeded:', {
+          customerId,
+          invoiceId: invoice.id,
+          subscriptionId,
+          billingReason: invoiceData.billing_reason,
+        });
+
+        // For subscription renewals, update the expiration date
+        if (subscriptionId && invoiceData.billing_reason === 'subscription_cycle') {
+          const stripe = getStripe();
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subData = subscription as any;
+          const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+          const expiresAt = new Date(periodEnd * 1000);
+
+          await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
+          console.log(`[Webhook] Subscription renewed, updated expiration to ${expiresAt.toISOString()} for customer ${customerId}`);
+        }
+        break;
+      }
+
+      // Handle subscription paused (optional feature)
+      case 'customer.subscription.paused': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+
+        console.log('[Webhook] customer.subscription.paused:', {
+          customerId,
+          subscriptionId: subscription.id,
+        });
+
+        // Mark subscription as inactive but keep tier as Pro (they can resume)
+        await subscriptionService.updateSubscriptionStatus(customerId, 'inactive');
+        console.log(`[Webhook] Subscription paused for customer ${customerId}`);
+        break;
+      }
+
+      // Handle subscription resumed (optional feature)
+      case 'customer.subscription.resumed': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const subObj = subscription as any;
+        const periodEnd = subObj.current_period_end || subObj.currentPeriodEnd;
+        const expiresAt = new Date(periodEnd * 1000);
+
+        console.log('[Webhook] customer.subscription.resumed:', {
+          customerId,
+          subscriptionId: subscription.id,
+          expiresAt: expiresAt.toISOString(),
+        });
+
+        // Reactivate the subscription
+        await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
+        console.log(`[Webhook] Subscription resumed for customer ${customerId}`);
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`[Webhook] Unhandled event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
