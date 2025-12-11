@@ -63,29 +63,46 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Get subscription details to find expiration date
-        const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const subData = subscriptionResponse as any;
-        const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
-        const expiresAt = new Date(periodEnd * 1000);
+        try {
+          // Get subscription details to find expiration date
+          const subscriptionResponse = await stripe.subscriptions.retrieve(subscriptionId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subData = subscriptionResponse as any;
+          const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
 
-        console.log('[Webhook] Activating Pro subscription:', {
-          customerId,
-          subscriptionId,
-          expiresAt: expiresAt.toISOString(),
-        });
+          if (!periodEnd || typeof periodEnd !== 'number') {
+            console.error('[Webhook] Invalid period_end from subscription:', periodEnd);
+            break;
+          }
 
-        const success = await subscriptionService.activateProSubscription(
-          customerId,
-          subscriptionId,
-          expiresAt
-        );
+          const expiresAt = new Date(periodEnd * 1000);
 
-        if (success) {
-          console.log(`[Webhook] Pro subscription activated for customer ${customerId}`);
-        } else {
-          console.error(`[Webhook] FAILED to activate Pro for customer ${customerId}`);
+          // Validate the date is valid before using it
+          if (isNaN(expiresAt.getTime())) {
+            console.error('[Webhook] Invalid expiration date calculated from:', periodEnd);
+            break;
+          }
+
+          console.log('[Webhook] Activating Pro subscription:', {
+            customerId,
+            subscriptionId,
+            expiresAt: expiresAt.toISOString(),
+          });
+
+          const success = await subscriptionService.activateProSubscription(
+            customerId,
+            subscriptionId,
+            expiresAt
+          );
+
+          if (success) {
+            console.log(`[Webhook] Pro subscription activated for customer ${customerId}`);
+          } else {
+            console.error(`[Webhook] FAILED to activate Pro for customer ${customerId}`);
+          }
+        } catch (subError) {
+          console.error('[Webhook] Error retrieving subscription:', subError);
+          // Subscription might be deleted/canceled - this is okay for resent old events
         }
         break;
       }
@@ -95,20 +112,45 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
         const subscriptionId = subscription.id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const subObj = subscription as any;
-        const periodEnd = subObj.current_period_end || subObj.currentPeriodEnd;
-        const expiresAt = new Date(periodEnd * 1000);
 
-        console.log('[Webhook] customer.subscription.created (BACKUP ACTIVATION):', {
+        console.log('[Webhook] customer.subscription.created received:', {
           customerId,
           subscriptionId,
           status: subscription.status,
-          expiresAt: expiresAt.toISOString(),
         });
 
-        // Only activate if subscription is active (not trialing, past_due, etc.)
-        if (subscription.status === 'active') {
+        // Only process if subscription is active (not trialing, past_due, etc.)
+        if (subscription.status !== 'active') {
+          console.log(`[Webhook] Subscription created but status is ${subscription.status}, not activating yet`);
+          break;
+        }
+
+        try {
+          // FETCH FRESH DATA from Stripe API (webhook payload structure can vary)
+          const stripe = getStripe();
+          const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const subData = fullSubscription as any;
+          const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+
+          if (!periodEnd || typeof periodEnd !== 'number') {
+            console.error('[Webhook] customer.subscription.created: Invalid period_end from API:', periodEnd);
+            break;
+          }
+
+          const expiresAt = new Date(periodEnd * 1000);
+
+          if (isNaN(expiresAt.getTime())) {
+            console.error('[Webhook] customer.subscription.created: Invalid date from:', periodEnd);
+            break;
+          }
+
+          console.log('[Webhook] customer.subscription.created (BACKUP ACTIVATION):', {
+            customerId,
+            subscriptionId,
+            expiresAt: expiresAt.toISOString(),
+          });
+
           const success = await subscriptionService.activateProSubscription(
             customerId,
             subscriptionId,
@@ -120,8 +162,8 @@ export async function POST(request: NextRequest) {
           } else {
             console.error(`[Webhook] BACKUP: FAILED to activate Pro via subscription.created for customer ${customerId}`);
           }
-        } else {
-          console.log(`[Webhook] Subscription created but status is ${subscription.status}, not activating yet`);
+        } catch (subError) {
+          console.error('[Webhook] customer.subscription.created: Error fetching subscription:', subError);
         }
         break;
       }
@@ -131,15 +173,25 @@ export async function POST(request: NextRequest) {
         const customerId = subscription.customer as string;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subObj = subscription as any;
-        const expiresAt = new Date((subObj.current_period_end || subObj.currentPeriodEnd) * 1000);
+        const periodEnd = subObj.current_period_end || subObj.currentPeriodEnd;
         const cancelAtPeriodEnd = subscription.cancel_at_period_end;
+
+        // Validate period_end before creating date
+        let expiresAt: Date | undefined;
+        if (periodEnd && typeof periodEnd === 'number') {
+          expiresAt = new Date(periodEnd * 1000);
+          if (isNaN(expiresAt.getTime())) {
+            console.error('[Webhook] customer.subscription.updated: Invalid date from:', periodEnd);
+            expiresAt = undefined;
+          }
+        }
 
         console.log('[Webhook] customer.subscription.updated:', {
           customerId,
           subscriptionId: subscription.id,
           stripeStatus: subscription.status,
           cancelAtPeriodEnd,
-          currentPeriodEnd: expiresAt.toISOString(),
+          currentPeriodEnd: expiresAt?.toISOString() || 'unknown',
         });
 
         let status: 'active' | 'past_due' | 'canceled' = 'active';
@@ -152,7 +204,7 @@ export async function POST(request: NextRequest) {
           // User scheduled cancellation but still has active access until period end
           // Keep status as 'active' - they still have Pro until expiration
           status = 'active';
-          console.log(`[Webhook] Subscription scheduled for cancellation at period end. User retains Pro until ${expiresAt.toISOString()}`);
+          console.log(`[Webhook] Subscription scheduled for cancellation at period end. User retains Pro until ${expiresAt?.toISOString() || 'unknown'}`);
         }
 
         await subscriptionService.updateSubscriptionStatus(customerId, status, expiresAt, cancelAtPeriodEnd);
@@ -206,15 +258,27 @@ export async function POST(request: NextRequest) {
 
         // For subscription renewals, update the expiration date
         if (subscriptionId && invoiceData.billing_reason === 'subscription_cycle') {
-          const stripe = getStripe();
-          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const subData = subscription as any;
-          const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
-          const expiresAt = new Date(periodEnd * 1000);
+          try {
+            const stripe = getStripe();
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const subData = subscription as any;
+            const periodEnd = subData.current_period_end || subData.currentPeriodEnd;
 
-          await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
-          console.log(`[Webhook] Subscription renewed, updated expiration to ${expiresAt.toISOString()} for customer ${customerId}`);
+            if (periodEnd && typeof periodEnd === 'number') {
+              const expiresAt = new Date(periodEnd * 1000);
+              if (!isNaN(expiresAt.getTime())) {
+                await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
+                console.log(`[Webhook] Subscription renewed, updated expiration to ${expiresAt.toISOString()} for customer ${customerId}`);
+              } else {
+                console.error('[Webhook] invoice.payment_succeeded: Invalid date from:', periodEnd);
+              }
+            } else {
+              console.error('[Webhook] invoice.payment_succeeded: Invalid period_end:', periodEnd);
+            }
+          } catch (subError) {
+            console.error('[Webhook] invoice.payment_succeeded: Error retrieving subscription:', subError);
+          }
         }
         break;
       }
@@ -242,7 +306,18 @@ export async function POST(request: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const subObj = subscription as any;
         const periodEnd = subObj.current_period_end || subObj.currentPeriodEnd;
+
+        if (!periodEnd || typeof periodEnd !== 'number') {
+          console.error('[Webhook] customer.subscription.resumed: Invalid period_end:', periodEnd);
+          break;
+        }
+
         const expiresAt = new Date(periodEnd * 1000);
+
+        if (isNaN(expiresAt.getTime())) {
+          console.error('[Webhook] customer.subscription.resumed: Invalid date from:', periodEnd);
+          break;
+        }
 
         console.log('[Webhook] customer.subscription.resumed:', {
           customerId,
