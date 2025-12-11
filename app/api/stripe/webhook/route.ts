@@ -49,18 +49,29 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
+
+        // DEBUG: Log the FULL session object to see what we're getting
+        console.log('[Webhook] checkout.session.completed - RAW SESSION:', JSON.stringify({
+          id: session.id,
+          customer: session.customer,
+          subscription: session.subscription,
+          mode: session.mode,
+          payment_status: session.payment_status,
+          status: session.status,
+        }));
+
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
-        console.log('[Webhook] checkout.session.completed - STARTING:', {
+        console.log('[Webhook] checkout.session.completed - PARSED:', {
           customerId,
           subscriptionId,
-          sessionId: session.id,
-          mode: session.mode,
+          hasSubscriptionId: !!subscriptionId,
+          subscriptionType: typeof session.subscription,
         });
 
         if (!subscriptionId) {
-          console.error('[Webhook] No subscription ID in checkout session - this may be a one-time payment');
+          console.error('[Webhook] NO SUBSCRIPTION ID! Session mode:', session.mode, 'This breaks the flow!');
           break;
         }
 
