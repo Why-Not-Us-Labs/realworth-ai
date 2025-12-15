@@ -14,6 +14,7 @@ export interface FeatureFlag {
 
 // Known feature flag names for type safety
 export type FeatureFlagName =
+  | 'ai_chat'
   | 'insurance_certificates'
   | 'dealer_network'
   | 'one_click_selling'

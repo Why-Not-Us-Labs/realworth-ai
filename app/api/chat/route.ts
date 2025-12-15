@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
 import { subscriptionService } from '@/services/subscriptionService';
 import { chatService } from '@/services/chatService';
+import { featureFlagService } from '@/services/featureFlagService';
 import { supabase } from '@/lib/supabase';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
@@ -21,6 +22,15 @@ export async function POST(request: NextRequest) {
     const isPro = await subscriptionService.isPro(userId);
     if (!isPro) {
       return new Response(JSON.stringify({ error: 'Pro subscription required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Check if AI chat feature is enabled
+    const isChatEnabled = await featureFlagService.isEnabled('ai_chat', { userId, isPro });
+    if (!isChatEnabled) {
+      return new Response(JSON.stringify({ error: 'AI chat is currently disabled' }), {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
       });

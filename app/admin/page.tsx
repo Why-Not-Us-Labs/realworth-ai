@@ -8,6 +8,10 @@ import { LogoIcon } from '@/components/icons';
 
 // Feature flag display names and descriptions
 const FLAG_METADATA: Record<string, { displayName: string; icon: string }> = {
+  ai_chat: {
+    displayName: 'AI Chat Assistant',
+    icon: '💬',
+  },
   insurance_certificates: {
     displayName: 'Insurance Certificates',
     icon: '📄',

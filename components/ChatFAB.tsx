@@ -4,20 +4,26 @@ import React, { useState, useContext } from 'react';
 import Link from 'next/link';
 import { AuthContext } from './contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import ChatInterface from './ChatInterface';
 import { SparklesIcon } from './icons';
 
 export default function ChatFAB() {
   const { user } = useContext(AuthContext);
   const { isPro } = useSubscription(user?.id || null, user?.email);
+  const { isEnabled: isChatEnabled, isLoading: isFlagLoading } = useFeatureFlag(
+    'ai_chat',
+    { userId: user?.id, isPro }
+  );
   const [showChat, setShowChat] = useState(false);
   const [showUpsell, setShowUpsell] = useState(false);
 
-  // Only show for logged-in users
+  // Only show for logged-in users, and only if feature flag is enabled
   if (!user) return null;
+  if (!isFlagLoading && !isChatEnabled && isPro) return null; // Hide FAB entirely if feature is disabled for Pro users
 
   const handleClick = () => {
-    if (isPro) {
+    if (isPro && isChatEnabled) {
       setShowChat(true);
     } else {
       setShowUpsell(true);
@@ -44,8 +50,8 @@ export default function ChatFAB() {
         )}
       </button>
 
-      {/* Chat Modal - Pro Users */}
-      {showChat && isPro && (
+      {/* Chat Modal - Pro Users with feature enabled */}
+      {showChat && isPro && isChatEnabled && (
         <div className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50 md:p-4">
           <div className="w-full md:max-w-lg h-[85vh] md:h-[600px] md:max-h-[80vh]">
             <ChatInterface
