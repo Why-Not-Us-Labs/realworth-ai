@@ -58,7 +58,6 @@ export async function POST(request: NextRequest) {
           : (session.subscription as any)?.id;
 
         if (!customerId) {
-          console.error('[Webhook] checkout.session.completed: No customer ID');
           break;
         }
 
@@ -135,9 +134,22 @@ export async function POST(request: NextRequest) {
 
         try {
           const stripe = getStripe();
-          const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-          const subData = fullSubscription as any;
+          const subData = subscription as any;
           let periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+
+          // Try to retrieve full subscription from API for accurate data
+          // Fall back to event payload if subscription doesn't exist
+          try {
+            const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const fullSubData = fullSubscription as any;
+            periodEnd = fullSubData.current_period_end || fullSubData.currentPeriodEnd || periodEnd;
+          } catch (retrieveError: any) {
+            if (retrieveError?.code === 'resource_missing') {
+              // Use data from event payload
+            } else {
+              throw retrieveError;
+            }
+          }
 
           // Fallback: If current_period_end is missing, calculate from created date + interval
           if (!periodEnd || typeof periodEnd !== 'number') {
@@ -363,36 +375,60 @@ export async function POST(request: NextRequest) {
         const customerId = typeof subscription.customer === 'string'
           ? subscription.customer
           : (subscription.customer as any)?.id;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const subObj = subscription as any;
-        const periodEnd = subObj.current_period_end || subObj.currentPeriodEnd;
+        const subscriptionId = subscription.id;
 
         if (!customerId) {
           console.error('[Webhook] customer.subscription.resumed: No customer ID');
           break;
         }
 
-        if (!periodEnd || typeof periodEnd !== 'number') {
-          console.error('[Webhook] customer.subscription.resumed: Invalid period_end:', periodEnd);
-          break;
-        }
-
-        const expiresAt = new Date(periodEnd * 1000);
-
-        if (isNaN(expiresAt.getTime())) {
-          console.error('[Webhook] customer.subscription.resumed: Invalid date from:', periodEnd);
-          break;
-        }
-
         try {
+          const stripe = getStripe();
+          const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+          const subData = fullSubscription as any;
+          let periodEnd = subData.current_period_end || subData.currentPeriodEnd;
+
+          // Fallback: If current_period_end is missing, calculate from created date + interval
+          if (!periodEnd || typeof periodEnd !== 'number') {
+            const created = subData.created;
+            const items = subData.items?.data || [];
+            const interval = items[0]?.price?.recurring?.interval || 'month';
+            const intervalCount = items[0]?.price?.recurring?.interval_count || 1;
+            
+            if (created && typeof created === 'number') {
+              const createdDate = new Date(created * 1000);
+              const expiresDate = new Date(createdDate);
+              
+              if (interval === 'month') {
+                expiresDate.setMonth(expiresDate.getMonth() + intervalCount);
+              } else if (interval === 'year') {
+                expiresDate.setFullYear(expiresDate.getFullYear() + intervalCount);
+              } else if (interval === 'day') {
+                expiresDate.setDate(expiresDate.getDate() + intervalCount);
+              } else {
+                expiresDate.setDate(expiresDate.getDate() + 30);
+              }
+              
+              periodEnd = Math.floor(expiresDate.getTime() / 1000);
+            } else {
+              periodEnd = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+            }
+          }
+
+          const expiresAt = new Date(periodEnd * 1000);
+
+          if (isNaN(expiresAt.getTime())) {
+            console.error('[Webhook] customer.subscription.resumed: Invalid date');
+            break;
+          }
+
           // Reactivate the subscription
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
-          if (success) {
-          } else {
-            console.error(`[Webhook] FAILED to resume subscription for customer ${customerId}`);
+          if (!success) {
+            console.error(`[Webhook] customer.subscription.resumed: Failed to resume subscription for customer ${customerId}`);
           }
         } catch (updateError) {
-          console.error('[Webhook] Error resuming subscription:', updateError);
+          console.error('[Webhook] customer.subscription.resumed: Error:', updateError);
         }
         break;
       }
