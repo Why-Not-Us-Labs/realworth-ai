@@ -435,6 +435,86 @@ stripe events list --limit 10 --live
 
 ---
 
+## 2025-12-15: Webhook Secret Mismatch - Don't Overlook the Simple Things!
+
+### Symptoms
+- User completed Stripe checkout successfully (payment charged)
+- Stripe Dashboard showed webhook delivered with **200 OK**
+- Database never updated to Pro
+- `activateProSubscription()` was being called but returning `false`
+- Extensive code analysis found nothing wrong with the logic
+
+### Root Cause
+**Classic environment variable mismatch** - the simplest possible bug hiding in plain sight!
+
+| Location | Value |
+|----------|-------|
+| **Stripe LIVE webhook** | `whsec_GiP34isjekUSloijBEkOTB2N5Wj7wDlg` |
+| **Vercel production** | `whsec_ecd9e37ef1c76ea28c647d1d45fe2bdd692a3c37a2a19df35cc8932da1e6af47` |
+
+The Vercel env var had an **old/test webhook secret** while Stripe LIVE mode was using a different signing secret. This caused:
+1. Stripe constructs webhook event with LIVE secret
+2. Our server tries to verify with old secret → **Signature verification fails silently**
+3. Event body still parses as JSON (it's not encrypted, just signed)
+4. Code proceeds but Stripe SDK may have issues, or DB lookup fails
+5. Webhook returns 200 OK (bad error handling) → Stripe thinks success
+
+### Why It Was Hard to Find
+- Webhook returned 200 OK, so Stripe Dashboard showed "delivered successfully"
+- No explicit "signature verification failed" error in logs
+- We focused on complex code paths (RLS, user lookup, subscription service)
+- The actual bug was a **one-line env var value**
+
+### Solution
+```bash
+# Check what's in Stripe Dashboard → Developers → Webhooks → [endpoint] → Signing secret
+# Compare to Vercel env vars
+
+# Update Vercel with correct LIVE webhook secret
+vercel env rm STRIPE_WEBHOOK_SECRET production --yes
+echo "whsec_GiP34isjekUSloijBEkOTB2N5Wj7wDlg" | vercel env add STRIPE_WEBHOOK_SECRET production
+vercel --prod
+```
+
+### Prevention
+1. **Check the simple stuff FIRST:**
+   - Env vars match between services?
+   - Correct mode (test vs live)?
+   - URL pointing to right domain?
+
+2. **Webhook secret checklist when debugging:**
+   ```bash
+   # Get secret from Stripe Dashboard (Developers → Webhooks → Select endpoint → Reveal signing secret)
+   # Compare to what's in Vercel:
+   vercel env ls production | grep WEBHOOK
+   ```
+
+3. **Test mode vs Live mode secrets are DIFFERENT** - each webhook endpoint has its own secret
+
+4. **Add explicit signature verification logging:**
+   ```typescript
+   try {
+     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+   } catch (err) {
+     console.error('[Webhook] ⚠️ SIGNATURE VERIFICATION FAILED:', err.message);
+     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+   }
+   ```
+
+### The Golden Rule
+> **When debugging, always verify env vars first. The bug is usually simpler than you think.**
+
+Complex bugs exist, but they're rare. Most production issues are:
+- Wrong env var value
+- Missing env var
+- Wrong URL/endpoint
+- Test vs live mode mismatch
+- Copy-paste errors with trailing characters
+
+Save yourself hours: check the boring stuff before diving into code archaeology.
+
+---
+
 ## Template for New Entries
 
 ```markdown
