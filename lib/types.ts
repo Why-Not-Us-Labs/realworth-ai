@@ -16,6 +16,16 @@ export interface ConfidenceFactor {
   detail: string;
 }
 
+export interface CollectibleDetails {
+  mintMark?: string; // For coins: D, S, O, CC, W, P, or 'none'
+  gradeEstimate?: string; // Sheldon scale (MS-65, VF-30) or descriptive
+  keyDate?: boolean; // True if known key date or rarity
+  certificationRecommended?: boolean; // True if PCGS/NGC grading would add value
+  metalContent?: string; // Composition (e.g., '90% silver', 'copper')
+  faceValue?: number; // Face/denomination value
+  collectiblePremium?: string; // Why this item is worth more than face value
+}
+
 export interface AppraisalResult {
   id: string;
   image: string; // Primary/result image (backward compatible)
@@ -34,6 +44,7 @@ export interface AppraisalResult {
   references?: Reference[];
   confidenceScore?: number; // 0-100 confidence rating
   confidenceFactors?: ConfidenceFactor[]; // Factors contributing to confidence
+  collectibleDetails?: CollectibleDetails; // Additional details for coins, stamps, currency
   timestamp: number;
   isPublic?: boolean; // Whether this treasure is publicly shareable
 }

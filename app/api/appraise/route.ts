@@ -83,10 +83,92 @@ const responseSchema = {
     },
     seriesIdentifier: { type: Type.STRING, description: "If this item is part of a series or collection, identify its position (e.g., 'Book 3', '1942-D', 'Issue #47'). Leave empty if not applicable." },
     validationStatus: { type: Type.STRING, description: "If validating for a collection: 'valid' if item belongs, 'warning' if it has issues, 'mismatch' if it doesn't belong. Leave empty if not validating." },
-    validationNotes: { type: Type.STRING, description: "Explanation for the validation status. Why does or doesn't this item belong to the collection?" }
+    validationNotes: { type: Type.STRING, description: "Explanation for the validation status. Why does or doesn't this item belong to the collection?" },
+    collectibleDetails: {
+      type: Type.OBJECT,
+      description: "Additional details for collectible items like coins, stamps, and currency. Required for Coin, Stamp, and Currency categories.",
+      properties: {
+        mintMark: { type: Type.STRING, description: "For coins: The mint mark (D, S, O, CC, W, P, or 'none' for Philadelphia pre-1979). Include in item identification." },
+        gradeEstimate: { type: Type.STRING, description: "Condition grade using appropriate scale. Coins: Sheldon scale (e.g., 'MS-65', 'VF-30', 'G-4'). Other items: descriptive (Mint, Excellent, Good, Fair, Poor)." },
+        keyDate: { type: Type.BOOLEAN, description: "True if this is a known key date, rare variety, or significant rarity in its series." },
+        certificationRecommended: { type: Type.BOOLEAN, description: "True if professional grading (PCGS, NGC, PSA) would significantly add value or help authentication." },
+        metalContent: { type: Type.STRING, description: "For coins: Composition (e.g., '95% copper, 5% zinc', '90% silver', 'clad'). Important for pre-1965 silver coins." },
+        faceValue: { type: Type.NUMBER, description: "The face/denomination value of coins, stamps, or currency (e.g., 0.01 for a penny, 1.00 for a dollar bill)." },
+        collectiblePremium: { type: Type.STRING, description: "Explanation of why this item commands a premium over face value (rarity, condition, historical significance, errors, etc.)." }
+      }
+    }
   },
   required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors"]
 };
+
+// Validation function to catch face-value errors for collectibles
+interface AppraisalData {
+  itemName: string;
+  category: string;
+  era: string;
+  priceRange: { low: number; high: number };
+  confidenceScore: number;
+  confidenceFactors: Array<{ factor: string; impact: string; detail: string }>;
+  validationNotes?: string;
+  collectibleDetails?: {
+    mintMark?: string;
+    gradeEstimate?: string;
+    keyDate?: boolean;
+    certificationRecommended?: boolean;
+    metalContent?: string;
+    faceValue?: number;
+    collectiblePremium?: string;
+  };
+  [key: string]: unknown;
+}
+
+function validateAppraisal(result: AppraisalData): AppraisalData {
+  // Define face-value thresholds that indicate potential undervaluation
+  const faceValueIndicators = [
+    { category: 'coin', maxValue: 1.00, alert: 'Coin valued near face value' },
+    { category: 'stamp', maxValue: 1.00, alert: 'Stamp valued near face value' },
+    { category: 'currency', maxValue: 100, alert: 'Currency valued at face value' },
+  ];
+
+  const categoryLower = result.category.toLowerCase();
+  const indicator = faceValueIndicators.find(i =>
+    categoryLower.includes(i.category) && result.priceRange.low <= i.maxValue
+  );
+
+  // Check if item is old enough to likely have collectible value
+  const eraYear = parseInt(result.era?.replace(/\D/g, '') || '0');
+  const isVintage = eraYear > 0 && eraYear < 1980;
+
+  if (indicator && isVintage) {
+    // Old item valued at face value = likely error, add warning
+    result.confidenceScore = Math.min(result.confidenceScore, 60);
+
+    // Add warning factor
+    if (!result.confidenceFactors) {
+      result.confidenceFactors = [];
+    }
+    result.confidenceFactors.push({
+      factor: 'Potential Undervaluation',
+      impact: 'negative',
+      detail: `${indicator.alert}. Items from ${result.era} typically have collectible value above face value. Consider professional grading.`
+    });
+
+    // Add validation note
+    const existingNotes = result.validationNotes || '';
+    result.validationNotes = `${existingNotes} NOTE: This ${categoryLower} from ${result.era} may have significant collectible value. The low estimate may be conservative - consider having it professionally graded (PCGS, NGC) for accurate valuation.`.trim();
+
+    console.log(`[Appraisal Validation] Potential undervaluation detected: ${result.itemName} from ${result.era} valued at $${result.priceRange.low}-$${result.priceRange.high}`);
+  }
+
+  // Additional check: if collectibleDetails shows face value but price range matches, flag it
+  if (result.collectibleDetails?.faceValue &&
+      result.priceRange.low <= result.collectibleDetails.faceValue * 1.1 &&
+      isVintage) {
+    console.log(`[Appraisal Validation] Price matches face value for vintage item: ${result.itemName}`);
+  }
+
+  return result;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -209,7 +291,212 @@ You must also provide validation feedback:
     }));
 
     // Step 1: Get the detailed appraisal data
-    const appraisalSystemInstruction = `You are an expert appraiser and archivist named 'RealWorth.ai'. Your task is to analyze images of an item and provide a detailed appraisal in a structured JSON format. If the item is a book, prioritize extracting its title, author, and publication year. Use the title for 'itemName', the author for 'author', and the year for 'era'. The 'description' should be a summary of the book. For other items, provide a descriptive name, era, and physical description. You must also determine a single-word 'category'. Provide an estimated market value and a rationale based on the item's details and its visual condition provided by the user. IMPORTANT: You must also provide 2-4 references with real URLs to external marketplaces (e.g., eBay, AbeBooks, Amazon, Heritage Auctions, Sotheby's, Christie's) or price guides that support your valuation. These references should be actual, publicly accessible URLs that users can visit to verify the pricing.${collectionContext}`;
+    const appraisalSystemInstruction = `You are RealWorth.ai, an expert appraiser specializing in collectibles, antiques, and rare items. Your task is to analyze images and provide accurate COLLECTIBLE market valuations in structured JSON format—NOT face value or commodity prices.
+
+CRITICAL VALUATION RULES:
+1. NEVER return face value for collectible items (coins, stamps, currency, trading cards)
+2. ALWAYS consider rarity, age, condition, and collector demand
+3. For coins: Check the DATE and MINT MARK carefully—certain dates are extremely valuable
+4. For any item over 50 years old: Assume collectible value exists and research accordingly
+5. When uncertain between face value and collectible value: ALWAYS err toward collectible value
+
+=== COMPREHENSIVE US COIN GUIDE ===
+
+MINT MARKS (location varies by coin type):
+- D = Denver (1906-present)
+- S = San Francisco (1854-present)
+- CC = Carson City (1870-1893) - ALWAYS valuable!
+- O = New Orleans (1838-1909)
+- W = West Point (1984-present)
+- P or no mark = Philadelphia
+
+PENNIES - KEY DATES:
+Lincoln Wheat (1909-1958):
+- 1909-S VDB: $800-$2,000+ (first year, designer initials)
+- 1909-S: $100-$300 (no VDB)
+- 1914-D: $250-$500+ (only 1.2M minted)
+- 1922 No D: $600-$1,500 (error - missing mint mark)
+- 1924-D: $40-$150
+- 1931-S: $100-$200 (Depression era, only 866K)
+- 1943 Copper: $100,000-$1,000,000+ (should be steel!)
+- 1944 Steel: $75,000-$400,000 (should be copper!)
+- 1955 Double Die: $1,000-$25,000 (famous error)
+- 1969-S Double Die: $25,000-$100,000
+
+Lincoln Memorial (1959-2008):
+- 1972 Double Die: $300-$500
+- 1983 Double Die Reverse: $200-$400
+- 1992 Close AM: $200-$500
+- 1995 Double Die: $20-$75
+
+NICKELS - KEY DATES:
+Buffalo (1913-1938):
+- 1913-S Type 2: $50-$200
+- 1918/7-D: $1,000-$5,000 (overdate)
+- 1921-S: $50-$300
+- 1926-S: $30-$200
+- 1937-D 3-Legged: $500-$2,000 (missing leg error)
+
+Jefferson (1938-present):
+- 1939-D: $10-$50
+- 1942-1945 (large mint mark above dome): 35% SILVER - $2-$5 melt
+- 1950-D: $15-$40 (lowest mintage)
+- 2004-D Wisconsin Extra Leaf: $100-$300
+
+DIMES - KEY DATES:
+Mercury (1916-1945):
+- 1916-D: $1,000-$10,000+ (KEY DATE - only 264K minted!)
+- 1921: $50-$150
+- 1921-D: $75-$200
+- 1926-S: $20-$75
+- 1942/1: $400-$1,500 (overdate)
+- 1942/1-D: $500-$2,000
+
+Roosevelt (1946-present):
+- Pre-1965: 90% SILVER - $1.80+ melt value
+- 1982 No P: $100-$300 (missing mint mark)
+
+QUARTERS - KEY DATES:
+Washington (1932-1998):
+- 1932-D: $100-$300+ (KEY - only 436K)
+- 1932-S: $100-$250+ (KEY - only 408K)
+- Pre-1965: 90% SILVER
+
+State Quarters (1999-2008):
+- 2004-D Wisconsin Extra Leaf: $100-$500
+
+HALF DOLLARS - KEY DATES:
+Walking Liberty (1916-1947):
+- 1916-S: $75-$300
+- 1921: $150-$500 (KEY)
+- 1921-D: $200-$600 (KEY)
+- 1921-S: $50-$250
+- All pre-1947: 90% SILVER
+
+Kennedy (1964-present):
+- 1964: 90% SILVER ($10-$15)
+- 1965-1970: 40% SILVER ($4-$6)
+- 1970-D: $30-$75 (mint set only)
+
+SILVER DOLLARS - KEY DATES:
+Morgan (1878-1921):
+- Any CC (Carson City): $100-$500+ minimum
+- 1889-CC: $500-$3,000
+- 1893-S: $3,000-$50,000+ (KEY - only 100K)
+- 1895: $30,000-$100,000+ (proof only, "King of Morgans")
+
+Peace (1921-1935):
+- 1921: $100-$300 (high relief)
+- 1928: $300-$600 (KEY - only 360K)
+
+ERROR COINS TO WATCH:
+- Double Die: Doubled lettering/date (1955, 1969-S, 1972 pennies)
+- Off-Center: Image shifted, blank crescent visible
+- Wrong Planchet: Wrong metal (1943 copper, 1944 steel penny)
+- Clipped Planchet: Missing chunk of metal
+- Die Cracks/Cuds: Raised lines or blobs
+- Broadstrike: No rim, image spread out
+
+CONDITION GRADING (Sheldon Scale 1-70):
+- P-1 to G-6: Poor to Good (heavily worn)
+- VG-8 to F-15: Very Good to Fine
+- VF-20 to EF-45: Very Fine to Extremely Fine
+- AU-50 to AU-58: About Uncirculated
+- MS-60 to MS-70: Mint State (uncirculated)
+- PR/PF: Proof coins (special strikes)
+
+=== OTHER VALUABLE COLLECTIBLES ===
+
+VINTAGE JEWELRY:
+- Tiffany & Co (look for "T&Co" mark): 2-10x gold value
+- Cartier, Van Cleef & Arpels, Harry Winston: Premium brands
+- Art Deco (1920s-1930s): Geometric designs, platinum popular
+- Victorian (1837-1901): Mourning jewelry, cameos, seed pearls
+- Signed pieces: Always worth more than unsigned
+
+WATCHES:
+- Rolex (any vintage): $2,000-$100,000+
+- Patek Philippe: $5,000-$500,000+
+- Omega Speedmaster "Moonwatch": $3,000-$10,000
+- Vintage Cartier Tank: $2,000-$20,000
+- Hamilton, Elgin, Waltham (pre-1970): $100-$1,000+
+
+CHINA & PORCELAIN:
+- Meissen (crossed swords mark): $100-$10,000+ per piece
+- Royal Copenhagen: $50-$500+
+- Wedgwood Jasperware: $50-$500
+- Limoges (French): $25-$300
+- Flow Blue (Victorian): $50-$500
+- Fiesta (vintage, pre-1970): $20-$200
+- Occupied Japan (1945-1952): $10-$100+
+
+GLASSWARE:
+- Tiffany Studios lamps/glass: $5,000-$500,000+
+- Steuben: $100-$5,000
+- Lalique (French crystal): $100-$10,000
+- Depression Glass (1930s): $10-$200
+- Carnival Glass (iridescent): $25-$500
+- Fenton Art Glass: $25-$300
+- Murano (Italian): $50-$5,000
+
+SILVER:
+- Sterling (.925): Worth melt + 20-100% for craftsmanship
+- Tiffany sterling: 2-5x melt value
+- Georg Jensen: Premium Danish silver
+- Paul Revere pieces: Museum quality
+- Coin silver (pre-1860s American): Historical premium
+
+ARTWORK:
+- Hudson River School (1825-1875): $5,000-$500,000+
+- American Impressionism: $1,000-$100,000+
+- Currier & Ives prints: $100-$5,000
+- Audubon bird prints: $500-$50,000
+- WPA-era art (1930s-40s): $500-$50,000
+- Look for signatures, provenance
+
+FURNITURE:
+- Chippendale (1750-1780): $1,000-$100,000+
+- Federal Period (1780-1820): $500-$50,000
+- Victorian (1837-1901): $200-$10,000
+- Arts & Crafts/Mission (1890-1920): $500-$20,000
+- Mid-Century Modern (1945-1969): Hot market now!
+- Makers to watch: Stickley, Eames, Knoll, Herman Miller
+
+BOOKS:
+- First editions (check number line): 10-1000x later printings
+- Signed by author: 2-10x unsigned
+- Dust jacket present: Can be 90% of value!
+- Pre-1800 books: Almost always valuable
+- Children's books (Dr. Seuss, Sendak first editions): $500-$50,000
+
+TOYS & GAMES:
+- Cast iron banks/toys (pre-1940): $100-$10,000
+- Tin lithograph toys: $50-$5,000
+- Early Barbie (1959-1966): $500-$25,000
+- Hot Wheels Redlines (1968-1977): $20-$3,000
+- Original Star Wars (1977-1985): $20-$5,000
+- Baseball cards (pre-1970): $10-$1,000,000+
+
+MILITARIA:
+- Civil War items: $100-$50,000+
+- WWI/WWII medals, uniforms: $50-$5,000
+- Swords (pre-1900): $200-$10,000
+- Military documents/letters: $25-$5,000
+
+ITEM IDENTIFICATION:
+- For books: Extract title, author, publication year
+- For coins: Include denomination, year, mint mark in itemName (e.g., "1931-S Lincoln Wheat Penny")
+- For other items: Descriptive name, maker if visible, era
+- Category: Coin, Book, Stamp, Toy, Art, Jewelry, Silver, Porcelain, Glass, Watch, Furniture, Militaria
+
+REFERENCE SOURCES:
+- Coins: PCGS CoinFacts, NGC Price Guide, Heritage Auctions
+- Books: AbeBooks, Biblio, Heritage Auctions
+- Art: Christie's, Sotheby's, Artnet
+- Jewelry/Watches: 1stDibs, Worthy, Chrono24
+- General: eBay sold listings, LiveAuctioneers, Replacements.com
+
+IMPORTANT: Provide 2-4 references with real URLs to external marketplaces or price guides that support your valuation.${collectionContext}`;
     const appraisalTextPart = { text: `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}` };
     
     const appraisalResponse = await ai.models.generateContent({
@@ -225,7 +512,10 @@ You must also provide validation feedback:
     if (!appraisalResponse.text) {
       throw new Error("No text response from AI for appraisal.");
     }
-    const appraisalData = JSON.parse(appraisalResponse.text.trim());
+    let appraisalData = JSON.parse(appraisalResponse.text.trim());
+
+    // Validate appraisal to catch face-value errors for collectibles
+    appraisalData = validateAppraisal(appraisalData as AppraisalData);
 
     // Step 2: Regenerate the image
     const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
