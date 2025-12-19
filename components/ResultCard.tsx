@@ -5,11 +5,14 @@ import React, { useContext, useEffect, useState, useRef } from 'react';
 import { AppraisalResult } from '@/lib/types';
 import { SparklesIcon } from './icons';
 import { AuthContext } from './contexts/AuthContext';
+import { SignInModal } from './SignInModal';
 import { Confetti } from './Confetti';
 import { getValueReaction, getFunComparison, shouldCelebrate, getShareText } from '@/lib/funComparisons';
 import { AddPhotosModal } from './AddPhotosModal';
 import ChatInterface from './ChatInterface';
 import { useSubscription } from '@/hooks/useSubscription';
+import { AuthProvider } from '@/services/authService';
+import { trackLogin } from '@/lib/analytics';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -19,7 +22,7 @@ interface ResultCardProps {
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setHistory, isFromHistory = false }) => {
-  const { user, signIn } = useContext(AuthContext);
+  const { user, signInWithProvider } = useContext(AuthContext);
   const { isPro } = useSubscription(user?.id || null, user?.email);
   const [showConfetti, setShowConfetti] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -29,6 +32,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
   const [valueChange, setValueChange] = useState<{ previous: { low: number; high: number }; new: { low: number; high: number } } | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+
+  const handleSelectProvider = async (provider: AuthProvider) => {
+    setIsSignInModalOpen(false);
+    trackLogin(provider);
+    await signInWithProvider(provider);
+  };
 
   // Animation on mount
   useEffect(() => {
@@ -330,8 +340,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
               <div className="mb-6 p-4 rounded-lg bg-teal-50 border border-teal-200 text-center">
                 <h4 className="font-bold text-teal-800">Like what you see?</h4>
                 <p className="text-sm text-teal-700 mt-1">Sign in to save this appraisal and build your collection.</p>
-                <button onClick={signIn} className="mt-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">
-                  Sign in with Google
+                <button onClick={() => setIsSignInModalOpen(true)} className="mt-3 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">
+                  Sign in
                 </button>
               </div>
             )}
@@ -439,6 +449,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
           </div>
         </div>
       )}
+
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+        onSelectProvider={handleSelectProvider}
+      />
     </>
   );
 };

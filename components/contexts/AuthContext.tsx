@@ -2,19 +2,19 @@
 
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@/lib/types';
-import { authService } from '@/services/authService';
+import { authService, AuthProvider as AuthProviderType } from '@/services/authService';
 
 interface AuthContextType {
   user: User | null;
   isAuthLoading: boolean;
-  signIn: () => Promise<User | null>;
+  signInWithProvider: (provider: AuthProviderType) => Promise<User | null>;
   signOut: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthLoading: true,
-  signIn: async () => null,
+  signInWithProvider: async () => null,
   signOut: async () => {},
 });
 
@@ -47,10 +47,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
   }, []);
 
-  const signIn = async (): Promise<User | null> => {
+  const signInWithProvider = async (provider: AuthProviderType): Promise<User | null> => {
     setIsAuthLoading(true);
     try {
-      const newUser = await authService.signInWithGoogle();
+      const newUser = await authService.signInWithProvider(provider);
       // Note: User will be set via onAuthStateChange callback after redirect
       return newUser;
     } catch (error) {
@@ -73,7 +73,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthLoading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, isAuthLoading, signInWithProvider, signOut }}>
       {children}
     </AuthContext.Provider>
   );

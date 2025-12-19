@@ -14,6 +14,7 @@ import { HomeFeed } from '@/components/HomeFeed';
 import { SparklesIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
 import { AuthContext } from '@/components/contexts/AuthContext';
+import { SignInModal } from '@/components/SignInModal';
 import { dbService } from '@/services/dbService';
 import { useSubscription } from '@/hooks/useSubscription';
 import UpgradeModal from '@/components/UpgradeModal';
@@ -22,6 +23,8 @@ import { SurveyModal } from '@/components/SurveyModal';
 import { useSurvey } from '@/hooks/useSurvey';
 import { QueueStatus } from '@/components/QueueStatus';
 import { FREE_APPRAISAL_LIMIT } from '@/lib/constants';
+import { AuthProvider } from '@/services/authService';
+import { trackLogin } from '@/lib/analytics';
 
 type View = 'HOME' | 'FORM' | 'LOADING' | 'CELEBRATION' | 'RESULT';
 
@@ -46,10 +49,17 @@ export default function Home() {
   const [celebrationValue, setCelebrationValue] = useState<number>(0);
   const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
   const { getAppraisal, isLoading, error } = useAppraisal();
-  const { user, isAuthLoading, signIn } = useContext(AuthContext);
+  const { user, isAuthLoading, signInWithProvider } = useContext(AuthContext);
   const { isPro, isVerifying, usageCount, checkCanAppraise, refresh: refreshSubscription, verifySubscriptionActive } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+
+  const handleSelectProvider = async (provider: AuthProvider) => {
+    setIsSignInModalOpen(false);
+    trackLogin(provider);
+    await signInWithProvider(provider);
+  };
 
   // Handle queue item completion - show celebration
   const handleQueueItemComplete = useCallback((item: { id: string; appraisalId: string | null; itemName: string; value: number; currency: string }) => {
@@ -317,7 +327,7 @@ export default function Home() {
               <button
                 onClick={() => {
                   if (!user) {
-                    signIn();
+                    setIsSignInModalOpen(true);
                   } else {
                     setView('FORM');
                   }
@@ -411,6 +421,13 @@ export default function Home() {
           onDismiss={dismissSurvey}
         />
       )}
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+        onSelectProvider={handleSelectProvider}
+      />
     </>
   );
 }

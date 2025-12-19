@@ -5,13 +5,16 @@ import React, { useContext, useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { AuthContext } from './contexts/AuthContext';
 import { SpinnerIcon } from './icons';
-import { isSupabaseConfigured } from '@/services/authService';
+import { SignInModal } from './SignInModal';
+import { isSupabaseConfigured, AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
 
 export const Auth: React.FC = () => {
-  const { user, isAuthLoading, signIn, signOut } = useContext(AuthContext);
+  const { user, isAuthLoading, signInWithProvider, signOut } = useContext(AuthContext);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [hasTrackedLogin, setHasTrackedLogin] = useState(false);
+  const [lastProvider, setLastProvider] = useState<AuthProvider | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,11 +29,17 @@ export const Auth: React.FC = () => {
 
   // Track successful login
   useEffect(() => {
-    if (user && !hasTrackedLogin) {
-      trackLogin('google');
+    if (user && !hasTrackedLogin && lastProvider) {
+      trackLogin(lastProvider);
       setHasTrackedLogin(true);
     }
-  }, [user, hasTrackedLogin]);
+  }, [user, hasTrackedLogin, lastProvider]);
+
+  const handleSelectProvider = async (provider: AuthProvider) => {
+    setLastProvider(provider);
+    setIsSignInModalOpen(false);
+    await signInWithProvider(provider);
+  };
 
   if (isAuthLoading) {
     return <div className="w-24 h-10 flex items-center justify-center"><SpinnerIcon /></div>;
@@ -71,20 +80,28 @@ export const Auth: React.FC = () => {
   }
 
   return (
-    <div className="relative group">
-      <button
-        onClick={signIn}
-        disabled={!isSupabaseConfigured}
-        className="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
-      >
-        Sign In with Google
-      </button>
-      {!isSupabaseConfigured && (
-        <div className="absolute bottom-full mb-2 right-0 w-64 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <span className="font-bold">Developer Notice:</span> Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your `.env.local` file.
-          <svg className="absolute text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
-        </div>
-      )}
-    </div>
+    <>
+      <div className="relative group">
+        <button
+          onClick={() => setIsSignInModalOpen(true)}
+          disabled={!isSupabaseConfigured}
+          className="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed"
+        >
+          Sign In
+        </button>
+        {!isSupabaseConfigured && (
+          <div className="absolute bottom-full mb-2 right-0 w-64 bg-slate-800 text-white text-xs rounded-lg py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <span className="font-bold">Developer Notice:</span> Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your `.env.local` file.
+            <svg className="absolute text-slate-800 h-2 w-full left-0 top-full" x="0px" y="0px" viewBox="0 0 255 255"><polygon className="fill-current" points="0,0 127.5,127.5 255,0"/></svg>
+          </div>
+        )}
+      </div>
+
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+        onSelectProvider={handleSelectProvider}
+      />
+    </>
   );
 };

@@ -6,12 +6,13 @@ export const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+export type AuthProvider = 'google' | 'apple';
+
 class AuthService {
   /**
-   * Sign in with Google using Supabase Auth
-   * Opens a popup for Google OAuth flow
+   * Sign in with a provider using Supabase Auth
    */
-  public async signInWithGoogle(): Promise<User | null> {
+  public async signInWithProvider(provider: AuthProvider): Promise<User | null> {
     if (!isSupabaseConfigured) {
       const errorMsg = "Supabase not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your .env.local file.";
       console.error(errorMsg);
@@ -19,21 +20,26 @@ class AuthService {
     }
 
     try {
-      // Ensure we always redirect back to the current origin (localhost in dev, production in prod)
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
       const redirectUrl = `${currentOrigin}/`;
-      
-      console.log('[Auth] Signing in with Google, redirectTo:', redirectUrl);
-      
+
+      console.log(`[Auth] Signing in with ${provider}, redirectTo:`, redirectUrl);
+
+      const options: Record<string, unknown> = {
+        redirectTo: redirectUrl,
+      };
+
+      // Google-specific options
+      if (provider === 'google') {
+        options.queryParams = {
+          access_type: 'offline',
+          prompt: 'consent',
+        };
+      }
+
       const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+        provider,
+        options,
       });
 
       if (error) {
@@ -41,8 +47,6 @@ class AuthService {
         throw error;
       }
 
-      // Note: The user data will be available after redirect
-      // Get the current session to return user data
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
         return this.mapSupabaseUserToUser(sessionData.session.user);
@@ -53,6 +57,22 @@ class AuthService {
       console.error("Sign in error:", error);
       throw error;
     }
+  }
+
+  /**
+   * Sign in with Google using Supabase Auth
+   * @deprecated Use signInWithProvider('google') instead
+   */
+  public async signInWithGoogle(): Promise<User | null> {
+    return this.signInWithProvider('google');
+  }
+
+  /**
+   * Sign in with Apple using Supabase Auth
+   * @deprecated Use signInWithProvider('apple') instead
+   */
+  public async signInWithApple(): Promise<User | null> {
+    return this.signInWithProvider('apple');
   }
 
   /**
@@ -106,13 +126,23 @@ class AuthService {
 
   /**
    * Map Supabase user to our User type
+   * Handles different metadata formats from Google and Apple
    */
   private mapSupabaseUserToUser(supabaseUser: any): User {
+    const metadata = supabaseUser.user_metadata || {};
+
+    // Apple returns name as an object { firstName, lastName } on first auth only
+    // Google returns name as a string
+    let name = metadata.name || metadata.full_name;
+    if (!name && metadata.firstName) {
+      name = `${metadata.firstName} ${metadata.lastName || ''}`.trim();
+    }
+
     return {
       id: supabaseUser.id,
-      name: supabaseUser.user_metadata?.name || supabaseUser.user_metadata?.full_name || supabaseUser.email || 'User',
+      name: name || supabaseUser.email?.split('@')[0] || 'User',
       email: supabaseUser.email || '',
-      picture: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || '',
+      picture: metadata.avatar_url || metadata.picture || '',
     };
   }
 }
