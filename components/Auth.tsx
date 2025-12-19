@@ -85,7 +85,7 @@ export const Auth: React.FC = () => {
         <button
           onClick={() => setIsSignInModalOpen(true)}
           disabled={!isSupabaseConfigured}
-          className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md shadow-amber-500/30 hover:shadow-lg hover:shadow-amber-500/40 disabled:bg-slate-300 disabled:cursor-not-allowed"
+          className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold py-2.5 px-5 rounded-lg transition-all shadow-md shadow-teal-500/30 hover:shadow-lg hover:shadow-teal-500/40 disabled:bg-slate-300 disabled:cursor-not-allowed"
         >
           Sign In
         </button>

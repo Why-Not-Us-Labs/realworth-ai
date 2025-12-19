@@ -287,7 +287,7 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
           </Link>
           <Link
             href="/"
-            className="bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-5 rounded-full text-sm transition-transform transform hover:scale-105 shadow-md shadow-amber-500/30"
+            className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold py-2.5 px-5 rounded-full text-sm transition-transform transform hover:scale-105 shadow-md shadow-teal-500/30"
           >
             Appraise Your Items
           </Link>
@@ -614,7 +614,7 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
           <p className="text-slate-600 mb-4">Think you have hidden treasures?</p>
           <Link
             href="/"
-            className="inline-block bg-amber-500 hover:bg-amber-600 text-white font-black py-4 px-8 rounded-full text-lg transition-transform transform hover:scale-105 shadow-lg shadow-amber-500/30"
+            className="inline-block bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-black py-4 px-8 rounded-full text-lg transition-transform transform hover:scale-105 shadow-lg shadow-teal-500/30"
           >
             Start Appraising Now
           </Link>
