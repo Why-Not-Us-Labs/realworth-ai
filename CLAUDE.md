@@ -51,7 +51,9 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 
 **Subscription System**:
 - `subscriptionService.ts` manages Pro tier logic with Stripe integration
-- Free tier: 10 appraisals/month (tracked in `users.monthly_appraisal_count`)
+- Free tier: 3 appraisals/month (tracked in `users.monthly_appraisal_count`)
+- Pro tier: $19.99/mo or $149.99/yr (V2 prices with legacy $9.99 grandfathering)
+- Free limit defined in `lib/constants.ts` as `FREE_APPRAISAL_LIMIT`
 - Super admin emails bypass limits (hardcoded in subscriptionService)
 - `useSubscription` hook provides subscription state to components
 - Stripe webhooks (`/api/stripe/webhook`) handle subscription lifecycle
@@ -159,7 +161,7 @@ Project ID: `gwoahdeybyjfonoahmvv`
 - API route timeouts configured in `vercel.json`: 120s for `/api/appraise`, 60s for `/api/chat` - requires Vercel Pro
 - Supabase client in `lib/supabase.ts` is for client-side; API routes create authenticated clients with user tokens
 - `getSupabaseAdmin()` returns a service-role client that bypasses RLS - use only in API routes/webhooks
-- Free tier limit of 10 appraisals/month enforced in `subscriptionService.ts`
+- Free tier limit of 3 appraisals/month enforced via `FREE_APPRAISAL_LIMIT` constant in `lib/constants.ts`
 - Super admin emails are hardcoded in `subscriptionService.ts` and bypass all limits
 
 ## Project Management
