@@ -362,7 +362,7 @@ export default function Home() {
     <>
       <Header onUpgradeClick={() => promptUpgrade()} />
       <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
-        <div className="w-full bg-white rounded-2xl shadow-lg mb-8">
+        <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           {renderView()}
         </div>
 

@@ -183,13 +183,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
     <>
       <Confetti trigger={showConfetti} />
 
-      <div className={`p-4 sm:p-6 md:p-8 transition-all duration-300 overflow-x-hidden ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+      <div className={`p-4 sm:p-6 md:p-8 transition-all duration-300 w-full max-w-full overflow-hidden ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
         {/* Reaction Header */}
         <div className="text-center mb-4 sm:mb-6">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800">{reaction.text}</h3>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 items-start">
+        <div className="grid md:grid-cols-2 gap-4 sm:gap-6 md:gap-8 items-start w-full">
           <div className="w-full aspect-square rounded-2xl overflow-hidden bg-slate-100 relative group">
             <img src={currentDisplayImage} alt={currentResult.itemName} className="w-full h-full object-cover transition-opacity" />
             {isGreatFind && (
@@ -235,8 +235,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
             )}
           </div>
 
-          <div className="flex flex-col h-full">
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-slate-900 break-words hyphens-auto">{currentResult.itemName}</h2>
+          <div className="flex flex-col h-full w-full min-w-0 result-card-content">
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-slate-900">{currentResult.itemName}</h2>
             {currentResult.author && currentResult.author.toLowerCase() !== 'n/a' && (
               <p className="text-base sm:text-lg text-slate-600 -mt-1">by {currentResult.author}</p>
             )}
@@ -258,9 +258,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
             )}
 
             {/* Value Card */}
-            <div className="my-4 sm:my-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white overflow-hidden">
+            <div className="my-4 sm:my-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
               <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider opacity-90">Estimated Value</p>
-              <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black mt-1 truncate">
+              <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black mt-1">
                 {formatCurrency(currentResult.priceRange.low)} - {formatCurrency(currentResult.priceRange.high)}
               </p>
 
@@ -411,14 +411,14 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, setH
               </div>
             )}
 
-            <div className="space-y-4 text-slate-600 flex-grow overflow-hidden">
+            <div className="space-y-4 text-slate-600 flex-grow">
               <div>
                 <h4 className="font-semibold text-slate-800">AI-Generated Description</h4>
-                <p className="whitespace-pre-wrap break-words">{currentResult.description}</p>
+                <p className="whitespace-pre-wrap overflow-wrap-anywhere">{currentResult.description}</p>
               </div>
               <div>
                 <h4 className="font-semibold text-slate-800">Valuation Rationale</h4>
-                <p className="whitespace-pre-wrap break-words">{currentResult.reasoning}</p>
+                <p className="whitespace-pre-wrap overflow-wrap-anywhere">{currentResult.reasoning}</p>
               </div>
 
               {/* Care & Preservation Tips */}
