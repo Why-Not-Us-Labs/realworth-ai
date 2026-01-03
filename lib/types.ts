@@ -1,7 +1,7 @@
 
 export interface AppraisalRequest {
   files: File[];
-  condition: string;
+  condition?: string; // Optional - AI will determine from photos if not provided
   collectionId?: string;
 }
 

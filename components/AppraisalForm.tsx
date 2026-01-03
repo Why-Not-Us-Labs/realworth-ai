@@ -3,7 +3,6 @@
 
 import React, { useState } from 'react';
 import { AppraisalRequest } from '@/lib/types';
-import { CONDITIONS } from '@/lib/constants';
 import { FileUpload } from './FileUpload';
 import { SparklesIcon, SpinnerIcon } from './icons';
 import { PhotoGuidanceModal } from './PhotoGuidanceModal';
@@ -21,13 +20,12 @@ export const AppraisalForm: React.FC<AppraisalFormProps> = ({
   error,
 }) => {
   const [files, setFiles] = useState<File[]>([]);
-  const [condition, setCondition] = useState(CONDITIONS[2]); // Default to 'Good'
   const [showGuidance, setShowGuidance] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length > 0) {
-      onSubmit({ files, condition });
+      onSubmit({ files });
     }
   };
 
@@ -61,28 +59,7 @@ export const AppraisalForm: React.FC<AppraisalFormProps> = ({
         </Button>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-600 mb-3 text-center">1. What&apos;s the item&apos;s condition?</label>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 max-w-md mx-auto">
-          {CONDITIONS.map((cond) => (
-            <button
-              key={cond}
-              type="button"
-              onClick={() => setCondition(cond)}
-              className={`px-3 sm:px-4 py-3 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition touch-manipulation active:scale-95 min-h-[44px] ${
-                condition === cond
-                  ? 'bg-teal-500 text-white shadow-md'
-                  : 'bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700'
-              }`}
-            >
-              {cond}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="pt-4">
-        <p className="text-center text-sm text-slate-500 mb-4">2. Get your AI-powered appraisal!</p>
+      <div className="pt-2">
         <Button
           type="submit"
           disabled={files.length === 0 || isLoading}

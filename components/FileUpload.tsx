@@ -42,7 +42,6 @@ const ImagePreview: React.FC<{ file: File; onRemove: () => void }> = ({ file, on
 export const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((newFiles: FileList | null) => {
     if (newFiles) {
@@ -73,21 +72,24 @@ export const FileUpload: React.FC<FileUploadProps> = ({ files, setFiles }) => {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-600 mb-3 text-center">Upload photos of your item</label>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <button type="button" onClick={() => cameraInputRef.current?.click()} className="flex flex-col justify-center items-center w-full px-4 sm:px-6 py-8 sm:py-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-teal-500 bg-teal-50 hover:bg-teal-100 active:bg-teal-200 touch-manipulation min-h-[120px]">
-          <CameraIcon className="mx-auto h-10 w-10 text-teal-500" />
-          <p className="mt-2 text-sm font-semibold text-teal-700">Take a Picture</p>
-        </button>
-        <div onDragEnter={onDragEnter} onDragLeave={onDragLeave} onDragOver={onDragOver} onDrop={onDrop} onClick={() => fileInputRef.current?.click()} className={`flex flex-col justify-center items-center w-full px-4 sm:px-6 py-8 sm:py-10 border-2 border-dashed rounded-lg cursor-pointer transition-colors touch-manipulation min-h-[120px] ${isDragging ? 'border-teal-400 bg-teal-50' : 'border-slate-300 hover:border-slate-400 active:border-slate-500 active:bg-slate-50'}`}>
-          <UploadIcon className="mx-auto h-10 w-10 text-slate-400" />
-          <p className="mt-2 text-sm text-slate-500">
-            <span className="font-semibold text-teal-600">Upload files</span> or drag & drop
-          </p>
+      <div
+        onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex flex-col justify-center items-center w-full px-4 sm:px-6 py-10 sm:py-12 border-2 border-dashed rounded-xl cursor-pointer transition-colors touch-manipulation min-h-[140px] ${isDragging ? 'border-teal-400 bg-teal-50' : 'border-teal-500 bg-teal-50 hover:bg-teal-100 active:bg-teal-200'}`}
+      >
+        <div className="flex items-center gap-3 text-teal-600">
+          <CameraIcon className="h-8 w-8" />
+          <span className="text-slate-300 text-2xl font-light">/</span>
+          <UploadIcon className="h-8 w-8" />
         </div>
+        <p className="mt-3 text-sm font-semibold text-teal-700">Take Photo or Upload</p>
+        <p className="mt-1 text-xs text-slate-500 hidden sm:block">or drag & drop files here</p>
       </div>
 
-      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={onFileChange} className="hidden" aria-label="Take a picture" />
-      <input ref={fileInputRef} type="file" multiple accept="image/*,.heic,.heif" onChange={onFileChange} className="hidden" aria-label="File upload" />
+      <input ref={fileInputRef} type="file" multiple accept="image/*,.heic,.heif" onChange={onFileChange} className="hidden" aria-label="Upload photos" />
 
       {files.length > 0 && (
         <div className="mt-4">

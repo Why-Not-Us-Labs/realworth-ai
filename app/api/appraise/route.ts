@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     const { imageUrls, imagePaths, condition, collectionId } = body as {
       imageUrls: string[];
       imagePaths: string[];
-      condition: string;
+      condition?: string; // Optional - AI determines from photos if not provided
       collectionId?: string;
     };
 
@@ -573,7 +573,9 @@ REFERENCE REQUIREMENTS:
 4. If exact matches aren't found, cite comparable items and explain the comparison
 
 Users will click these links to verify your valuation, so accuracy is critical!${collectionContext}`;
-    const appraisalTextPart = { text: `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}` };
+    const appraisalTextPart = { text: condition
+      ? `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}`
+      : `Please assess the item's condition from the photos provided.${collectionContext ? '\n\n' + collectionContext : ''}` };
     
     const appraisalResponse = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
