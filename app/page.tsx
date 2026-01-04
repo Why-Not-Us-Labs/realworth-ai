@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
@@ -39,7 +39,7 @@ interface StreakInfo {
   streakBroken: boolean;
 }
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [view, setView] = useState<View>('HOME');
   const { appraisals: history, addAppraisal, updateAppraisal, refreshAppraisals, clearAppraisals } = useContext(AppraisalContext);
@@ -435,5 +435,25 @@ export default function Home() {
         onSelectProvider={handleSelectProvider}
       />
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <Header onUpgradeClick={() => {}} />
+        <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
+          <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }
