@@ -58,8 +58,8 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-0 hover:opacity-80 transition-opacity">
-              <LogoIcon className="w-12 h-12 -ml-2 -mt-1.5" />
-              <h1 className="text-2xl font-bold tracking-tighter text-slate-900">
+              <LogoIcon className="w-10 h-10 sm:w-12 sm:h-12 -ml-2 -mt-1.5" />
+              <h1 className="text-lg sm:text-2xl npm run font-bold tracking-tighter text-slate-900">
                 RealWorth<span className="font-light text-slate-500">.ai</span>
               </h1>
             </Link>
