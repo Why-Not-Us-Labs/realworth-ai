@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LogoIcon, SparklesIcon } from './icons';
 import { Auth } from './Auth';
@@ -16,10 +16,35 @@ interface HeaderProps {
   onUpgradeClick?: () => void;
 }
 
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  
+  const ua = window.navigator.userAgent.toLowerCase();
+  const platform = (window.navigator as any).platform?.toLowerCase() || '';
+  
+  // Check for desktop platforms (exclude these)
+  const isDesktopPlatform = /win32|win64|macintel|linux x86_64|linux/.test(platform);
+  
+  if (isDesktopPlatform) {
+    return false;
+  }
+  
+  const isIPhone = /iphone/.test(ua) && !/ipad/.test(ua);
+  const isAndroidPhone = /android/.test(ua) && /mobile/.test(ua);
+  const isOtherMobile = /webos|blackberry|iemobile|operamini/.test(ua);
+  
+  return isIPhone || isAndroidPhone || isOtherMobile;
+};
+
 export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
   const { user } = useContext(AuthContext);
   const { isPro, isVerifying } = useSubscription(user?.id || null, user?.email);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(isMobileDevice());
+  }, []);
 
   // Feature flags for new features
   const { isEnabled: marketplaceEnabled } = useFeatureFlag('marketplace', { userId: user?.id, isPro });
@@ -29,14 +54,20 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
     <>
       <HelpChatWidget isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
     <header className="p-3 sm:p-4 md:p-6">
-      <div className="max-w-4xl mx-auto flex items-center justify-between px-2 sm:px-4">
+      <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:px-4">
         <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <LogoIcon />
-            <h1 className="text-2xl font-bold tracking-tighter text-slate-900">
-              RealWorth<span className="font-light text-slate-500">.ai</span>
-            </h1>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-0 hover:opacity-80 transition-opacity">
+              <LogoIcon className="w-12 h-12 -ml-2 -mt-1.5" />
+              <h1 className="text-2xl font-bold tracking-tighter text-slate-900">
+                RealWorth<span className="font-light text-slate-500">.ai</span>
+              </h1>
+            </Link>
+            {/* Pro badge for Pro users - next to logo */}
+            {user && isPro && !isVerifying && (
+              <ProBadge />
+            )}
+          </div>
           <nav className="hidden sm:flex items-center gap-4">
             <Link
               href="/discover"
@@ -75,8 +106,8 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          {/* PWA Install Button - shows only when install is available */}
-          <PWAInstallButton variant="compact" />
+          {/* PWA Install Button - shows only when install is available and on mobile device */}
+          {isMobile && <PWAInstallButton variant="compact" />}
           {/* Activating Pro indicator - shows during post-checkout verification */}
           {user && isVerifying && (
             <span className="hidden sm:flex items-center gap-2 text-teal-600 font-medium text-sm animate-pulse">
@@ -97,16 +128,6 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
               Go Pro
             </button>
           )}
-          {/* Pro badge for Pro users */}
-          {user && isPro && !isVerifying && (
-            <ProBadge />
-          )}
-          <Link
-            href="/discover"
-            className="sm:hidden text-slate-600 hover:text-teal-600 font-medium transition-colors text-sm"
-          >
-            Discover
-          </Link>
           <HelpButton onClick={() => setIsHelpOpen(true)} />
           <Auth />
         </div>
