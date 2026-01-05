@@ -324,12 +324,13 @@ export async function POST(request: NextRequest) {
 
         try {
           const success = await subscriptionService.updateSubscriptionStatus(customerId, status, expiresAt, cancelAtPeriodEnd);
-          if (success) {
-          } else {
-            console.error(`[Webhook] FAILED to update subscription status for customer ${customerId}`);
+          if (!success) {
+            console.error(`[Webhook] CRITICAL: customer.subscription.updated failed for customer ${customerId}`);
+            return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 });
           }
         } catch (updateError) {
           console.error('[Webhook] Error updating subscription status:', updateError);
+          return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 });
         }
         break;
       }
@@ -348,12 +349,13 @@ export async function POST(request: NextRequest) {
 
         try {
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'canceled');
-          if (success) {
-          } else {
-            console.error(`[Webhook] FAILED to cancel subscription for customer ${customerId}`);
+          if (!success) {
+            console.error(`[Webhook] CRITICAL: customer.subscription.deleted failed for customer ${customerId}`);
+            return NextResponse.json({ error: 'Failed to cancel subscription' }, { status: 500 });
           }
         } catch (updateError) {
           console.error('[Webhook] Error canceling subscription:', updateError);
+          return NextResponse.json({ error: 'Failed to cancel subscription' }, { status: 500 });
         }
         break;
       }
@@ -373,10 +375,12 @@ export async function POST(request: NextRequest) {
         try {
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'past_due');
           if (!success) {
-            console.error(`[Webhook] invoice.payment_failed: Failed to update status for customer ${customerId}`);
+            console.error(`[Webhook] CRITICAL: invoice.payment_failed failed for customer ${customerId}`);
+            return NextResponse.json({ error: 'Failed to update payment status' }, { status: 500 });
           }
         } catch (updateError) {
           console.error('[Webhook] invoice.payment_failed: Error:', updateError);
+          return NextResponse.json({ error: 'Failed to update payment status' }, { status: 500 });
         }
         break;
       }
@@ -441,12 +445,13 @@ export async function POST(request: NextRequest) {
         try {
           // Mark subscription as inactive but keep tier as Pro (they can resume)
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'inactive');
-          if (success) {
-          } else {
-            console.error(`[Webhook] FAILED to pause subscription for customer ${customerId}`);
+          if (!success) {
+            console.error(`[Webhook] CRITICAL: customer.subscription.paused failed for customer ${customerId}`);
+            return NextResponse.json({ error: 'Failed to pause subscription' }, { status: 500 });
           }
         } catch (updateError) {
           console.error('[Webhook] Error pausing subscription:', updateError);
+          return NextResponse.json({ error: 'Failed to pause subscription' }, { status: 500 });
         }
         break;
       }
@@ -508,10 +513,12 @@ export async function POST(request: NextRequest) {
           // Reactivate the subscription
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
           if (!success) {
-            console.error(`[Webhook] customer.subscription.resumed: Failed to resume subscription for customer ${customerId}`);
+            console.error(`[Webhook] CRITICAL: customer.subscription.resumed failed for customer ${customerId}`);
+            return NextResponse.json({ error: 'Failed to resume subscription' }, { status: 500 });
           }
         } catch (updateError) {
           console.error('[Webhook] customer.subscription.resumed: Error:', updateError);
+          return NextResponse.json({ error: 'Failed to resume subscription' }, { status: 500 });
         }
         break;
       }

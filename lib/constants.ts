@@ -2,7 +2,7 @@
 export const CONDITIONS = ['Mint', 'Excellent', 'Good', 'Fair', 'Poor'];
 
 // Subscription limits - SINGLE SOURCE OF TRUTH
-export const FREE_APPRAISAL_LIMIT = 3;
+export const FREE_APPRAISAL_LIMIT = 2;
 
 // Stripe Price IDs
 // Legacy prices (for grandfathered users - DO NOT USE FOR NEW SIGNUPS)
