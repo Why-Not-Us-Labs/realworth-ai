@@ -8,10 +8,22 @@ const config: CapacitorConfig = {
     // Load from production URL - the app wraps the live website
     url: 'https://realworth.ai',
     cleartext: false,
+    // Allow navigation to auth providers without opening external browser
+    allowNavigation: [
+      'realworth.ai',
+      '*.realworth.ai',
+      'accounts.google.com',
+      '*.google.com',
+      'appleid.apple.com',
+      '*.apple.com',
+      '*.supabase.co',
+    ],
   },
   ios: {
     contentInset: 'automatic',
     backgroundColor: '#F8FAFC',
+    // Keep all navigation in the WebView
+    allowsLinkPreview: false,
   },
   plugins: {
     Camera: {
