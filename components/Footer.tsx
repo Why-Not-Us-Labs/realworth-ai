@@ -21,6 +21,10 @@ export function Footer() {
           <Link href="/disclaimer" className="hover:text-teal-600 transition-colors">
             Disclaimer
           </Link>
+          <span className="text-slate-300">·</span>
+          <Link href="/support" className="hover:text-teal-600 transition-colors">
+            Support
+          </Link>
         </div>
 
         {/* Why Not Us Labs Attribution */}
@@ -38,10 +42,10 @@ export function Footer() {
 
         {/* Support Email */}
         <a
-          href="mailto:support@realworth.ai"
+          href="mailto:support@whynotus.ai"
           className="text-slate-400 hover:text-teal-600 transition-colors text-xs"
         >
-          support@realworth.ai
+          support@whynotus.ai
         </a>
       </div>
     </footer>

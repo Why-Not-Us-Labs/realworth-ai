@@ -19,24 +19,45 @@ export default function SupportPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Support Center</h1>
-        <p className="text-slate-500 mb-8">We&apos;re here to help you get the most out of RealWorth.ai</p>
+        <h1 className="text-3xl font-bold text-slate-900 mb-2">Support &amp; Help Center</h1>
+        <p className="text-slate-500 mb-4">
+          Welcome to the RealWorth.ai Help Center. We&apos;re here to help you get the most out of your treasure-hunting experience.
+        </p>
+        <p className="text-slate-600 mb-8 font-medium">
+          RealWorth.ai is a product of Why Not Us Labs LLC.
+        </p>
+
+        {/* Important Notice */}
+        <section className="bg-amber-50 border-l-4 border-amber-400 p-4 mb-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-2">Important Notice About Appraisals</h2>
+          <p className="text-slate-700">
+            <strong>RealWorth.ai provides AI-generated estimates for informational purposes only.</strong> Our valuations
+            are NOT certified appraisals and should NOT be used as the sole basis for insurance, sale, legal, or financial
+            decisions. For accurate valuations, please consult a qualified, licensed professional appraiser.
+          </p>
+        </section>
 
         {/* Contact Section */}
         <section className="bg-teal-50 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-semibold text-slate-800 mb-3">Contact Us</h2>
           <p className="text-slate-600 mb-4">
-            Have a question or need assistance? Reach out to our support team:
+            If you need further assistance, have a feature request, or want to report a bug, please get in touch.
           </p>
           <div className="space-y-2">
             <p className="text-slate-700">
-              <strong>Email:</strong>{' '}
-              <a href="mailto:support@realworth.ai" className="text-teal-600 hover:text-teal-700 underline">
-                support@realworth.ai
+              <strong>Email Support:</strong>{' '}
+              <a href="mailto:support@whynotus.ai" className="text-teal-600 hover:text-teal-700 underline">
+                support@whynotus.ai
               </a>
             </p>
             <p className="text-slate-600 text-sm">
-              We typically respond within 24 hours on business days.
+              We aim to respond to all emails within 24-48 hours.
+            </p>
+            <p className="text-slate-700 mt-2">
+              <strong>Website:</strong>{' '}
+              <a href="https://whynotus.ai" className="text-teal-600 hover:text-teal-700 underline">
+                whynotus.ai
+              </a>
             </p>
           </div>
         </section>
@@ -52,166 +73,112 @@ export default function SupportPage() {
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How do I create an account?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: How do I get an appraisal?</h4>
                   <p className="text-slate-600 text-sm">
-                    Tap &quot;Get Started&quot; and sign in with your Google or Apple account. We use secure OAuth
-                    authentication, so you don&apos;t need to create a separate password.
+                    A: It&apos;s simple! Tap the camera icon on the main screen, snap a clear photo of your item, and our AI will
+                    do the rest. You&apos;ll get an identification, estimated valuation, and detailed rationale in seconds.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How does the appraisal work?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: What kind of items can I appraise?</h4>
                   <p className="text-slate-600 text-sm">
-                    Simply take a photo of your item or upload an existing image. Our AI analyzes the item,
-                    identifies what it is, and provides a market value estimate based on current pricing data
-                    and comparable sales.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">What items can RealWorth appraise?</h4>
-                  <p className="text-slate-600 text-sm">
-                    RealWorth can appraise a wide variety of items including antiques, collectibles, vintage items,
-                    books, art, furniture, jewelry, electronics, toys, and more. For best results, take clear,
-                    well-lit photos showing the item&apos;s details and any maker&apos;s marks.
+                    A: You can appraise almost anything! From antiques and collectibles to electronics and furniture. For best
+                    results, make sure the item is well-lit and the photo is clear.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Subscription */}
+            {/* Appraisals & AI Chat */}
             <div className="border-b border-slate-200 pb-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Subscription & Billing</h3>
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Appraisals &amp; AI Chat</h3>
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">What&apos;s included in the free tier?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Free users get 2 appraisals per month. This resets automatically each month.
-                    You can view your appraisal history and share results anytime.
+                  <h4 className="font-medium text-slate-700 mb-1">Q: How accurate are the appraisals?</h4>
+                  <p className="text-slate-600 text-sm mb-2">
+                    A: Our AI provides <strong>estimated market values</strong> based on analysis of available market data and
+                    recent sales. We continuously train and update our models to provide the most consistent and fair estimates possible.
+                  </p>
+                  <p className="text-slate-600 text-sm mb-2"><strong>However, please understand:</strong></p>
+                  <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 ml-4">
+                    <li>Our estimates are for <strong>informational and entertainment purposes only</strong></li>
+                    <li>Actual market value may be higher or lower than our estimate</li>
+                    <li>We <strong>cannot guarantee</strong> the accuracy of any valuation</li>
+                    <li>For insurance, estate planning, sales, or legal purposes, <strong>you should always consult a certified professional appraiser</strong> who can physically inspect your item</li>
+                  </ul>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: Why might the estimate be different from what I expected?</h4>
+                  <p className="text-slate-600 text-sm mb-2">
+                    A: Several factors can affect value that our AI cannot fully assess from photos alone:
+                  </p>
+                  <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 ml-4">
+                    <li>Physical condition (wear, damage, repairs)</li>
+                    <li>Authenticity and provenance</li>
+                    <li>Regional market variations</li>
+                    <li>Current demand and trends</li>
+                    <li>Rarity of specific variations</li>
+                  </ul>
+                  <p className="text-slate-600 text-sm mt-2">
+                    A professional appraiser can assess these factors in person for a more accurate valuation.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">What does RealWorth PRO include?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: What does the AI chat do?</h4>
                   <p className="text-slate-600 text-sm">
-                    PRO subscribers get unlimited appraisals, full access to the AI chat feature for follow-up
-                    questions, priority processing, and all premium features as they&apos;re released.
+                    A: The AI chat lets you ask follow-up questions about your item. You can ask things like &quot;What makes this
+                    valuable?&quot; or &quot;Are there different versions of this?&quot; to get deeper insights into your item&apos;s history
+                    and characteristics.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How much does PRO cost?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: Can I use RealWorth.ai estimates for insurance?</h4>
                   <p className="text-slate-600 text-sm">
-                    RealWorth PRO is $19.99/month or $149.99/year (save over 35% annually).
-                    Prices may vary by region and platform.
+                    A: Our estimates are for informational purposes only and are <strong>not certified appraisals</strong>.
+                    Insurance companies typically require certified appraisals from licensed professionals. We recommend using
+                    RealWorth.ai as a starting point to identify potentially valuable items, then consulting a professional
+                    appraiser for items you wish to insure.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Account & Subscription */}
+            <div className="border-b border-slate-200 pb-6">
+              <h3 className="text-lg font-semibold text-slate-800 mb-4">Account &amp; Subscription</h3>
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: What do I get with a RealWorth PRO subscription?</h4>
+                  <p className="text-slate-600 text-sm">
+                    A: RealWorth PRO gives you unlimited appraisals, full access to the conversational AI chat, and access to
+                    all premium features, including advanced collection management and future marketplace features.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How do I cancel my subscription?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: How do I manage my subscription?</h4>
                   <p className="text-slate-600 text-sm">
-                    <strong>Web subscriptions:</strong> Go to your Profile, tap &quot;Manage Subscription&quot;, and you&apos;ll
-                    be taken to Stripe&apos;s customer portal where you can cancel.
-                    <br />
-                    <strong>iOS subscriptions:</strong> Go to Settings &gt; Apple ID &gt; Subscriptions on your device
-                    and manage your RealWorth subscription there.
-                    <br />
-                    Your PRO access continues until the end of your current billing period.
+                    A: You can manage your subscription directly through your Apple App Store or Google Play Store account settings.
+                    From there, you can change or cancel your plan. For subscriptions made on our website, you can manage them
+                    through your account settings at realworth.ai.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Can I get a refund?</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: How do I delete my account?</h4>
                   <p className="text-slate-600 text-sm">
-                    <strong>Web subscriptions:</strong> Contact us at support@realworth.ai within 7 days of your
-                    purchase and we&apos;ll process a refund.
-                    <br />
-                    <strong>iOS subscriptions:</strong> Refunds are handled by Apple. You can request a refund
-                    through Apple&apos;s{' '}
-                    <a href="https://reportaproblem.apple.com" className="text-teal-600 hover:text-teal-700 underline" target="_blank" rel="noopener noreferrer">
-                      Report a Problem
+                    A: We&apos;re sad to see you go! You can delete your account and all your data by going to Settings &gt; Account &gt;
+                    Delete Account within the app. You can also email us at{' '}
+                    <a href="mailto:support@whynotus.ai" className="text-teal-600 hover:text-teal-700 underline">
+                      support@whynotus.ai
                     </a>{' '}
-                    page.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Using the App */}
-            <div className="border-b border-slate-200 pb-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Using RealWorth</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How accurate are the appraisals?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Our AI provides estimates based on current market data and comparable sales. While we strive
-                    for accuracy, appraisals are for informational purposes only. For high-value items or insurance
-                    purposes, we recommend consulting a certified appraiser.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Can I chat with the AI about my item?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Yes! PRO subscribers can ask follow-up questions like &quot;Would this be worth more in better
-                    condition?&quot; or &quot;Where could I sell this?&quot; The AI provides detailed insights based on your
-                    specific item.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Where are my appraisals saved?</h4>
-                  <p className="text-slate-600 text-sm">
-                    All your appraisals are automatically saved to your account. Access them anytime from the
-                    Treasures tab in the app or on our website.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Can I share my appraisals?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Yes! Each appraisal has a unique shareable link. Tap the share button on any appraisal to
-                    copy the link or share directly to social media.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Account & Privacy */}
-            <div className="border-b border-slate-200 pb-6">
-              <h3 className="text-lg font-semibold text-slate-800 mb-4">Account & Privacy</h3>
-
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">How do I delete my account?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Contact us at support@realworth.ai with the subject line &quot;Delete Account&quot; and include the
-                    email address associated with your account. We&apos;ll process your request within 30 days.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Is my data secure?</h4>
-                  <p className="text-slate-600 text-sm">
-                    Yes. We use industry-standard encryption, secure OAuth authentication (no passwords stored),
-                    and your data is protected by Row Level Security in our database. See our{' '}
-                    <Link href="/privacy" className="text-teal-600 hover:text-teal-700 underline">
-                      Privacy Policy
-                    </Link>{' '}
-                    for details.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">Do you sell my data?</h4>
-                  <p className="text-slate-600 text-sm">
-                    No. We do not sell your personal information. See our{' '}
-                    <Link href="/privacy" className="text-teal-600 hover:text-teal-700 underline">
-                      Privacy Policy
-                    </Link>{' '}
-                    for full details on how we handle your data.
+                    to request deletion.
                   </p>
                 </div>
               </div>
@@ -223,37 +190,28 @@ export default function SupportPage() {
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">The app is running slowly or crashing</h4>
+                  <h4 className="font-medium text-slate-700 mb-1">Q: My photo upload is failing. What should I do?</h4>
                   <p className="text-slate-600 text-sm">
-                    Try closing and reopening the app. If the issue persists, make sure you have the latest
-                    version installed. Still having trouble? Contact us with your device model and OS version.
+                    A: Please check your internet connection. If the problem persists, try taking a photo in a better-lit area.
+                    If you&apos;re still having trouble, contact us at{' '}
+                    <a href="mailto:support@whynotus.ai" className="text-teal-600 hover:text-teal-700 underline">
+                      support@whynotus.ai
+                    </a>.
                   </p>
                 </div>
 
                 <div>
-                  <h4 className="font-medium text-slate-700 mb-1">My appraisal seems incorrect</h4>
-                  <p className="text-slate-600 text-sm">
-                    For best results, ensure your photo is clear, well-lit, and shows any important details
-                    (maker&apos;s marks, signatures, condition issues). If you have PRO, use the chat feature to
-                    provide additional context. Values can vary based on condition, provenance, and market trends.
+                  <h4 className="font-medium text-slate-700 mb-1">Q: The appraisal seems wrong. What can I do?</h4>
+                  <p className="text-slate-600 text-sm mb-2">
+                    A: While our AI is continuously improving, no AI system is perfect. You can try:
                   </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">I can&apos;t sign in</h4>
-                  <p className="text-slate-600 text-sm">
-                    Make sure you&apos;re using the same sign-in method (Google or Apple) you originally used to
-                    create your account. If you&apos;re still having trouble, contact us with your email address
-                    and we&apos;ll help you recover access.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-medium text-slate-700 mb-1">My subscription isn&apos;t showing as active</h4>
-                  <p className="text-slate-600 text-sm">
-                    Try signing out and back in to refresh your account status. For iOS subscriptions, make sure
-                    you&apos;re signed in with the same Apple ID used for the purchase. If the issue persists, contact
-                    us with your account email.
+                  <ul className="list-disc list-inside text-slate-600 text-sm space-y-1 ml-4">
+                    <li>Taking another photo from a different angle or with better lighting</li>
+                    <li>Using the AI chat to ask clarifying questions</li>
+                    <li>Providing more details about the item</li>
+                  </ul>
+                  <p className="text-slate-600 text-sm mt-2">
+                    Remember, for important valuations, we always recommend consulting a professional appraiser.
                   </p>
                 </div>
               </div>
@@ -261,9 +219,19 @@ export default function SupportPage() {
           </div>
         </section>
 
-        {/* Additional Resources */}
+        {/* Feature Guides */}
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-slate-800 mb-4">Additional Resources</h2>
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Feature Guides</h2>
+          <ul className="list-disc list-inside text-slate-600 space-y-2">
+            <li><strong>Collections:</strong> Organize your appraised items into collections like &quot;Mom&apos;s Jewelry&quot; or &quot;Garage Sale Finds&quot; to keep track of your treasures.</li>
+            <li><strong>Discover Feed:</strong> See what other users are finding! The Discover feed shows a real-time stream of interesting and valuable items from the community.</li>
+            <li><strong>Leaderboard:</strong> See how your collection&apos;s estimated value stacks up against other users. Climb the ranks by finding more treasures!</li>
+          </ul>
+        </section>
+
+        {/* Legal Links */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Legal</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <Link href="/privacy" className="block p-4 border border-slate-200 rounded-lg hover:border-teal-500 transition-colors">
               <h3 className="font-medium text-slate-800 mb-1">Privacy Policy</h3>
@@ -273,21 +241,14 @@ export default function SupportPage() {
               <h3 className="font-medium text-slate-800 mb-1">Terms of Service</h3>
               <p className="text-slate-500 text-sm">Our terms and conditions for using RealWorth</p>
             </Link>
-            <Link href="/disclaimer" className="block p-4 border border-slate-200 rounded-lg hover:border-teal-500 transition-colors">
-              <h3 className="font-medium text-slate-800 mb-1">Disclaimer</h3>
-              <p className="text-slate-500 text-sm">Important information about appraisal accuracy</p>
-            </Link>
-            <a href="mailto:support@realworth.ai" className="block p-4 border border-slate-200 rounded-lg hover:border-teal-500 transition-colors">
-              <h3 className="font-medium text-slate-800 mb-1">Email Support</h3>
-              <p className="text-slate-500 text-sm">Get help from our team directly</p>
-            </a>
           </div>
         </section>
 
-        {/* App Version Info */}
-        <section className="text-center text-slate-500 text-sm">
-          <p>RealWorth.ai</p>
-          <p>Made with care in San Francisco</p>
+        {/* Company Info */}
+        <section className="text-center pt-8 border-t border-slate-200">
+          <p className="text-slate-600 font-medium">Why Not Us Labs LLC</p>
+          <p className="text-slate-500 text-sm">RealWorth.ai is a product of Why Not Us Labs LLC.</p>
+          <p className="text-slate-400 text-sm mt-2">Thank you for using RealWorth.ai!</p>
         </section>
       </main>
 
