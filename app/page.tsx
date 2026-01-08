@@ -1,7 +1,8 @@
 
 'use client';
 
-import React, { useState, useContext, useEffect, useCallback } from 'react';
+import React, { useState, useContext, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { AppraisalForm } from '@/components/AppraisalForm';
 import { Header } from '@/components/Header';
 import { AppraisalResult, AppraisalRequest } from '@/lib/types';
@@ -38,7 +39,8 @@ interface StreakInfo {
   streakBroken: boolean;
 }
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
   const [view, setView] = useState<View>('HOME');
   const { appraisals: history, addAppraisal, updateAppraisal, refreshAppraisals, clearAppraisals } = useContext(AppraisalContext);
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
@@ -154,13 +156,12 @@ export default function Home() {
 
   // Check for ?capture=true to auto-open capture form
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('capture') === 'true') {
+    if (searchParams?.get('capture') === 'true') {
       setView('FORM');
       // Clear URL params
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+  }, [searchParams]);
 
   // Show upgrade modal with specific feature
   const promptUpgrade = (feature?: string) => {
@@ -317,12 +318,12 @@ export default function Home() {
       case 'HOME':
       default:
         return (
-          <div className="text-center p-4 sm:p-6 md:p-8">
+          <div className="text-center p-6 sm:p-6 md:p-8">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 text-slate-900 px-2">
                 Turn Clutter into <span className="gradient-text">Cash</span>!
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto px-4">
+              <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto">
                 It's a win-win! Declutter your home and discover hidden treasures. Snap a photo to see what your items are worth. It's fun, easy, and you might just find a fortune!
               </p>
             </div>
@@ -434,5 +435,25 @@ export default function Home() {
         onSelectProvider={handleSelectProvider}
       />
     </>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <Header onUpgradeClick={() => {}} />
+        <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
+          <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

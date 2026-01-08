@@ -12,8 +12,7 @@ interface TabItem {
   badge?: number;
 }
 
-// Simplified to 4 core tabs for cleaner mobile UX
-const baseTabs: Omit<TabItem, 'badge'>[] = [
+const leftTabs: Omit<TabItem, 'badge'>[] = [
   {
     href: '/',
     label: 'Home',
@@ -43,18 +42,38 @@ const baseTabs: Omit<TabItem, 'badge'>[] = [
       </svg>
     ),
   },
+];
+
+const captureTab: Omit<TabItem, 'badge'> = {
+  href: '/?capture=true',
+  label: 'Capture',
+  icon: (
+    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  ),
+  activeIcon: (
+    <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+      <path fillRule="evenodd" d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+    </svg>
+  ),
+};
+
+const rightTabs: Omit<TabItem, 'badge'>[] = [
   {
-    href: '/?capture=true',
-    label: 'Capture',
+    href: '/treasures',
+    label: 'Treasures',
     icon: (
-      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+      <svg style={{ width: '30px', height: '30px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12v6a2 2 0 002 2h10a2 2 0 002-2v-6M5 12V8a2 2 0 012-2h10a2 2 0 012 2v4" />
+        <circle cx="12" cy="13" r="1.5" />
       </svg>
     ),
     activeIcon: (
-      <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-        <path fillRule="evenodd" d="M12 3.75a.75.75 0 01.75.75v6.75h6.75a.75.75 0 010 1.5h-6.75v6.75a.75.75 0 01-1.5 0v-6.75H4.5a.75.75 0 010-1.5h6.75V4.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
-      </svg>
+      <svg style={{ width: '30px', height: '30px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12v6a2 2 0 002 2h10a2 2 0 002-2v-6M5 12V8a2 2 0 012-2h10a2 2 0 012 2v4" />
+        <circle cx="12" cy="13" r="1.5" />
+       </svg>
     ),
   },
   {
@@ -76,48 +95,53 @@ const baseTabs: Omit<TabItem, 'badge'>[] = [
 export default function BottomTabNav() {
   const pathname = usePathname();
 
+  const renderTab = (tab: Omit<TabItem, 'badge'>, index: number) => {
+    const isActive = pathname === tab.href ||
+      (tab.href !== '/' && pathname?.startsWith(tab.href));
+    const isTreasureTab = tab.label === 'Treasures';
+
+    return (
+      <Link
+        key={`${tab.href}-${index}`}
+        href={tab.href}
+        className={`relative flex flex-col items-center justify-center flex-1 h-full transition-colors ${
+          isActive
+            ? 'text-teal-600'
+            : 'text-slate-400 active:text-slate-600'
+        }`}
+        style={isTreasureTab ? { marginTop: '-4px' } : undefined}
+      >
+        <div className={`relative ${isTreasureTab ? '' : 'mb-1'}`} style={isTreasureTab ? { marginBottom: '2px' } : undefined}>
+          {isActive ? tab.activeIcon : tab.icon}
+        </div>
+        <span className={`text-[10px] font-medium ${isActive ? 'text-teal-600' : 'text-slate-500'}`}>
+          {tab.label}
+        </span>
+      </Link>
+    );
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 pb-safe px-safe md:hidden z-50 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
-      <div className="flex items-center justify-around h-[72px] px-2">
-        {baseTabs.map((tab) => {
-          const isCapture = tab.label === 'Capture';
-          const isActive = pathname === tab.href ||
-            (tab.href !== '/' && !isCapture && pathname?.startsWith(tab.href));
+      <div className="flex items-center h-[72px] px-2">
+        <div className="flex items-center flex-1 justify-around">
+          {leftTabs.map((tab, index) => renderTab(tab, index))}
+        </div>
 
-          // Special styling for center Capture button
-          if (isCapture) {
-            return (
-              <Link
-                key={tab.href}
-                href={tab.href}
-                className="relative flex items-center justify-center -mt-4"
-              >
-                <div className="w-14 h-14 bg-teal-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-500/30 active:scale-95 transition-transform">
-                  {tab.icon}
-                </div>
-              </Link>
-            );
-          }
+        <div className="flex-shrink-0 mx-2">
+          <Link
+            href={captureTab.href}
+            className="relative flex items-center justify-center -mt-4"
+          >
+            <div className="w-16 h-16 bg-teal-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-teal-500/30 active:scale-95 transition-transform -mt-2.5">
+              {captureTab.icon}
+            </div>
+          </Link>
+        </div>
 
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`relative flex flex-col items-center justify-center w-full h-full transition-colors ${
-                isActive
-                  ? 'text-teal-600'
-                  : 'text-slate-400 active:text-slate-600'
-              }`}
-            >
-              <div className="relative mb-1">
-                {isActive ? tab.activeIcon : tab.icon}
-              </div>
-              <span className={`text-[10px] font-medium ${isActive ? 'text-teal-600' : 'text-slate-500'}`}>
-                {tab.label}
-              </span>
-            </Link>
-          );
-        })}
+        <div className="flex items-center flex-1 justify-around">
+          {rightTabs.map((tab, index) => renderTab(tab, index + leftTabs.length))}
+        </div>
       </div>
     </nav>
   );
