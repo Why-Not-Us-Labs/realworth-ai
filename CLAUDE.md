@@ -256,3 +256,4 @@ This section records patterns and corrections. Add to it when Claude makes mista
 - No emojis in code unless user explicitly requests them
 - For Supabase: always use RLS policies, never expose service role key client-side
 - For Stripe: use webhooks for subscription state changes, don't trust client-side status
+- Auth providers: Google OAuth + Apple Sign-In (no email/password - leaked password protection less relevant)
