@@ -211,3 +211,48 @@ bundle exec pod install  # Install iOS dependencies
 ```
 
 **Setup**: See `MOBILE_APP_SETUP.md` for Apple Developer Account and App Store Connect configuration.
+
+## Development Workflow
+
+**Always verify changes:**
+```sh
+# 1. Build (includes TypeScript check)
+npm run build
+
+# 2. Lint before committing
+npm run lint
+
+# 3. Push deploys automatically to Vercel
+git push origin main
+```
+
+**After making significant changes, run build to verify.**
+
+## Slash Commands
+
+Use these commands for common workflows:
+- `/commit-push-pr` - Commit, push, and create PR in one command
+- `/typecheck` - Run TypeScript type checking
+- `/lint-fix` - Run ESLint with auto-fix
+- `/deploy-status` - Check Vercel deployment status
+- `/test` - Run tests (or build verification)
+- `/supabase-status` - Check Supabase project health
+
+## Custom Subagents
+
+Use these subagents for verification:
+- `build-validator` - Verify build after changes
+- `code-simplifier` - Review code for over-engineering
+- `verify-app` - End-to-end app verification
+
+## Learnings (Claude Guidance)
+
+This section records patterns and corrections. Add to it when Claude makes mistakes.
+
+- Prefer `type` over `interface`; **never use `enum`** (use string literal unions instead)
+- Always run `npm run build` after making changes to verify TypeScript
+- Don't create new files unless explicitly asked - prefer editing existing files
+- Use `@/` import alias for all imports (e.g., `@/lib/types`)
+- No emojis in code unless user explicitly requests them
+- For Supabase: always use RLS policies, never expose service role key client-side
+- For Stripe: use webhooks for subscription state changes, don't trust client-side status

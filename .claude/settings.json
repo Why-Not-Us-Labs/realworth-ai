@@ -1,0 +1,64 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run lint -- --fix --quiet || true"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm install:*)",
+      "Bash(npm i:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh repo:*)",
+      "Bash(vercel:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "mcp__supabase__list_projects",
+      "mcp__supabase__get_project",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__execute_sql",
+      "mcp__supabase__apply_migration",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__get_logs",
+      "mcp__supabase__get_advisors",
+      "mcp__supabase__search_docs",
+      "mcp__stripe__list_products",
+      "mcp__stripe__list_prices",
+      "mcp__stripe__list_customers",
+      "mcp__stripe__list_subscriptions",
+      "mcp__stripe__list_payment_intents",
+      "mcp__stripe__search_stripe_documentation",
+      "mcp__linear-server__list_issues",
+      "mcp__linear-server__list_teams",
+      "mcp__linear-server__create_issue",
+      "mcp__linear-server__update_issue",
+      "mcp__linear-server__create_comment",
+      "WebSearch",
+      "Read"
+    ],
+    "deny": []
+  }
+}
