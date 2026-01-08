@@ -16,8 +16,16 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
+function SettingsIcon() {
+  return (
+    <View style={{ width: 24, height: 24, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ fontSize: 20 }}>⚙️</Text>
+    </View>
+  );
+}
+
 export function HomeScreen() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation<NavigationProp>();
   const [isPickingImage, setIsPickingImage] = useState(false);
 
@@ -82,10 +90,20 @@ export function HomeScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>
-            Welcome{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : ''}!
-          </Text>
-          <Text style={styles.subtitle}>What would you like to appraise today?</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={styles.greeting}>
+                Welcome{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : ''}!
+              </Text>
+              <Text style={styles.subtitle}>What would you like to appraise today?</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => navigation.navigate('Settings')}
+            >
+              <SettingsIcon />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Main Action - Camera Button */}
@@ -120,11 +138,6 @@ export function HomeScreen() {
             <Text style={styles.statLabel}>Free Left</Text>
           </View>
         </View>
-
-        {/* Sign Out - Temporary for testing */}
-        <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -142,6 +155,18 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 32,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  headerText: {
+    flex: 1,
+  },
+  settingsButton: {
+    padding: 8,
+    marginLeft: 16,
   },
   greeting: {
     fontSize: 28,
@@ -212,14 +237,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#64748B',
     marginTop: 4,
-  },
-  signOutButton: {
-    marginTop: 'auto',
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  signOutText: {
-    color: '#94A3B8',
-    fontSize: 15,
   },
 });

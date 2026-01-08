@@ -30,7 +30,7 @@ export async function submitAppraisal(imageUri: string): Promise<AppraisalRespon
     // Get the current session
     const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session?.access_token) {
+    if (!session?.access_token || !session.user?.id) {
       return { success: false, error: 'Not authenticated' };
     }
 
@@ -41,10 +41,16 @@ export async function submitAppraisal(imageUri: string): Promise<AppraisalRespon
     const extension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
     const mimeType = extension === 'png' ? 'image/png' : 'image/jpeg';
 
-    // Create the data URL
-    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+    // Step 1: Upload image to Supabase Storage
+    console.log('Uploading image to storage...');
+    const { url: imageUrl, path: imagePath } = await supabase.storage.uploadImage(
+      base64Data,
+      session.user.id,
+      mimeType
+    );
+    console.log('Image uploaded:', imageUrl);
 
-    // Submit to the API
+    // Step 2: Submit to the API with storage URL
     const response = await fetch(`${API_BASE_URL}/api/appraise`, {
       method: 'POST',
       headers: {
@@ -52,8 +58,8 @@ export async function submitAppraisal(imageUri: string): Promise<AppraisalRespon
         'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
-        images: [dataUrl],
-        description: '',
+        imageUrls: [imageUrl],
+        imagePaths: [imagePath],
       }),
     });
 
@@ -61,15 +67,31 @@ export async function submitAppraisal(imageUri: string): Promise<AppraisalRespon
       const errorData = await response.json().catch(() => ({}));
       return {
         success: false,
-        error: errorData.error || `Request failed with status ${response.status}`
+        error: errorData.error || errorData.message || `Request failed with status ${response.status}`
       };
     }
 
     const data = await response.json();
 
+    // Map API response to our AppraisalResult format
+    const appraisalData = data.appraisalData || data;
     return {
       success: true,
-      appraisal: data.appraisal,
+      appraisal: {
+        id: data.id || `temp-${Date.now()}`,
+        item_name: appraisalData.itemName,
+        category: appraisalData.category,
+        description: appraisalData.description,
+        author: appraisalData.author,
+        era: appraisalData.era,
+        price_low: appraisalData.priceRange?.low || 0,
+        price_high: appraisalData.priceRange?.high || 0,
+        currency: appraisalData.currency || 'USD',
+        reasoning: appraisalData.reasoning,
+        image_url: imageUrl,
+        ai_image_url: data.imageDataUrl,
+        created_at: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error('Appraisal submission error:', error);

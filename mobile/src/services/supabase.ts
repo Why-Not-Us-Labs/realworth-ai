@@ -23,7 +23,67 @@ type AuthListener = (session: Session | null) => void;
 let currentSession: Session | null = null;
 let listeners: AuthListener[] = [];
 
+const STORAGE_BUCKET = 'appraisal-images';
+
 export const supabase = {
+  storage: {
+    /**
+     * Upload an image to Supabase Storage
+     * @param base64Data - Base64 encoded image data (without data URL prefix)
+     * @param userId - User ID for the storage path
+     * @param mimeType - MIME type (image/jpeg or image/png)
+     * @returns Object with public URL and storage path
+     */
+    async uploadImage(
+      base64Data: string,
+      userId: string,
+      mimeType: string = 'image/jpeg'
+    ): Promise<{ url: string; path: string }> {
+      // Get current session for auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      // Generate unique path
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(2, 9);
+      const extension = mimeType === 'image/png' ? 'png' : 'jpg';
+      const path = `${userId}/uploads/${timestamp}-${randomStr}.${extension}`;
+
+      // Convert base64 to binary
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Upload to Supabase Storage
+      const response = await fetch(
+        `${SUPABASE_URL}/storage/v1/object/${STORAGE_BUCKET}/${path}`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': mimeType,
+            'apikey': SUPABASE_ANON_KEY,
+          },
+          body: bytes,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Upload failed: ${response.status}`);
+      }
+
+      // Construct public URL
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+
+      return { url: publicUrl, path };
+    },
+  },
+
   auth: {
     async signInWithIdToken({ provider, token, nonce }: { provider: string; token: string; nonce?: string }) {
       const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=id_token`, {

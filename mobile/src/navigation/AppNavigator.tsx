@@ -6,6 +6,7 @@ import { LoginScreen } from '../screens/LoginScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoadingScreen } from '../screens/LoadingScreen';
 import { ResultScreen } from '../screens/ResultScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { ActivityIndicator, View } from 'react-native';
 
 export type RootStackParamList = {
@@ -13,6 +14,7 @@ export type RootStackParamList = {
   Home: undefined;
   Loading: { imageUri: string };
   Result: { appraisalId: string };
+  Settings: undefined;
   // Week 3 screens
   Profile: undefined;
   Paywall: undefined;
@@ -44,6 +46,16 @@ export function AppNavigator() {
               options={{ gestureEnabled: false }}
             />
             <Stack.Screen name="Result" component={ResultScreen} />
+            <Stack.Screen
+              name="Settings"
+              component={SettingsScreen}
+              options={{
+                headerShown: true,
+                headerTitle: 'Settings',
+                headerTintColor: '#1E293B',
+                headerStyle: { backgroundColor: '#F8FAFC' },
+              }}
+            />
             {/* Week 3: Add Profile and Paywall screens */}
           </>
         ) : (
