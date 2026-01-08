@@ -249,11 +249,23 @@ Use these subagents for verification:
 
 This section records patterns and corrections. Add to it when Claude makes mistakes.
 
+### General
 - Prefer `type` over `interface`; **never use `enum`** (use string literal unions instead)
 - Always run `npm run build` after making changes to verify TypeScript
 - Don't create new files unless explicitly asked - prefer editing existing files
 - Use `@/` import alias for all imports (e.g., `@/lib/types`)
 - No emojis in code unless user explicitly requests them
+
+### Backend/Auth
 - For Supabase: always use RLS policies, never expose service role key client-side
 - For Stripe: use webhooks for subscription state changes, don't trust client-side status
-- Auth providers: Google OAuth + Apple Sign-In (no email/password - leaked password protection less relevant)
+- Auth providers: Google OAuth + Apple Sign-In (no email/password)
+
+### Mobile App (React Native)
+- **Native iOS Apple Sign-In requires manual nonce handling** - unlike web OAuth which handles it automatically
+- Pass RAW nonce to both Apple and Supabase - iOS hashes internally, do NOT pre-hash (causes double-hashing)
+- Mobile uses `signInWithIdToken()` vs web uses `signInWithOAuth()` - different nonce requirements
+- Always check Supabase Auth logs first when debugging auth issues (Dashboard > Authentication > Logs)
+- Test auth on real device - simulator can't complete biometric authentication
+- Full rebuild required after native changes: `rm -rf ios/build && bundle exec pod install`
+- See `MOBILE_APP_SETUP.md` for detailed debugging guide and common errors
