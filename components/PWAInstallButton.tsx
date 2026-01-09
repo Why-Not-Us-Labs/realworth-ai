@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { DownloadIcon, XIcon } from './icons';
 import { event as trackEvent } from '@/lib/analytics';
+import { isCapacitorApp } from '@/lib/utils';
 
 // Type for the BeforeInstallPromptEvent (not in standard TypeScript lib)
 interface BeforeInstallPromptEvent extends Event {
@@ -129,6 +130,11 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
       setIsInstalling(false);
     }
   };
+
+  // Don't render if running in Capacitor native app (already installed!)
+  if (isCapacitorApp()) {
+    return null;
+  }
 
   // Don't render if already installed
   if (isInstalled) {

@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { XIcon, GoogleIcon, AppleIcon } from './icons';
 import { AuthProvider } from '@/services/authService';
+import { isCapacitorApp } from '@/lib/utils';
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -15,6 +16,8 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   onClose,
   onSelectProvider,
 }) => {
+  const [isNativeApp, setIsNativeApp] = useState(false);
+
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -23,6 +26,11 @@ export const SignInModal: React.FC<SignInModalProps> = ({
     },
     [onClose]
   );
+
+  useEffect(() => {
+    // Check if running in Capacitor native app
+    setIsNativeApp(isCapacitorApp());
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -66,14 +74,16 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
         {/* Provider buttons */}
         <div className="space-y-3">
-          {/* Google */}
-          <button
-            onClick={() => onSelectProvider('google')}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
-          >
-            <GoogleIcon className="w-5 h-5" />
-            <span className="font-medium text-slate-700">Continue with Google</span>
-          </button>
+          {/* Google - hidden in native app (WebView OAuth blocked by Google) */}
+          {!isNativeApp && (
+            <button
+              onClick={() => onSelectProvider('google')}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
+            >
+              <GoogleIcon className="w-5 h-5" />
+              <span className="font-medium text-slate-700">Continue with Google</span>
+            </button>
+          )}
 
           {/* Apple */}
           <button
