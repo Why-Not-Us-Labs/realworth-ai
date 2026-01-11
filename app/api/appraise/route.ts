@@ -2,6 +2,7 @@
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { notificationService } from '@/services/notificationService';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -759,6 +760,22 @@ Users will click these links to verify your valuation, so accuracy is critical!$
       } catch (incrementError) {
         console.error('[Appraise API] Failed to increment count (non-blocking):', incrementError);
         // Don't fail the appraisal - the check at the start is the gatekeeper
+      }
+
+      // Send push notification for completed appraisal (non-blocking)
+      try {
+        if (notificationService.isConfigured()) {
+          const itemName = appraisalData.name || appraisalData.title || 'item';
+          const priceRange = {
+            low: appraisalData.low || appraisalData.priceRange?.low || 0,
+            high: appraisalData.high || appraisalData.priceRange?.high || 0,
+          };
+          await notificationService.notifyAppraisalComplete(userId, { itemName, priceRange });
+          console.log('[Appraise API] Push notification sent for appraisal');
+        }
+      } catch (notificationError) {
+        console.error('[Appraise API] Failed to send push notification (non-blocking):', notificationError);
+        // Don't fail the appraisal if notification fails
       }
     }
 

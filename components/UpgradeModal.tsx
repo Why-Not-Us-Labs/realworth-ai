@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { trackUpgradeClick, trackCheckoutStart } from '@/lib/analytics';
+import { isCapacitorApp } from '@/lib/utils';
+import { useStoreKit, STOREKIT_PRODUCTS } from '@/hooks/useStoreKit';
 import {
   SparklesIcon,
   GemIcon,
@@ -43,10 +45,17 @@ export default function UpgradeModal({
   const [accessCodeSuccess, setAccessCodeSuccess] = useState('');
   const [mounted, setMounted] = useState(false);
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('annual');
+  const [isNativeApp, setIsNativeApp] = useState(false);
+  const [iapError, setIapError] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // StoreKit hook for native iOS IAP
+  const storeKit = useStoreKit();
 
   // Ensure client-side only rendering
   useEffect(() => {
     setMounted(true);
+    setIsNativeApp(isCapacitorApp());
   }, []);
 
   // Track when upgrade modal is opened
@@ -58,7 +67,60 @@ export default function UpgradeModal({
 
   if (!isOpen || !mounted) return null;
 
-  const handleUpgrade = async () => {
+  // Handle IAP purchase for native iOS app
+  const handleIAPPurchase = async () => {
+    setIsLoading(true);
+    setIapError(null);
+    trackCheckoutStart();
+
+    try {
+      const productId = billingInterval === 'annual'
+        ? STOREKIT_PRODUCTS.ANNUAL
+        : STOREKIT_PRODUCTS.MONTHLY;
+
+      const result = await storeKit.purchase(productId);
+
+      if (result.success) {
+        // Purchase successful - reload to update subscription status
+        window.location.reload();
+      } else if (result.error === 'Purchase cancelled') {
+        // User cancelled - just reset loading state
+        setIsLoading(false);
+      } else {
+        setIapError(result.error || 'Purchase failed. Please try again.');
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('IAP error:', error);
+      setIapError('An error occurred. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Restore previous purchases
+  const handleRestorePurchases = async () => {
+    setIsRestoring(true);
+    setIapError(null);
+
+    try {
+      const result = await storeKit.restorePurchases();
+
+      if (result.success) {
+        // Restore successful - reload to update subscription status
+        window.location.reload();
+      } else {
+        setIapError(result.error || 'No purchases to restore.');
+      }
+    } catch (error) {
+      console.error('Restore error:', error);
+      setIapError('Failed to restore purchases. Please try again.');
+    } finally {
+      setIsRestoring(false);
+    }
+  };
+
+  // Handle Stripe checkout for web
+  const handleStripeCheckout = async () => {
     setIsLoading(true);
     trackCheckoutStart();
     try {
@@ -80,6 +142,15 @@ export default function UpgradeModal({
       alert('Failed to start checkout');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Choose the appropriate purchase handler
+  const handleUpgrade = async () => {
+    if (isNativeApp && storeKit.isAvailable) {
+      await handleIAPPurchase();
+    } else {
+      await handleStripeCheckout();
     }
   };
 
@@ -240,13 +311,22 @@ export default function UpgradeModal({
 
           {/* Actions */}
           <div className="space-y-2 sm:space-y-3">
+            {/* IAP Error Message */}
+            {iapError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+                {iapError}
+              </div>
+            )}
+
             <Button
               onClick={handleUpgrade}
-              disabled={isLoading}
+              disabled={isLoading || isRestoring || (isNativeApp && storeKit.isLoading)}
               size="lg"
               className="w-full"
             >
               {isLoading ? (
+                'Processing...'
+              ) : (isNativeApp && storeKit.isLoading) ? (
                 'Loading...'
               ) : (
                 <>
@@ -268,9 +348,23 @@ export default function UpgradeModal({
               </span>
             </div>
 
+            {/* Restore Purchases - only in native iOS app */}
+            {isNativeApp && storeKit.isAvailable && (
+              <div className="text-center">
+                <button
+                  onClick={handleRestorePurchases}
+                  disabled={isRestoring || isLoading}
+                  className="text-xs sm:text-sm text-teal-600 hover:text-teal-700 transition-colors disabled:opacity-50"
+                >
+                  {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+                </button>
+              </div>
+            )}
+
             {/* Access Code & Maybe Later - inline on mobile */}
+            {/* Hide access code option in native iOS app (Apple requires IAP) */}
             <div className="flex items-center justify-center gap-2 pt-1">
-              {!showAccessCode ? (
+              {!isNativeApp && !showAccessCode ? (
                 <>
                   <button
                     onClick={() => setShowAccessCode(true)}
@@ -289,8 +383,8 @@ export default function UpgradeModal({
               </button>
             </div>
 
-            {/* Access Code Form - only show when expanded */}
-            {showAccessCode && (
+            {/* Access Code Form - only show when expanded and not in native app */}
+            {!isNativeApp && showAccessCode && (
               <form onSubmit={handleAccessCodeSubmit} className="space-y-2 pt-2">
                 <div className="flex gap-2">
                   <input

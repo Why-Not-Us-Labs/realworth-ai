@@ -13,8 +13,11 @@ const SUPER_ADMIN_EMAILS = [
   'ann.mcnamara01@icloud.com',
 ];
 
+export type SubscriptionSource = 'stripe' | 'apple_iap';
+
 export interface UserSubscription {
   subscriptionTier: SubscriptionTier;
+  subscriptionSource: SubscriptionSource;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   subscriptionStatus: SubscriptionStatus;
@@ -23,6 +26,10 @@ export interface UserSubscription {
   monthlyAppraisalCount: number;
   appraisalCountResetAt: string | null;
   accessCodeUsed: string | null;
+  // IAP-specific fields
+  iapProductId: string | null;
+  iapOriginalTransactionId: string | null;
+  iapExpiresAt: string | null;
 }
 
 class SubscriptionService {
@@ -42,6 +49,7 @@ class SubscriptionService {
         .from('users')
         .select(`
           subscription_tier,
+          subscription_source,
           stripe_customer_id,
           stripe_subscription_id,
           subscription_status,
@@ -49,7 +57,10 @@ class SubscriptionService {
           cancel_at_period_end,
           monthly_appraisal_count,
           appraisal_count_reset_at,
-          access_code_used
+          access_code_used,
+          iap_product_id,
+          iap_original_transaction_id,
+          iap_expires_at
         `)
         .eq('id', userId)
         .single();
@@ -61,6 +72,7 @@ class SubscriptionService {
 
       return {
         subscriptionTier: (data.subscription_tier as SubscriptionTier) || 'free',
+        subscriptionSource: (data.subscription_source as SubscriptionSource) || 'stripe',
         stripeCustomerId: data.stripe_customer_id,
         stripeSubscriptionId: data.stripe_subscription_id,
         subscriptionStatus: (data.subscription_status as SubscriptionStatus) || 'inactive',
@@ -69,6 +81,9 @@ class SubscriptionService {
         monthlyAppraisalCount: data.monthly_appraisal_count || 0,
         appraisalCountResetAt: data.appraisal_count_reset_at,
         accessCodeUsed: data.access_code_used || null,
+        iapProductId: data.iap_product_id || null,
+        iapOriginalTransactionId: data.iap_original_transaction_id || null,
+        iapExpiresAt: data.iap_expires_at || null,
       };
     } catch (error) {
       console.error('Error in getUserSubscription:', error);
@@ -78,12 +93,38 @@ class SubscriptionService {
 
   /**
    * Check if user is Pro (by userId)
+   * Supports both Stripe and Apple IAP subscriptions
    */
   async isPro(userId: string): Promise<boolean> {
     // Check subscription
     const subscription = await this.getUserSubscription(userId);
-    if (subscription?.subscriptionTier === 'pro' && subscription?.subscriptionStatus === 'active') {
-      return true;
+
+    if (subscription) {
+      // Check Stripe subscription
+      if (
+        subscription.subscriptionSource === 'stripe' &&
+        subscription.subscriptionTier === 'pro' &&
+        subscription.subscriptionStatus === 'active'
+      ) {
+        return true;
+      }
+
+      // Check Apple IAP subscription
+      if (
+        subscription.subscriptionSource === 'apple_iap' &&
+        subscription.subscriptionTier === 'pro' &&
+        subscription.iapExpiresAt
+      ) {
+        const expiresAt = new Date(subscription.iapExpiresAt);
+        if (expiresAt > new Date()) {
+          return true;
+        }
+      }
+
+      // Check if Pro via access code (no expiration for access codes)
+      if (subscription.subscriptionTier === 'pro' && subscription.accessCodeUsed) {
+        return true;
+      }
     }
 
     // Check super admin by getting user email

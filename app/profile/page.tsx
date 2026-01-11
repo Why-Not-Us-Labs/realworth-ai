@@ -18,14 +18,20 @@ import { supabase } from '@/lib/supabase';
 import { AppraisalResult } from '@/lib/types';
 import { ProfileHeaderSkeleton, GamificationStatsSkeleton, HistoryGridSkeleton } from '@/components/Skeleton';
 import { Footer } from '@/components/Footer';
+import { DeleteAccountModal } from '@/components/DeleteAccountModal';
+import { useRouter } from 'next/navigation';
 
 type ProfileTab = 'treasures' | 'friends';
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { user, isAuthLoading } = useContext(AuthContext);
   const { appraisals: history, refreshAppraisals, isLoading: isAppraisalsLoading } = useContext(AppraisalContext);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Delete account modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<ProfileTab>('treasures');
@@ -321,6 +327,17 @@ export default function ProfilePage() {
           onRetry={refreshSubscription}
         />
 
+        {/* Account Settings - Danger Zone */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mt-4">
+          <h3 className="text-sm font-semibold text-slate-800 mb-3">Account Settings</h3>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="text-sm text-red-600 hover:text-red-700 font-medium"
+          >
+            Delete Account
+          </button>
+        </div>
+
         {/* Instagram-style Tab Navigation */}
         <div className="border-t border-slate-200 mt-4">
           <div className="flex">
@@ -557,6 +574,16 @@ export default function ProfilePage() {
       </main>
 
       <Footer />
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onDeleted={() => {
+          setShowDeleteModal(false);
+          router.push('/');
+        }}
+      />
     </>
   );
 }

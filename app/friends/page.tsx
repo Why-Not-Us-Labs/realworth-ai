@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { dbService } from '@/services/dbService';
+import { supabase } from '@/lib/supabase';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import Link from 'next/link';
@@ -92,45 +93,99 @@ export default function FriendsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery, user]);
 
-  // Send friend request
+  // Send friend request via API (triggers push notification)
   const handleSendRequest = async (addresseeId: string) => {
     if (!user) return;
     setLoadingActions(prev => ({ ...prev, [addresseeId]: true }));
 
-    const success = await dbService.sendFriendRequest(user.id, addresseeId);
-    if (success) {
-      // Update status locally
-      const status = await dbService.getFriendshipStatus(user.id, addresseeId);
-      if (status) {
-        setFriendshipStatuses(prev => ({ ...prev, [addresseeId]: status }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth session');
+        return;
       }
-      // Reload sent requests
-      const sentData = await dbService.getSentRequests(user.id);
-      setSentRequests(sentData);
+
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ addresseeId }),
+      });
+
+      if (response.ok) {
+        // Update status locally
+        const status = await dbService.getFriendshipStatus(user.id, addresseeId);
+        if (status) {
+          setFriendshipStatuses(prev => ({ ...prev, [addresseeId]: status }));
+        }
+        // Reload sent requests
+        const sentData = await dbService.getSentRequests(user.id);
+        setSentRequests(sentData);
+      }
+    } catch (error) {
+      console.error('Error sending friend request:', error);
     }
 
     setLoadingActions(prev => ({ ...prev, [addresseeId]: false }));
   };
 
-  // Accept friend request
+  // Accept friend request via API (triggers push notification)
   const handleAcceptRequest = async (friendshipId: string, requesterId: string) => {
     setLoadingActions(prev => ({ ...prev, [friendshipId]: true }));
 
-    const success = await dbService.respondToFriendRequest(friendshipId, 'accepted');
-    if (success) {
-      await loadData();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth session');
+        return;
+      }
+
+      const response = await fetch('/api/friends', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ friendshipId, response: 'accepted' }),
+      });
+
+      if (response.ok) {
+        await loadData();
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
     }
 
     setLoadingActions(prev => ({ ...prev, [friendshipId]: false }));
   };
 
-  // Decline friend request
+  // Decline friend request via API
   const handleDeclineRequest = async (friendshipId: string) => {
     setLoadingActions(prev => ({ ...prev, [friendshipId]: true }));
 
-    const success = await dbService.respondToFriendRequest(friendshipId, 'declined');
-    if (success) {
-      setPendingRequests(prev => prev.filter(r => r.id !== friendshipId));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth session');
+        return;
+      }
+
+      const response = await fetch('/api/friends', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ friendshipId, response: 'declined' }),
+      });
+
+      if (response.ok) {
+        setPendingRequests(prev => prev.filter(r => r.id !== friendshipId));
+      }
+    } catch (error) {
+      console.error('Error declining friend request:', error);
     }
 
     setLoadingActions(prev => ({ ...prev, [friendshipId]: false }));

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { isCapacitorApp } from '@/lib/utils';
 
 interface ScanModeProps {
   onCapture: (imageData: string) => void;
@@ -22,10 +23,23 @@ export const ScanMode: React.FC<ScanModeProps> = ({ onCapture, onClose, isProces
   const [lastCapture, setLastCapture] = useState<string | null>(null);
   const [showFlash, setShowFlash] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isNativeApp, setIsNativeApp] = useState(false);
 
-  // Initialize camera
+  // Detect if running in Capacitor native app
+  useEffect(() => {
+    setIsNativeApp(isCapacitorApp());
+  }, []);
+
+  // Initialize camera (web only - native uses Capacitor Camera which handles its own UI)
   useEffect(() => {
     if (scanType === null) return;
+
+    // In native mode, we use the native camera directly on capture
+    // so we just set camera ready immediately
+    if (isNativeApp) {
+      setCameraReady(true);
+      return;
+    }
 
     const initCamera = async () => {
       try {
@@ -64,10 +78,58 @@ export const ScanMode: React.FC<ScanModeProps> = ({ onCapture, onClose, isProces
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [scanType]);
+  }, [scanType, isNativeApp]);
 
-  // Capture image
-  const captureImage = useCallback(() => {
+  // Capture image using native camera (Capacitor)
+  const captureNativeImage = useCallback(async () => {
+    if (isCapturing) return;
+
+    setIsCapturing(true);
+
+    try {
+      // Dynamically import Capacitor Camera to avoid SSR issues
+      const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+
+      const photo = await Camera.getPhoto({
+        quality: 90,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+        correctOrientation: true,
+        width: 1920,
+        height: 1080,
+      });
+
+      if (photo.base64String) {
+        const imageData = `data:image/jpeg;base64,${photo.base64String}`;
+
+        setLastCapture(imageData);
+        setCaptureCount(prev => prev + 1);
+
+        // Haptic feedback via Capacitor
+        try {
+          const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+          await Haptics.impact({ style: ImpactStyle.Medium });
+        } catch {
+          // Haptics not available, ignore
+        }
+
+        // Send to parent
+        onCapture(imageData);
+      }
+    } catch (error) {
+      console.error('Native camera error:', error);
+      if (error instanceof Error && error.message.includes('cancelled')) {
+        // User cancelled, do nothing
+      } else {
+        setCameraError('Failed to capture photo. Please try again.');
+      }
+    }
+
+    setIsCapturing(false);
+  }, [onCapture, isCapturing]);
+
+  // Capture image using web camera
+  const captureWebImage = useCallback(() => {
     if (!videoRef.current || !canvasRef.current || isCapturing) return;
 
     setIsCapturing(true);
@@ -102,6 +164,15 @@ export const ScanMode: React.FC<ScanModeProps> = ({ onCapture, onClose, isProces
       setIsCapturing(false);
     }, 300);
   }, [onCapture, isCapturing]);
+
+  // Capture image - use native or web based on environment
+  const captureImage = useCallback(() => {
+    if (isNativeApp) {
+      captureNativeImage();
+    } else {
+      captureWebImage();
+    }
+  }, [isNativeApp, captureNativeImage, captureWebImage]);
 
   // Scan type selection screen
   if (scanType === null) {
@@ -187,6 +258,115 @@ export const ScanMode: React.FC<ScanModeProps> = ({ onCapture, onClose, isProces
     );
   }
 
+  // Native app - simplified UI since native camera handles its own viewfinder
+  if (isNativeApp) {
+    return (
+      <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-black z-50 flex flex-col">
+        {/* Top bar */}
+        <div className="p-4 pt-14">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                scanType === 'collection' ? 'bg-purple-500 text-white' : 'bg-teal-500 text-white'
+              }`}>
+                {scanType === 'collection' ? 'Collection' : 'Single Item'}
+              </span>
+              {captureCount > 0 && (
+                <span className="bg-white text-slate-900 px-3 py-1.5 rounded-full text-sm font-bold">
+                  {captureCount}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main content - centered */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          {/* Last capture preview or camera icon */}
+          <div className="w-64 h-64 mb-8">
+            {lastCapture ? (
+              <div className="w-full h-full rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl">
+                <img src={lastCapture} alt="Last capture" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-full h-full bg-white/5 rounded-2xl border-2 border-dashed border-white/20 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-16 h-16 text-white/40 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <p className="text-white/40 text-sm">
+                    {scanType === 'collection' ? 'Tap to capture items' : 'Tap to take a photo'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Guidance text */}
+          <p className="text-white/80 text-lg font-medium text-center mb-8">
+            {isProcessing ? 'Processing...' :
+             isCapturing ? 'Opening camera...' :
+             scanType === 'collection' ? 'Capture each item in your collection' :
+             'Take multiple angles of your item'}
+          </p>
+
+          {/* Capture button */}
+          <button
+            onClick={captureImage}
+            disabled={isProcessing || isCapturing}
+            className={`w-20 h-20 rounded-full border-4 border-white flex items-center justify-center transition-transform ${
+              !isProcessing && !isCapturing ? 'active:scale-90' : 'opacity-50'
+            }`}
+          >
+            <div className={`w-16 h-16 rounded-full transition-all ${
+              isCapturing ? 'bg-teal-500 scale-90' : 'bg-white'
+            }`} />
+          </button>
+        </div>
+
+        {/* Bottom actions */}
+        <div className="p-6 pb-12">
+          <div className="flex items-center justify-center gap-4">
+            {scanType === 'collection' && captureCount >= 1 && (
+              <button
+                onClick={onClose}
+                className="bg-teal-500 text-white px-6 py-3 rounded-full font-semibold"
+              >
+                Done ({captureCount} items)
+              </button>
+            )}
+          </div>
+          <p className="text-center text-white/50 text-sm mt-4">
+            {scanType === 'collection'
+              ? `Tap the button to capture each item`
+              : 'Capture multiple angles for best results'}
+          </p>
+        </div>
+
+        {/* Processing overlay */}
+        {isProcessing && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <div className="bg-white rounded-2xl p-6 text-center shadow-2xl">
+              <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-slate-800 font-medium">Appraising...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Web browser - use video feed with viewfinder
   return (
     <div className="fixed inset-0 bg-black z-50">
       {/* Video feed */}
