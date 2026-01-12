@@ -61,20 +61,9 @@ export function useStoreKit() {
         const platform = Capacitor.getPlatform();
 
         if (isNative && platform === 'ios') {
-          setState(prev => ({ ...prev, isAvailable: true, isLoading: false }));
-          // Load products after confirming availability (with timeout)
+          setState(prev => ({ ...prev, isAvailable: true }));
+          // Load products after confirming availability
           loadProducts();
-
-          // Timeout fallback - if products don't load in 5s, allow purchasing anyway
-          setTimeout(() => {
-            setState(prev => {
-              if (prev.isLoading) {
-                console.warn('[StoreKit] Product loading timed out, proceeding without products');
-                return { ...prev, isLoading: false };
-              }
-              return prev;
-            });
-          }, 5000);
         } else {
           setState(prev => ({ ...prev, isAvailable: false, isLoading: false }));
         }
@@ -93,15 +82,20 @@ export function useStoreKit() {
 
     try {
       // Call native StoreKit plugin to get products
-      // This requires a custom Capacitor plugin that wraps StoreKit 2
       const StoreKit = await getStoreKitPlugin();
       if (!StoreKit) {
         throw new Error('StoreKit plugin not available');
       }
 
-      const result = await StoreKit.getProducts({
-        productIds: Object.values(STOREKIT_PRODUCTS),
+      // 5-second timeout to prevent hanging forever
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Product loading timed out')), 5000);
       });
+
+      const result = await Promise.race([
+        StoreKit.getProducts({ productIds: Object.values(STOREKIT_PRODUCTS) }),
+        timeoutPromise,
+      ]);
 
       const products: Product[] = result.products.map((p: {
         id: string;
@@ -122,9 +116,11 @@ export function useStoreKit() {
       setState(prev => ({ ...prev, products, isLoading: false }));
     } catch (error) {
       console.error('[StoreKit] Error loading products:', error);
+      // On failure/timeout, disable StoreKit so we fall back to Stripe
       setState(prev => ({
         ...prev,
         isLoading: false,
+        isAvailable: false,
         error: error instanceof Error ? error.message : 'Failed to load products',
       }));
     }
