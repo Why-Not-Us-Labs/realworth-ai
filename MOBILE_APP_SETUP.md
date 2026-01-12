@@ -1,5 +1,37 @@
 # Mobile App Development Setup Guide
 
+## App Store Connect Reference
+
+### App Information
+| Field | Value |
+|-------|-------|
+| **Bundle ID** | `ai.realworth.app` |
+| **SKU** | `realworth-ios-001` |
+| **Apple ID** | `6757503186` |
+| **Primary Language** | English (U.S.) |
+| **Category** | Lifestyle / Utilities |
+
+### In-App Purchase Products (StoreKit 2)
+| Product ID | Type | Price |
+|------------|------|-------|
+| `ai.realworth.pro.monthly` | Auto-Renewable Subscription | $19.99/month |
+| `ai.realworth.pro.annual` | Auto-Renewable Subscription | $149.99/year |
+
+**Subscription Group**: RealWorth Pro
+
+### Business Setup (Required for IAP)
+- **Paid Apps Agreement**: Active
+- **Tax Form (W-9)**: Active - WHY NOT US LABS LLC (EIN: 39-2821335)
+- **Bank Account**: Bank of America Business Checking - Active
+
+### Sandbox Test Accounts
+| Email | Password | Purpose |
+|-------|----------|---------|
+| `rw-monthly-test1@test.com` | `ClutterToCash$2026!` | Monthly subscription testing |
+| `rw-annual-test1@test.com` | `ClutterToCash$2026!` | Annual subscription testing |
+
+---
+
 ## Phase 1: Apple Developer Account Setup & Verification
 
 ### 1.1 Verify Apple Developer Account Status
