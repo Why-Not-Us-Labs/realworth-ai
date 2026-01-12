@@ -78,6 +78,7 @@ export function useStoreKit() {
 
   // Load available products from the App Store
   const loadProducts = useCallback(async () => {
+    console.log('[StoreKit] Starting to load products...');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
@@ -87,15 +88,20 @@ export function useStoreKit() {
         throw new Error('StoreKit plugin not available');
       }
 
+      const productIds = Object.values(STOREKIT_PRODUCTS);
+      console.log('[StoreKit] Requesting products:', productIds);
+
       // 5-second timeout to prevent hanging forever
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Product loading timed out')), 5000);
       });
 
       const result = await Promise.race([
-        StoreKit.getProducts({ productIds: Object.values(STOREKIT_PRODUCTS) }),
+        StoreKit.getProducts({ productIds }),
         timeoutPromise,
       ]);
+
+      console.log('[StoreKit] Got result:', JSON.stringify(result));
 
       const products: Product[] = result.products.map((p: {
         id: string;
@@ -249,16 +255,26 @@ export function useStoreKit() {
   };
 }
 
+// Cache the plugin instance to avoid registering multiple times
+let storeKitPluginInstance: StoreKitPlugin | null = null;
+
 /**
  * Get the StoreKit Capacitor plugin
  * Returns null if not available
  */
 async function getStoreKitPlugin(): Promise<StoreKitPlugin | null> {
+  // Return cached instance if already registered
+  if (storeKitPluginInstance) {
+    return storeKitPluginInstance;
+  }
+
   try {
     const { registerPlugin } = await import('@capacitor/core');
-    const StoreKit = registerPlugin<StoreKitPlugin>('StoreKit');
-    return StoreKit;
-  } catch {
+    storeKitPluginInstance = registerPlugin<StoreKitPlugin>('StoreKit');
+    console.log('[StoreKit] Plugin registered successfully');
+    return storeKitPluginInstance;
+  } catch (error) {
+    console.error('[StoreKit] Failed to register plugin:', error);
     return null;
   }
 }
