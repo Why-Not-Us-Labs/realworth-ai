@@ -48,6 +48,7 @@ export default function UpgradeModal({
   const [isNativeApp, setIsNativeApp] = useState(false);
   const [iapError, setIapError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [storeKitTimedOut, setStoreKitTimedOut] = useState(false);
 
   // StoreKit hook for native iOS IAP
   const storeKit = useStoreKit();
@@ -57,6 +58,17 @@ export default function UpgradeModal({
     setMounted(true);
     setIsNativeApp(isCapacitorApp());
   }, []);
+
+  // Failsafe: Force StoreKit loading to end after 5 seconds
+  useEffect(() => {
+    if (isOpen && isNativeApp && storeKit.isLoading && !storeKitTimedOut) {
+      const timer = setTimeout(() => {
+        console.warn('[UpgradeModal] StoreKit loading timed out, falling back to Stripe');
+        setStoreKitTimedOut(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, isNativeApp, storeKit.isLoading, storeKitTimedOut]);
 
   // Track when upgrade modal is opened
   useEffect(() => {
@@ -320,13 +332,13 @@ export default function UpgradeModal({
 
             <Button
               onClick={handleUpgrade}
-              disabled={isLoading || isRestoring || (isNativeApp && storeKit.isLoading)}
+              disabled={isLoading || isRestoring || (isNativeApp && storeKit.isLoading && !storeKitTimedOut)}
               size="lg"
               className="w-full"
             >
               {isLoading ? (
                 'Processing...'
-              ) : (isNativeApp && storeKit.isLoading) ? (
+              ) : (isNativeApp && storeKit.isLoading && !storeKitTimedOut) ? (
                 'Loading...'
               ) : (
                 <>
