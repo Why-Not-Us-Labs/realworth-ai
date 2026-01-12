@@ -68,6 +68,67 @@ class AuthService {
       return { user: null, error: error instanceof Error ? error.message : 'Sign in failed' };
     }
   }
+
+  /**
+   * Send OTP code to email for verification
+   * User receives an 8-digit code (configured in Supabase)
+   */
+  public async sendOtp(email: string): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+
+      if (error) {
+        console.error('[Auth] Send OTP error:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('[Auth] Send OTP error:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send code' };
+    }
+  }
+
+  /**
+   * Verify OTP code and sign in
+   */
+  public async verifyOtp(email: string, token: string): Promise<{ user: User | null; error?: string }> {
+    if (!isSupabaseConfigured) {
+      return { user: null, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+
+      if (error) {
+        console.error('[Auth] Verify OTP error:', error);
+        return { user: null, error: error.message };
+      }
+
+      if (data.user) {
+        return { user: this.mapSupabaseUserToUser(data.user) };
+      }
+
+      return { user: null, error: 'Verification failed' };
+    } catch (error) {
+      console.error('[Auth] Verify OTP error:', error);
+      return { user: null, error: error instanceof Error ? error.message : 'Verification failed' };
+    }
+  }
+
   /**
    * Sign in with a provider using Supabase Auth
    */
