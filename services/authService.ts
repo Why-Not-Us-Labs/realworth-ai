@@ -10,6 +10,65 @@ export type AuthProvider = 'google' | 'apple';
 
 class AuthService {
   /**
+   * Send OTP code to email
+   */
+  public async sendOtp(email: string): Promise<{ success: boolean; error?: string }> {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase not configured' };
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+        },
+      });
+
+      if (error) {
+        console.error('[Auth] OTP send error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log('[Auth] OTP sent to:', email);
+      return { success: true };
+    } catch (error) {
+      console.error('[Auth] OTP send error:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send code' };
+    }
+  }
+
+  /**
+   * Verify OTP code and sign in
+   */
+  public async verifyOtp(email: string, token: string): Promise<User | null> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase not configured');
+    }
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
+      });
+
+      if (error) {
+        console.error('[Auth] OTP verify error:', error);
+        throw error;
+      }
+
+      if (data.user) {
+        return this.mapSupabaseUserToUser(data.user);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[Auth] OTP verify error:', error);
+      throw error;
+    }
+  }
+  /**
    * Sign in with a provider using Supabase Auth
    */
   public async signInWithProvider(provider: AuthProvider): Promise<User | null> {
