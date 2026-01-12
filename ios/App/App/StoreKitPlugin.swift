@@ -19,8 +19,10 @@ public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private var updateListenerTask: Task<Void, Error>? = nil
 
     public override func load() {
+        print("[StoreKit Native] Plugin loaded and initializing...")
         // Start listening for transactions
         updateListenerTask = listenForTransactions()
+        print("[StoreKit Native] Transaction listener started")
     }
 
     deinit {
@@ -75,14 +77,21 @@ public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     /// Get products from App Store
     @objc func getProducts(_ call: CAPPluginCall) {
+        print("[StoreKit Native] getProducts called")
+
         guard let productIds = call.getArray("productIds", String.self) else {
+            print("[StoreKit Native] ERROR: Missing productIds parameter")
             call.reject("Missing productIds parameter")
             return
         }
 
+        print("[StoreKit Native] Requesting products: \(productIds)")
+
         Task {
             do {
+                print("[StoreKit Native] Calling Product.products(for:)...")
                 let storeProducts = try await Product.products(for: Set(productIds))
+                print("[StoreKit Native] Got \(storeProducts.count) products from App Store")
 
                 var productsArray: [[String: Any]] = []
                 for product in storeProducts {
@@ -98,8 +107,10 @@ public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
                     ])
                 }
 
+                print("[StoreKit Native] Resolving with \(productsArray.count) products")
                 call.resolve(["products": productsArray])
             } catch {
+                print("[StoreKit Native] ERROR loading products: \(error)")
                 call.reject("Failed to load products: \(error.localizedDescription)")
             }
         }
