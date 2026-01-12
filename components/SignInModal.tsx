@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useEffect, useCallback, useState, useRef } from 'react';
-import { XIcon, GoogleIcon, AppleIcon, EmailIcon, SpinnerIcon, ChevronRightIcon } from './icons';
+import { XIcon, GoogleIcon, AppleIcon, EmailIcon, SpinnerIcon } from './icons';
 import { AuthProvider, authService } from '@/services/authService';
 import { isCapacitorApp } from '@/lib/utils';
 
-type AuthStep = 'providers' | 'email_input' | 'otp_input';
+type AuthStep = 'providers' | 'email_form';
+type EmailMode = 'sign_in' | 'sign_up';
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -20,12 +21,12 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 }) => {
   const [isNativeApp, setIsNativeApp] = useState(false);
   const [step, setStep] = useState<AuthStep>('providers');
+  const [emailMode, setEmailMode] = useState<EmailMode>('sign_in');
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
-  const otpInputRef = useRef<HTMLInputElement>(null);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -39,8 +40,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
   const handleClose = useCallback(() => {
     setStep('providers');
+    setEmailMode('sign_in');
     setEmail('');
-    setOtpCode('');
+    setPassword('');
     setError(null);
     setIsLoading(false);
     onClose();
@@ -64,65 +66,32 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
   // Focus email input when showing email step
   useEffect(() => {
-    if (step === 'email_input' && emailInputRef.current) {
+    if (step === 'email_form' && emailInputRef.current) {
       emailInputRef.current.focus();
-    }
-    if (step === 'otp_input' && otpInputRef.current) {
-      otpInputRef.current.focus();
     }
   }, [step]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || !password.trim()) return;
 
     setIsLoading(true);
     setError(null);
 
-    const result = await authService.sendOtp(email.trim());
-
-    setIsLoading(false);
-
-    if (result.success) {
-      setStep('otp_input');
+    let result;
+    if (emailMode === 'sign_up') {
+      result = await authService.signUpWithEmail(email.trim(), password);
     } else {
-      setError(result.error || 'Failed to send code');
+      result = await authService.signInWithEmail(email.trim(), password);
     }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim() || otpCode.length !== 6) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const user = await authService.verifyOtp(email.trim(), otpCode.trim());
-      if (user) {
-        handleClose();
-        // Auth state change will be picked up by AuthContext
-      } else {
-        setError('Verification failed');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid code');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    setIsLoading(true);
-    setError(null);
-    setOtpCode('');
-
-    const result = await authService.sendOtp(email.trim());
 
     setIsLoading(false);
 
-    if (!result.success) {
-      setError(result.error || 'Failed to resend code');
+    if (result.error) {
+      setError(result.error);
+    } else if (result.user) {
+      handleClose();
+      // Auth state change will be picked up by AuthContext
     }
   };
 
@@ -180,9 +149,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                 <span className="font-medium">Continue with Apple</span>
               </button>
 
-              {/* Email OTP */}
+              {/* Email */}
               <button
-                onClick={() => setStep('email_input')}
+                onClick={() => setStep('email_form')}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
               >
                 <EmailIcon className="w-5 h-5 text-slate-600" />
@@ -197,8 +166,8 @@ export const SignInModal: React.FC<SignInModalProps> = ({
           </>
         )}
 
-        {/* Email Input */}
-        {step === 'email_input' && (
+        {/* Email Form */}
+        {step === 'email_form' && (
           <>
             {/* Back button & Header */}
             <div className="mb-6">
@@ -206,113 +175,83 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                 onClick={() => {
                   setStep('providers');
                   setError(null);
+                  setPassword('');
                 }}
                 className="text-sm text-teal-600 hover:text-teal-700 font-medium mb-3"
               >
                 &larr; Back
               </button>
-              <h2 className="text-xl font-bold text-slate-800">Enter your email</h2>
+              <h2 className="text-xl font-bold text-slate-800">
+                {emailMode === 'sign_in' ? 'Sign in with email' : 'Create an account'}
+              </h2>
               <p className="text-sm text-slate-500 mt-1">
-                We&apos;ll send you a 6-digit code to sign in
+                {emailMode === 'sign_in'
+                  ? 'Enter your email and password'
+                  : 'Enter your email and create a password'}
               </p>
             </div>
 
-            <form onSubmit={handleSendOtp}>
-              <input
-                ref={emailInputRef}
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-800 placeholder:text-slate-400"
-                disabled={isLoading}
-                autoComplete="email"
-              />
+            <form onSubmit={handleEmailSubmit}>
+              <div className="space-y-3">
+                <input
+                  ref={emailInputRef}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-800 placeholder:text-slate-400"
+                  disabled={isLoading}
+                  autoComplete="email"
+                />
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-800 placeholder:text-slate-400"
+                  disabled={isLoading}
+                  autoComplete={emailMode === 'sign_in' ? 'current-password' : 'new-password'}
+                />
+              </div>
 
               {error && (
-                <p className="text-red-500 text-sm mt-2">{error}</p>
+                <p className="text-red-500 text-sm mt-3">{error}</p>
               )}
 
               <button
                 type="submit"
-                disabled={isLoading || !email.trim()}
+                disabled={isLoading || !email.trim() || !password.trim()}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 active:bg-teal-700 transition-colors touch-manipulation min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <SpinnerIcon className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>
-                    <span className="font-medium">Send Code</span>
-                    <ChevronRightIcon className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          </>
-        )}
-
-        {/* OTP Input */}
-        {step === 'otp_input' && (
-          <>
-            {/* Back button & Header */}
-            <div className="mb-6">
-              <button
-                onClick={() => {
-                  setStep('email_input');
-                  setOtpCode('');
-                  setError(null);
-                }}
-                className="text-sm text-teal-600 hover:text-teal-700 font-medium mb-3"
-              >
-                &larr; Back
-              </button>
-              <h2 className="text-xl font-bold text-slate-800">Enter code</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                We sent a 6-digit code to <span className="font-medium text-slate-700">{email}</span>
-              </p>
-            </div>
-
-            <form onSubmit={handleVerifyOtp}>
-              <input
-                ref={otpInputRef}
-                type="text"
-                inputMode="numeric"
-                value={otpCode}
-                onChange={(e) => {
-                  const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                  setOtpCode(value);
-                }}
-                placeholder="000000"
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-800 placeholder:text-slate-400 text-center text-2xl tracking-[0.5em] font-mono"
-                disabled={isLoading}
-                autoComplete="one-time-code"
-              />
-
-              {error && (
-                <p className="text-red-500 text-sm mt-2">{error}</p>
-              )}
-
-              <button
-                type="submit"
-                disabled={isLoading || otpCode.length !== 6}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 active:bg-teal-700 transition-colors touch-manipulation min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <SpinnerIcon className="w-5 h-5 animate-spin" />
-                ) : (
-                  <span className="font-medium">Verify & Sign In</span>
+                  <span className="font-medium">
+                    {emailMode === 'sign_in' ? 'Sign In' : 'Create Account'}
+                  </span>
                 )}
               </button>
 
               <button
                 type="button"
-                onClick={handleResendCode}
+                onClick={() => {
+                  setEmailMode(emailMode === 'sign_in' ? 'sign_up' : 'sign_in');
+                  setError(null);
+                }}
                 disabled={isLoading}
                 className="w-full mt-3 text-sm text-teal-600 hover:text-teal-700 font-medium disabled:opacity-50"
               >
-                Resend code
+                {emailMode === 'sign_in'
+                  ? "Don't have an account? Sign up"
+                  : 'Already have an account? Sign in'}
               </button>
             </form>
+
+            {emailMode === 'sign_up' && (
+              <p className="text-xs text-slate-400 text-center mt-4">
+                Password must be 8+ characters with uppercase, lowercase, number, and symbol
+              </p>
+            )}
           </>
         )}
       </div>

@@ -10,62 +10,62 @@ export type AuthProvider = 'google' | 'apple';
 
 class AuthService {
   /**
-   * Send OTP code to email
+   * Sign up with email and password
    */
-  public async sendOtp(email: string): Promise<{ success: boolean; error?: string }> {
+  public async signUpWithEmail(email: string, password: string): Promise<{ user: User | null; error?: string }> {
     if (!isSupabaseConfigured) {
-      return { success: false, error: 'Supabase not configured' };
+      return { user: null, error: 'Supabase not configured' };
     }
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { data, error } = await supabase.auth.signUp({
         email,
-        options: {
-          shouldCreateUser: true,
-        },
+        password,
       });
 
       if (error) {
-        console.error('[Auth] OTP send error:', error);
-        return { success: false, error: error.message };
+        console.error('[Auth] Sign up error:', error);
+        return { user: null, error: error.message };
       }
 
-      console.log('[Auth] OTP sent to:', email);
-      return { success: true };
+      if (data.user) {
+        return { user: this.mapSupabaseUserToUser(data.user) };
+      }
+
+      return { user: null };
     } catch (error) {
-      console.error('[Auth] OTP send error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to send code' };
+      console.error('[Auth] Sign up error:', error);
+      return { user: null, error: error instanceof Error ? error.message : 'Sign up failed' };
     }
   }
 
   /**
-   * Verify OTP code and sign in
+   * Sign in with email and password
    */
-  public async verifyOtp(email: string, token: string): Promise<User | null> {
+  public async signInWithEmail(email: string, password: string): Promise<{ user: User | null; error?: string }> {
     if (!isSupabaseConfigured) {
-      throw new Error('Supabase not configured');
+      return { user: null, error: 'Supabase not configured' };
     }
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        token,
-        type: 'email',
+        password,
       });
 
       if (error) {
-        console.error('[Auth] OTP verify error:', error);
-        throw error;
+        console.error('[Auth] Sign in error:', error);
+        return { user: null, error: error.message };
       }
 
       if (data.user) {
-        return this.mapSupabaseUserToUser(data.user);
+        return { user: this.mapSupabaseUserToUser(data.user) };
       }
 
-      return null;
+      return { user: null };
     } catch (error) {
-      console.error('[Auth] OTP verify error:', error);
-      throw error;
+      console.error('[Auth] Sign in error:', error);
+      return { user: null, error: error instanceof Error ? error.message : 'Sign in failed' };
     }
   }
   /**
