@@ -62,8 +62,19 @@ export function useStoreKit() {
 
         if (isNative && platform === 'ios') {
           setState(prev => ({ ...prev, isAvailable: true, isLoading: false }));
-          // Load products after confirming availability
+          // Load products after confirming availability (with timeout)
           loadProducts();
+
+          // Timeout fallback - if products don't load in 5s, allow purchasing anyway
+          setTimeout(() => {
+            setState(prev => {
+              if (prev.isLoading) {
+                console.warn('[StoreKit] Product loading timed out, proceeding without products');
+                return { ...prev, isLoading: false };
+              }
+              return prev;
+            });
+          }, 5000);
         } else {
           setState(prev => ({ ...prev, isAvailable: false, isLoading: false }));
         }
