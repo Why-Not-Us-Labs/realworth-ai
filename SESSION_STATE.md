@@ -7,9 +7,9 @@
 
 ## Current Task: StoreKit IAP Integration
 
-### Status: IN PROGRESS - 90% Complete
+### Status: READY FOR TESTING - 95% Complete
 
-We're implementing Apple In-App Purchases using StoreKit 2 for the iOS app. The native Swift plugin code is written and working, but needs to be added to the Xcode build target.
+The native StoreKit 2 code is now compiled and included in the Xcode build. Ready to test on a physical device.
 
 ---
 
@@ -41,37 +41,24 @@ We're implementing Apple In-App Purchases using StoreKit 2 for the iOS app. The 
 
 ---
 
-## BLOCKING ISSUE (Next Step)
+## RESOLVED: Build Target Issue (Jan 12, 2026)
 
-### Problem
-The StoreKitPlugin.swift and StoreKitPlugin.m files **exist on disk but are NOT included in the Xcode build target**. Xcode doesn't compile them, so the native code never runs.
+Files were added to Xcode project via `xcodeproj` Ruby gem. Commit: `16dc942`
 
-### Evidence
-- JavaScript logs show `[StoreKit] Plugin registered successfully`
-- But NO native logs appear (`[StoreKit Native] ...`)
-- The `project.pbxproj` file only lists `AppDelegate.swift` in compile sources
+## Next Step: Test on Physical Device
 
-### The Fix (Manual in Xcode)
+1. Open Xcode: `npx cap open ios`
+2. Select your physical iPhone as destination
+3. **Cmd+R** to build and run
+4. Open UpgradeModal in the app
+5. Check Xcode console for:
+   ```
+   [StoreKit Native] Plugin loaded and initializing...
+   [StoreKit Native] getProducts called
+   [StoreKit Native] Got 2 products from App Store
+   ```
 
-1. Open Xcode: `ios/App/App.xcodeproj`
-2. In Project Navigator, right-click **App > App** folder
-3. Select **"Add Files to 'App'..."**
-4. Add both files:
-   - `StoreKitPlugin.swift`
-   - `StoreKitPlugin.m`
-5. Ensure:
-   - "Copy items if needed" is **UNCHECKED**
-   - "Add to targets: App" is **CHECKED**
-6. Clean Build: **Cmd+Shift+K**
-7. Run on device: **Cmd+R**
-
-### Expected Result After Fix
-Console should show:
-```
-[StoreKit Native] Plugin loaded and initializing...
-[StoreKit Native] getProducts called
-[StoreKit Native] Got X products from App Store
-```
+**Important**: StoreKit testing requires a physical device with Sandbox Apple ID signed in (Settings > App Store > Sandbox Account).
 
 ---
 
