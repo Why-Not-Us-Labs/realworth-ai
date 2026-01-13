@@ -4,10 +4,11 @@ import StoreKit
 
 @available(iOS 15.0, *)
 @objc(StoreKitPlugin)
-public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
+public class StoreKitPlugin: CAPInstancePlugin, CAPBridgedPlugin {
     public let identifier = "StoreKitPlugin"
     public let jsName = "StoreKit"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "echo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getProducts", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "finishTransaction", returnType: CAPPluginReturnPromise),
@@ -20,6 +21,9 @@ public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     public override func load() {
         print("[StoreKit Native] Plugin loaded and initializing...")
+        print("[StoreKit Native] Bridge: \(String(describing: bridge))")
+        print("[StoreKit Native] Plugin ID: \(pluginId ?? "nil")")
+        print("[StoreKit Native] Plugin Name: \(pluginName ?? "nil")")
         // Start listening for transactions
         updateListenerTask = listenForTransactions()
         print("[StoreKit Native] Transaction listener started")
@@ -74,6 +78,14 @@ public class StoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // MARK: - Plugin Methods
+
+    /// Simple echo for testing bridge connection
+    @objc func echo(_ call: CAPPluginCall) {
+        print("[StoreKit Native] echo called!")
+        let value = call.getString("value") ?? "no value"
+        print("[StoreKit Native] echo value: \(value)")
+        call.resolve(["value": value])
+    }
 
     /// Get products from App Store
     @objc func getProducts(_ call: CAPPluginCall) {

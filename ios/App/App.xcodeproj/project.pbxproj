@@ -16,7 +16,6 @@
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
-		90240D10AB4B3313BACECA74 /* StoreKitPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 58A8952F11D47F89225FD81D /* StoreKitPlugin.m */; };
 		C673BCE70155C23B5DC249BE /* MyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E2A71FF50366FC29136917A /* MyViewController.swift */; };
 /* End PBXBuildFile section */
 
@@ -32,7 +31,6 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
-		58A8952F11D47F89225FD81D /* StoreKitPlugin.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = StoreKitPlugin.m; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -77,7 +75,6 @@
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
 				2C5CED429DEA418582B9294C /* StoreKitPlugin.swift */,
-				58A8952F11D47F89225FD81D /* StoreKitPlugin.m */,
 				0E2A71FF50366FC29136917A /* MyViewController.swift */,
 			);
 			path = App;
@@ -166,7 +163,6 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				168C4043333E7534DEE4C2B4 /* StoreKitPlugin.swift in Sources */,
-				90240D10AB4B3313BACECA74 /* StoreKitPlugin.m in Sources */,
 				C673BCE70155C23B5DC249BE /* MyViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

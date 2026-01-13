@@ -88,6 +88,15 @@ export function useStoreKit() {
         throw new Error('StoreKit plugin not available');
       }
 
+      // Test bridge connection first
+      console.log('[StoreKit] Testing bridge with echo...');
+      try {
+        const echoResult = await StoreKit.echo({ value: 'test' });
+        console.log('[StoreKit] Echo result:', JSON.stringify(echoResult));
+      } catch (echoError) {
+        console.error('[StoreKit] Echo failed:', echoError);
+      }
+
       const productIds = Object.values(STOREKIT_PRODUCTS);
       console.log('[StoreKit] Requesting products:', productIds);
 
@@ -281,6 +290,7 @@ async function getStoreKitPlugin(): Promise<StoreKitPlugin | null> {
 
 // Type definitions for the native StoreKit plugin
 interface StoreKitPlugin {
+  echo(options: { value: string }): Promise<{ value: string }>;
   getProducts(options: { productIds: string[] }): Promise<{
     products: Array<{
       id: string;
