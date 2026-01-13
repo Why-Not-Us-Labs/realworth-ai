@@ -7,9 +7,9 @@
 
 ## Current Task: StoreKit IAP Integration
 
-### Status: READY FOR TESTING - 95% Complete
+### Status: DEBUGGING BRIDGE CONNECTION - 90% Complete
 
-The native StoreKit 2 code is now compiled and included in the Xcode build. Ready to test on a physical device.
+Native plugin loads correctly but JS-to-native method calls aren't working. The native `load()` runs, but `getProducts()` never reaches native side.
 
 ---
 
@@ -41,24 +41,36 @@ The native StoreKit 2 code is now compiled and included in the Xcode build. Read
 
 ---
 
-## RESOLVED: Build Target Issue (Jan 12, 2026)
+## Current Issue: Bridge Method Calls (Jan 12, 2026)
 
-Files were added to Xcode project via `xcodeproj` Ruby gem. Commit: `16dc942`
+### What's Working
+- Native plugin compiles and loads: `[StoreKit Native] Plugin loaded and initializing...`
+- Bridge is connected: `Bridge: Optional(<Capacitor.CapacitorBridge: 0x...>)`
+- Plugin is registered: `Plugin ID: StoreKitPlugin`, `Plugin Name: StoreKit`
+- MyViewController registers the plugin instance correctly
 
-## Next Step: Test on Physical Device
+### What's NOT Working
+- JS calls `StoreKit.getProducts()` but native `getProducts(_ call:)` is never invoked
+- No `[StoreKit Native] getProducts called` log appears
+- App times out and falls back to Stripe
 
-1. Open Xcode: `npx cap open ios`
-2. Select your physical iPhone as destination
-3. **Cmd+R** to build and run
-4. Open UpgradeModal in the app
-5. Check Xcode console for:
-   ```
-   [StoreKit Native] Plugin loaded and initializing...
-   [StoreKit Native] getProducts called
-   [StoreKit Native] Got 2 products from App Store
-   ```
+### Key Changes Made
+1. Changed `CAPPlugin` → `CAPInstancePlugin` (required for `registerPluginInstance`)
+2. Removed `StoreKitPlugin.m` (not needed with CAPBridgedPlugin approach)
+3. Created `MyViewController.swift` with `capacitorDidLoad()` override
+4. Updated `Main.storyboard` to use `MyViewController`
+5. Added `echo` test method for debugging bridge connectivity
 
-**Important**: StoreKit testing requires a physical device with Sandbox Apple ID signed in (Settings > App Store > Sandbox Account).
+### Next Steps to Debug
+1. Check if the `echo` test method works (added logging, deployed to production)
+2. Verify Capacitor 8 bridge resolution mechanism
+3. Check if method signatures match what bridge expects
+4. Consider adding CAP_PLUGIN macro back for method registration
+
+### Key Files
+- `ios/App/App/StoreKitPlugin.swift` - Native plugin (CAPInstancePlugin)
+- `ios/App/App/MyViewController.swift` - Plugin registration
+- `hooks/useStoreKit.ts` - JS hook (loads from production at realworth.ai)
 
 ---
 
