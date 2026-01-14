@@ -143,10 +143,31 @@ class SubscriptionService {
 
   /**
    * Check if user is Pro (by email - faster for UI)
+   * Supports both Stripe and Apple IAP subscriptions
    */
   isProByEmail(email: string, subscription: UserSubscription | null): boolean {
     if (this.isSuperAdmin(email)) return true;
-    return subscription?.subscriptionTier === 'pro' && subscription?.subscriptionStatus === 'active';
+    if (!subscription || subscription.subscriptionTier !== 'pro') return false;
+
+    // Stripe subscription - check status
+    if (subscription.subscriptionSource === 'stripe' && subscription.subscriptionStatus === 'active') {
+      return true;
+    }
+
+    // Apple IAP subscription - check status (set by verify-purchase) or expiration
+    if (subscription.subscriptionSource === 'apple_iap') {
+      if (subscription.subscriptionStatus === 'active') return true;
+      // Fallback: check expiration date directly
+      if (subscription.iapExpiresAt) {
+        const expiresAt = new Date(subscription.iapExpiresAt);
+        if (expiresAt > new Date()) return true;
+      }
+    }
+
+    // Access code grants - no expiration
+    if (subscription.accessCodeUsed) return true;
+
+    return false;
   }
 
   /**

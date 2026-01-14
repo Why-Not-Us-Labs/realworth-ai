@@ -167,10 +167,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Update user subscription in database
+    // Set subscription_status to 'active' so isPro checks work correctly
     const { error: updateError } = await supabaseAdmin
       .from('users')
       .update({
         subscription_tier: tier,
+        subscription_status: 'active',
         subscription_source: 'apple_iap',
         iap_product_id: transactionData.productId,
         iap_original_transaction_id: transactionData.originalTransactionId,

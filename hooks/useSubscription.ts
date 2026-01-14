@@ -242,10 +242,10 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     }
   }, [userId, loadSubscription]);
 
-  // Check if Pro (including super admin)
+  // Check if Pro (including super admin and Apple IAP)
   const isPro = userEmail
     ? subscriptionService.isProByEmail(userEmail, subscription)
-    : subscription?.subscriptionTier === 'pro' && subscription?.subscriptionStatus === 'active';
+    : subscriptionService.isProByEmail('', subscription); // Use the service method for consistent logic
 
   return {
     subscription,
