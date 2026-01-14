@@ -35,8 +35,8 @@ interface StoreKitState {
 }
 
 /**
- * Hook for interacting with StoreKit 2 via Capacitor
- * This communicates with native iOS code through a custom Capacitor plugin
+ * Hook for interacting with StoreKit 2 via @capgo/native-purchases
+ * This uses a battle-tested Capacitor plugin for iOS In-App Purchases
  */
 export function useStoreKit() {
   const [state, setState] = useState<StoreKitState>({
@@ -55,7 +55,6 @@ export function useStoreKit() {
       }
 
       try {
-        // Check if our StoreKit plugin is available
         const { Capacitor } = await import('@capacitor/core');
         const isNative = Capacitor.isNativePlatform();
         const platform = Capacitor.getPlatform();
@@ -78,56 +77,44 @@ export function useStoreKit() {
 
   // Load available products from the App Store
   const loadProducts = useCallback(async () => {
-    console.log('[StoreKit] Starting to load products...');
+    console.log('[StoreKit] Starting to load products via @capgo/native-purchases...');
     setState(prev => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      // Call native StoreKit plugin to get products
-      const StoreKit = await getStoreKitPlugin();
-      if (!StoreKit) {
-        throw new Error('StoreKit plugin not available');
-      }
-
-      // Test bridge connection first
-      console.log('[StoreKit] Testing bridge with echo...');
-      try {
-        const echoResult = await StoreKit.echo({ value: 'test' });
-        console.log('[StoreKit] Echo result:', JSON.stringify(echoResult));
-      } catch (echoError) {
-        console.error('[StoreKit] Echo failed:', echoError);
-      }
+      const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases');
 
       const productIds = Object.values(STOREKIT_PRODUCTS);
       console.log('[StoreKit] Requesting products:', productIds);
 
-      // 5-second timeout to prevent hanging forever
+      // 10-second timeout to account for network latency
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Product loading timed out')), 5000);
+        setTimeout(() => reject(new Error('Product loading timed out')), 10000);
       });
 
       const result = await Promise.race([
-        StoreKit.getProducts({ productIds }),
+        NativePurchases.getProducts({
+          productIdentifiers: productIds,
+          productType: PURCHASE_TYPE.SUBS,
+        }),
         timeoutPromise,
       ]);
 
       console.log('[StoreKit] Got result:', JSON.stringify(result));
 
-      const products: Product[] = result.products.map((p: {
-        id: string;
-        displayName: string;
-        description: string;
-        price: string;
-        priceValue: number;
-        currencyCode: string;
-      }) => ({
-        id: p.id,
-        displayName: p.displayName,
+      if (!result.products || result.products.length === 0) {
+        throw new Error('No products returned from App Store');
+      }
+
+      const products: Product[] = result.products.map((p) => ({
+        id: p.identifier,
+        displayName: p.title,
         description: p.description,
-        price: p.price,
-        priceValue: p.priceValue,
+        price: p.priceString,
+        priceValue: p.price,
         currencyCode: p.currencyCode,
       }));
 
+      console.log('[StoreKit] Loaded products:', products.map(p => p.id).join(', '));
       setState(prev => ({ ...prev, products, isLoading: false }));
     } catch (error) {
       console.error('[StoreKit] Error loading products:', error);
@@ -144,21 +131,27 @@ export function useStoreKit() {
   // Purchase a product
   const purchase = useCallback(async (productId: ProductId): Promise<PurchaseResult> => {
     try {
-      const StoreKit = await getStoreKitPlugin();
-      if (!StoreKit) {
-        throw new Error('StoreKit plugin not available');
-      }
+      const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases');
+
+      console.log('[StoreKit] Starting purchase for:', productId);
 
       // Initiate purchase through native StoreKit
-      const result = await StoreKit.purchase({ productId });
+      const result = await NativePurchases.purchaseProduct({
+        productIdentifier: productId,
+        productType: PURCHASE_TYPE.SUBS,
+        quantity: 1,
+      });
 
-      if (result.success && result.transaction) {
+      console.log('[StoreKit] Purchase result:', JSON.stringify(result));
+
+      if (result.transactionId) {
         // Verify the purchase with our backend
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) {
           throw new Error('Not authenticated');
         }
 
+        // The plugin provides the receipt data we need
         const verifyResponse = await fetch('/api/apple/verify-purchase', {
           method: 'POST',
           headers: {
@@ -166,7 +159,8 @@ export function useStoreKit() {
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            signedTransaction: result.transaction,
+            transactionId: result.transactionId,
+            productId: productId,
           }),
         });
 
@@ -175,28 +169,32 @@ export function useStoreKit() {
           throw new Error(errorData.error || 'Failed to verify purchase');
         }
 
-        // Finish the transaction in StoreKit
-        if (result.transactionId) {
-          await StoreKit.finishTransaction({ transactionId: result.transactionId });
-        }
-
         return {
           success: true,
           transactionId: result.transactionId,
         };
-      } else if (result.cancelled) {
+      } else {
+        // Check if cancelled
+        return {
+          success: false,
+          error: 'Purchase was cancelled or failed',
+        };
+      }
+    } catch (error) {
+      console.error('[StoreKit] Purchase error:', error);
+
+      // Handle user cancellation
+      const errorMessage = error instanceof Error ? error.message : 'Purchase failed';
+      if (errorMessage.includes('cancelled') || errorMessage.includes('canceled')) {
         return {
           success: false,
           error: 'Purchase cancelled',
         };
-      } else {
-        throw new Error(result.error || 'Purchase failed');
       }
-    } catch (error) {
-      console.error('[StoreKit] Purchase error:', error);
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Purchase failed',
+        error: errorMessage,
       };
     }
   }, []);
@@ -204,46 +202,48 @@ export function useStoreKit() {
   // Restore previous purchases
   const restorePurchases = useCallback(async (): Promise<PurchaseResult> => {
     try {
-      const StoreKit = await getStoreKitPlugin();
-      if (!StoreKit) {
-        throw new Error('StoreKit plugin not available');
+      const { NativePurchases } = await import('@capgo/native-purchases');
+
+      console.log('[StoreKit] Restoring purchases...');
+
+      const result = await NativePurchases.restorePurchases();
+
+      console.log('[StoreKit] Restore result:', JSON.stringify(result));
+
+      // Check if we have any restored purchases
+      // The plugin returns restored transaction info
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
       }
 
-      const result = await StoreKit.restorePurchases();
+      // Call our backend to verify the restored subscription
+      const verifyResponse = await fetch('/api/apple/verify-purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          restore: true,
+        }),
+      });
 
-      if (result.transactions && result.transactions.length > 0) {
-        // Verify each restored transaction
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          throw new Error('Not authenticated');
-        }
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.error || 'Failed to verify restored purchase');
+      }
 
-        // Verify the most recent transaction
-        const latestTransaction = result.transactions[0];
+      const verifyData = await verifyResponse.json();
 
-        const verifyResponse = await fetch('/api/apple/verify-purchase', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            signedTransaction: latestTransaction,
-          }),
-        });
-
-        if (!verifyResponse.ok) {
-          const errorData = await verifyResponse.json();
-          throw new Error(errorData.error || 'Failed to verify restored purchase');
-        }
-
+      if (verifyData.hasActiveSubscription) {
         return {
           success: true,
         };
       } else {
         return {
           success: false,
-          error: 'No purchases to restore',
+          error: 'No active subscriptions to restore',
         };
       }
     } catch (error) {
@@ -262,54 +262,4 @@ export function useStoreKit() {
     restorePurchases,
     PRODUCTS: STOREKIT_PRODUCTS,
   };
-}
-
-// Cache the plugin instance to avoid registering multiple times
-let storeKitPluginInstance: StoreKitPlugin | null = null;
-
-/**
- * Get the StoreKit Capacitor plugin
- * Returns null if not available
- */
-async function getStoreKitPlugin(): Promise<StoreKitPlugin | null> {
-  // Return cached instance if already registered
-  if (storeKitPluginInstance) {
-    return storeKitPluginInstance;
-  }
-
-  try {
-    const { registerPlugin } = await import('@capacitor/core');
-    storeKitPluginInstance = registerPlugin<StoreKitPlugin>('StoreKit');
-    console.log('[StoreKit] Plugin registered successfully');
-    return storeKitPluginInstance;
-  } catch (error) {
-    console.error('[StoreKit] Failed to register plugin:', error);
-    return null;
-  }
-}
-
-// Type definitions for the native StoreKit plugin
-interface StoreKitPlugin {
-  echo(options: { value: string }): Promise<{ value: string }>;
-  getProducts(options: { productIds: string[] }): Promise<{
-    products: Array<{
-      id: string;
-      displayName: string;
-      description: string;
-      price: string;
-      priceValue: number;
-      currencyCode: string;
-    }>;
-  }>;
-  purchase(options: { productId: string }): Promise<{
-    success: boolean;
-    cancelled?: boolean;
-    transaction?: string;
-    transactionId?: string;
-    error?: string;
-  }>;
-  finishTransaction(options: { transactionId: string }): Promise<void>;
-  restorePurchases(): Promise<{
-    transactions: string[];
-  }>;
 }
