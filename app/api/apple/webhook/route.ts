@@ -133,6 +133,8 @@ export async function POST(request: NextRequest) {
           .from('users')
           .update({
             subscription_tier: 'pro',
+            subscription_status: 'active',
+            subscription_source: 'apple_iap',
             iap_expires_at: expiresAt,
             updated_at: new Date().toISOString(),
           })
@@ -149,6 +151,7 @@ export async function POST(request: NextRequest) {
           .from('users')
           .update({
             subscription_tier: 'free',
+            subscription_status: 'canceled',
             iap_expires_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -165,7 +168,9 @@ export async function POST(request: NextRequest) {
           .from('users')
           .update({
             subscription_tier: 'free',
+            subscription_status: 'canceled',
             iap_expires_at: new Date().toISOString(),
+            iap_original_transaction_id: null, // Clear transaction ID on revoke
             updated_at: new Date().toISOString(),
           })
           .eq('id', userData.id);
