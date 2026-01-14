@@ -201,22 +201,59 @@ export function useStoreKit() {
   // Restore previous purchases
   const restorePurchases = useCallback(async (): Promise<PurchaseResult> => {
     try {
-      const { NativePurchases } = await import('@capgo/native-purchases');
+      const { NativePurchases, PURCHASE_TYPE } = await import('@capgo/native-purchases');
 
       console.log('[StoreKit] Restoring purchases...');
 
-      const result = await NativePurchases.restorePurchases();
+      // Step 1: Trigger the restore flow (syncs purchases from App Store)
+      await NativePurchases.restorePurchases();
 
-      console.log('[StoreKit] Restore result:', JSON.stringify(result));
+      console.log('[StoreKit] Restore completed, fetching purchases...');
 
-      // Check if we have any restored purchases
-      // The plugin returns restored transaction info
+      // Step 2: Get all purchases including restored ones
+      const { purchases } = await NativePurchases.getPurchases({
+        productType: PURCHASE_TYPE.SUBS,
+      });
+
+      console.log('[StoreKit] Found purchases:', JSON.stringify(purchases));
+
+      if (!purchases || purchases.length === 0) {
+        return {
+          success: false,
+          error: 'No purchases to restore',
+        };
+      }
+
+      // Find subscription transactions (our product IDs)
+      const subscriptionProductIds = Object.values(STOREKIT_PRODUCTS);
+      const subscriptionTransaction = purchases.find(
+        (t) => subscriptionProductIds.includes(t.productIdentifier as ProductId)
+      );
+
+      if (!subscriptionTransaction) {
+        return {
+          success: false,
+          error: 'No subscription found to restore',
+        };
+      }
+
+      console.log('[StoreKit] Found subscription to restore:', subscriptionTransaction.productIdentifier);
+
+      // Get the JWS representation for verification
+      const jwsRepresentation = subscriptionTransaction.jwsRepresentation;
+      if (!jwsRepresentation) {
+        return {
+          success: false,
+          error: 'Unable to verify restored purchase',
+        };
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error('Not authenticated');
       }
 
-      // Call our backend to verify the restored subscription
+      // Verify the restored subscription with our backend
       const verifyResponse = await fetch('/api/apple/verify-purchase', {
         method: 'POST',
         headers: {
@@ -224,7 +261,7 @@ export function useStoreKit() {
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          restore: true,
+          signedTransaction: jwsRepresentation,
         }),
       });
 
@@ -233,18 +270,9 @@ export function useStoreKit() {
         throw new Error(errorData.error || 'Failed to verify restored purchase');
       }
 
-      const verifyData = await verifyResponse.json();
-
-      if (verifyData.hasActiveSubscription) {
-        return {
-          success: true,
-        };
-      } else {
-        return {
-          success: false,
-          error: 'No active subscriptions to restore',
-        };
-      }
+      return {
+        success: true,
+      };
     } catch (error) {
       console.error('[StoreKit] Restore error:', error);
       return {
