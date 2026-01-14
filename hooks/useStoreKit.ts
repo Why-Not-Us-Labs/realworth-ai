@@ -151,7 +151,7 @@ export function useStoreKit() {
           throw new Error('Not authenticated');
         }
 
-        // The plugin provides the receipt data we need
+        // The plugin provides the JWS signed transaction
         const verifyResponse = await fetch('/api/apple/verify-purchase', {
           method: 'POST',
           headers: {
@@ -159,8 +159,7 @@ export function useStoreKit() {
             'Authorization': `Bearer ${session.access_token}`,
           },
           body: JSON.stringify({
-            transactionId: result.transactionId,
-            productId: productId,
+            signedTransaction: result.jwsRepresentation,
           }),
         });
 
