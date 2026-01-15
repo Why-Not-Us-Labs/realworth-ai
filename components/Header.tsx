@@ -75,33 +75,20 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
             >
               Discover
             </Link>
-            {marketplaceEnabled && (
-              <Link
-                href="/marketplace"
-                className="text-slate-600 hover:text-teal-600 font-medium transition-colors"
-              >
-                Marketplace
-              </Link>
-            )}
-            {exploreEnabled && (
-              <Link
-                href="/explore"
-                className="text-slate-600 hover:text-teal-600 font-medium transition-colors"
-              >
-                Events
-              </Link>
-            )}
             <Link
-              href="/collections"
-              className="text-slate-600 hover:text-teal-600 font-medium transition-colors"
+              href="/?capture=true"
+              className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded-xl transition-colors"
             >
-              Collections
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Start Appraisal
             </Link>
             <Link
-              href="/leaderboard"
+              href="/profile"
               className="text-slate-600 hover:text-teal-600 font-medium transition-colors"
             >
-              Leaderboard
+              My Treasures
             </Link>
           </nav>
         </div>

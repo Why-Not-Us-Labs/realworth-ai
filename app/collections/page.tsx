@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '@/components/contexts/AuthContext';
+import { Header } from '@/components/Header';
 import { CollectionCard } from '@/components/CollectionCard';
 import { CollectionForm } from '@/components/CollectionForm';
 import { CollectionDashboard } from '@/components/CollectionDashboard';
@@ -99,7 +100,9 @@ export default function CollectionsPage() {
   // Not logged in
   if (!isAuthLoading && !user) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <Header />
+        <div className="flex items-center justify-center p-4 min-h-[calc(100vh-80px)]">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Sign in to view collections</h1>
           <p className="text-slate-500 mb-4">Create and manage your treasure collections</p>
@@ -110,6 +113,7 @@ export default function CollectionsPage() {
             Go to Home
           </Link>
         </div>
+        </div>
       </div>
     );
   }
@@ -117,8 +121,11 @@ export default function CollectionsPage() {
   // Loading
   if (isLoading || isAuthLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <Header />
+        <div className="flex items-center justify-center min-h-[calc(100vh-80px)]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+        </div>
       </div>
     );
   }
@@ -126,7 +133,9 @@ export default function CollectionsPage() {
   // Viewing single collection
   if (selectedCollection) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white py-8 px-4">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+        <Header />
+        <div className="py-8 px-4">
         <CollectionDashboard
           collection={selectedCollection}
           onAddItem={handleAddItem}
@@ -138,6 +147,7 @@ export default function CollectionsPage() {
           onBack={() => setSelectedCollection(null)}
           isOwner={selectedCollection.userId === user?.id}
         />
+        </div>
       </div>
     );
   }
@@ -145,6 +155,7 @@ export default function CollectionsPage() {
   // Collections list view
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+      <Header />
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         {/* Header - Mobile optimized */}
         <div className="mb-6">
