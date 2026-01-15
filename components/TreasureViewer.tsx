@@ -394,19 +394,19 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
             )}
 
             {/* Key Info - visible immediately on tablet */}
-            <div className="p-5 md:p-6 md:flex-1 md:flex md:flex-col md:justify-center">
+            <div className="p-5 md:p-4 md:flex-1 md:flex md:flex-col md:justify-center">
               {/* Category & Era Badges */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className="inline-block bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                <span className="inline-block bg-teal-100 text-teal-800 text-xs font-semibold px-2 py-0.5 rounded-full">
                   {treasure.category}
                 </span>
                 {treasure.era && (
-                  <span className="inline-block bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1 rounded-full">
+                  <span className="inline-block bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 rounded-full">
                     {treasure.era}
                   </span>
                 )}
                 {!treasure.is_public && isOwner && (
-                  <span className="inline-block bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
+                  <span className="inline-block bg-amber-100 text-amber-700 text-xs font-medium px-2 py-0.5 rounded-full flex items-center gap-1">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                     </svg>
@@ -415,30 +415,30 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 )}
               </div>
 
-              {/* Title */}
-              <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-1 leading-tight">
+              {/* Title - more compact on tablet */}
+              <h1 className="text-2xl md:text-xl lg:text-2xl font-black text-slate-900 mb-0.5 leading-tight">
                 {treasure.item_name}
               </h1>
 
               {treasure.author && treasure.author !== 'N/A' && (
-                <p className="text-sm text-slate-500 mb-4">by {treasure.author}</p>
+                <p className="text-sm text-slate-500 mb-2 md:mb-1.5">by {treasure.author}</p>
               )}
 
-              {/* Value - PROMINENT */}
-              <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl p-4 text-white shadow-lg shadow-teal-500/20 mb-4">
-                <p className="text-xs uppercase tracking-wider opacity-80 font-medium">Estimated Value</p>
-                <p className="text-3xl md:text-4xl font-black">{formattedAvg}</p>
-                <p className="text-sm opacity-80">{formattedLow} - {formattedHigh}</p>
+              {/* Value - PROMINENT but compact */}
+              <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-lg md:rounded-md p-3 md:p-2.5 text-white shadow-lg shadow-teal-500/20 mb-3 md:mb-2">
+                <p className="text-xs uppercase tracking-wider opacity-80 font-medium md:text-[10px]">Estimated Value</p>
+                <p className="text-3xl md:text-2xl font-black">{formattedAvg}</p>
+                <p className="text-sm md:text-xs opacity-80">{formattedLow} - {formattedHigh}</p>
               </div>
 
               {/* Confidence Score - Compact */}
-              <div className="flex items-center gap-3 p-3 bg-slate-100 rounded-lg">
+              <div className="flex items-center gap-3 p-2.5 md:p-2 bg-slate-100 rounded-lg md:rounded-md mb-0 md:mb-2">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-slate-600">Confidence</span>
-                    <span className="text-sm font-bold text-slate-800">{treasure.confidence_score ?? 75}/100</span>
+                    <span className="text-xs font-medium text-slate-600 md:text-[11px]">Confidence</span>
+                    <span className="text-sm md:text-xs font-bold text-slate-800">{treasure.confidence_score ?? 75}/100</span>
                   </div>
-                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-1.5 md:h-1 bg-slate-200 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
                         (treasure.confidence_score ?? 75) >= 90 ? 'bg-emerald-500' :
@@ -450,6 +450,38 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Confidence Factors - Inline on tablet only */}
+              {treasure.confidence_factors && treasure.confidence_factors.length > 0 && (
+                <div className="hidden md:block">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                    {treasure.confidence_factors.slice(0, 4).map((cf, idx) => (
+                      <div key={idx} className="flex items-start gap-1.5">
+                        <span className={`mt-0.5 w-4 h-4 flex-shrink-0 rounded-full flex items-center justify-center ${
+                          cf.impact === 'positive' ? 'bg-emerald-100 text-emerald-600' :
+                          cf.impact === 'negative' ? 'bg-red-100 text-red-600' :
+                          'bg-slate-200 text-slate-500'
+                        }`}>
+                          {cf.impact === 'positive' ? (
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : cf.impact === 'negative' ? (
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          ) : (
+                            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M20 12H4" />
+                            </svg>
+                          )}
+                        </span>
+                        <p className="text-[11px] font-medium text-slate-700 leading-tight">{cf.factor}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -460,9 +492,9 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
               {/* Keeping for reference but not displayed */}
             </div>
 
-            {/* Confidence Factors (if available) */}
+            {/* Confidence Factors (if available) - Hidden on tablet (shown inline above) */}
             {treasure.confidence_factors && treasure.confidence_factors.length > 0 && (
-              <div className="mb-8 bg-slate-50 rounded-xl p-5 border border-slate-200">
+              <div className="mb-8 bg-slate-50 rounded-xl p-5 border border-slate-200 md:hidden">
                 <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                   <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
