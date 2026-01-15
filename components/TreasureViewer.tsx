@@ -285,11 +285,37 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
             <LogoIcon className="w-8 h-8" />
             <span className="font-bold text-xl text-slate-900">RealWorth<span className="font-light text-slate-500">.ai</span></span>
           </Link>
+          <div className="hidden md:flex items-center gap-4">
+            <Link href="/discover" className="text-slate-600 hover:text-teal-600 font-medium text-sm transition-colors">
+              Discover
+            </Link>
+            <Link
+              href="/?capture=true"
+              className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Start Appraisal
+            </Link>
+            <Link href="/profile" className="text-slate-600 hover:text-teal-600 font-medium transition-colors text-sm">
+              My Treasures
+            </Link>
+            <Link
+              href="/profile"
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              title="Profile"
+            >
+              <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </Link>
+          </div>
           <Link
-            href="/"
-            className="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold py-2.5 px-5 rounded-xl text-sm transition-transform transform hover:scale-105 shadow-md shadow-teal-500/30"
+            href="/?capture=true"
+            className="md:hidden bg-teal-500 hover:bg-teal-600 text-white font-bold py-2.5 px-5 rounded-xl text-sm transition-colors"
           >
-            Appraise Your Items
+            Appraise
           </Link>
         </div>
       </header>
