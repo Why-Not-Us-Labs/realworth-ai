@@ -59,31 +59,43 @@ export default async function DiscoverPage() {
             <Link href="/discover" className="text-teal-600 font-medium text-sm">
               Discover
             </Link>
-            <Link href="/leaderboard" className="text-slate-600 hover:text-teal-600 font-medium transition-colors text-sm">
-              Leaderboard
+            <Link
+              href="/?capture=true"
+              className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Start Appraisal
+            </Link>
+            <Link href="/profile" className="text-slate-600 hover:text-teal-600 font-medium transition-colors text-sm">
+              My Treasures
             </Link>
             <Link
-              href="/"
-              className="bg-teal-500 hover:bg-teal-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors"
+              href="/profile"
+              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              title="Profile"
             >
-              Appraise
+              <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero - Mobile optimized */}
-      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-8 sm:py-12 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center mb-3">
-            <CompassIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />
+      {/* Hero - Compact on tablet */}
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-8 sm:py-6 md:py-4 px-4">
+        <div className="max-w-4xl mx-auto text-center md:flex md:items-center md:justify-center md:gap-3">
+          <CompassIcon className="w-12 h-12 sm:w-8 sm:h-8 md:w-6 md:h-6 text-white/80 mx-auto md:mx-0 mb-2 md:mb-0" />
+          <div className="md:text-left">
+            <h1 className="text-3xl sm:text-2xl md:text-xl font-bold mb-1 md:mb-0">
+              Discover Treasures
+            </h1>
+            <p className="text-white/90 text-sm md:text-xs md:hidden">
+              See what amazing finds others are uncovering.
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            Discover Treasures
-          </h1>
-          <p className="text-white/90 text-sm sm:text-base max-w-2xl mx-auto">
-            See what amazing finds others are uncovering.
-          </p>
         </div>
       </div>
 
