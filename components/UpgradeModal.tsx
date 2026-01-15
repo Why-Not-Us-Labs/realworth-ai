@@ -203,9 +203,9 @@ export default function UpgradeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200 flex flex-col">
-        {/* Hero Section - Compact on mobile */}
-        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 px-4 py-4 sm:p-6 text-white text-center relative overflow-hidden flex-shrink-0">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] md:max-h-[85vh] overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200 flex flex-col">
+        {/* Hero Section - Compact on mobile and tablet */}
+        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 px-4 py-3 sm:py-4 md:py-3 text-white text-center relative overflow-hidden flex-shrink-0">
           {/* Background decoration - hidden on mobile for cleaner look */}
           <div className="absolute inset-0 opacity-10 hidden sm:block">
             <div className="absolute top-2 left-4 w-8 h-8 border-2 border-white rounded-full" />
@@ -214,13 +214,13 @@ export default function UpgradeModal({
             <div className="absolute bottom-8 right-16 w-3 h-3 bg-white rounded-full" />
           </div>
 
-          <div className="relative flex sm:flex-col items-center sm:items-center gap-3 sm:gap-0">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 sm:mx-auto sm:mb-3 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-              <GemIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+          <div className="relative flex sm:flex-col md:flex-row items-center sm:items-center gap-3 sm:gap-0 md:gap-3">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-12 md:h-12 sm:mx-auto sm:mb-2 md:mb-0 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+              <GemIcon className="w-6 h-6 sm:w-7 sm:h-7 md:w-6 md:h-6 text-white" />
             </div>
-            <div className="text-left sm:text-center">
-              <h2 className="text-xl sm:text-2xl font-bold">Unlock Your Fortune</h2>
-              <p className="text-teal-100 text-xs sm:text-sm">
+            <div className="text-left sm:text-center md:text-left">
+              <h2 className="text-xl sm:text-2xl md:text-xl font-bold">Unlock Your Fortune</h2>
+              <p className="text-teal-100 text-xs sm:text-sm md:text-xs">
                 {feature ? `${feature} is a Pro feature` : 'Discover what your items are really worth'}
               </p>
             </div>
@@ -228,57 +228,57 @@ export default function UpgradeModal({
         </div>
 
         {/* Scrollable content area */}
-        <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-          {/* Compelling stat - more compact on mobile */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 sm:p-4 mb-4 sm:mb-5">
-            <div className="flex items-start gap-2 sm:gap-3">
-              <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 bg-amber-100 rounded-lg flex items-center justify-center">
-                <TrendingUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
+        <div className="p-4 sm:p-5 md:p-4 overflow-y-auto flex-1">
+          {/* Compelling stat - compact on tablet */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-2.5 sm:p-3 md:p-2.5 mb-3 sm:mb-4 md:mb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                <TrendingUpIcon className="w-4 h-4 text-amber-600" />
               </div>
               <div>
-                <p className="text-slate-800 font-semibold text-xs sm:text-sm">
+                <p className="text-slate-800 font-semibold text-xs">
                   1 in 4 households owns something worth $10,000+
                 </p>
-                <p className="text-slate-500 text-xs mt-0.5">
+                <p className="text-slate-500 text-xs">
                   Most never find out. Don&apos;t leave money on the table.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Features - 2 columns on mobile for compactness */}
-          <div className="grid grid-cols-2 sm:grid-cols-1 gap-2 sm:gap-3 mb-4 sm:mb-5">
+          {/* Features - 2x2 grid, compact */}
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-3">
             <FeatureCompact
-              icon={<SparklesIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              icon={<SparklesIcon className="w-3.5 h-3.5" />}
               text="AI Expert Analysis"
               highlight
             />
             <FeatureCompact
-              icon={<BoltIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              icon={<BoltIcon className="w-3.5 h-3.5" />}
               text="Unlimited Appraisals"
             />
             <FeatureCompact
-              icon={<CameraIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              icon={<CameraIcon className="w-3.5 h-3.5" />}
               text="Unlimited Photos"
             />
             <FeatureCompact
-              icon={<GridIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+              icon={<GridIcon className="w-3.5 h-3.5" />}
               text="Collections"
             />
           </div>
 
           {/* Comparison callout */}
-          <div className="flex items-center gap-1.5 sm:gap-2 text-xs text-slate-500 mb-4 sm:mb-5 justify-center">
-            <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3 justify-center">
+            <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
             <span>Traditional appraisals: $100-500 &amp; take weeks</span>
           </div>
 
           {/* Billing Toggle */}
-          <div className="mb-3 sm:mb-4">
+          <div className="mb-2.5">
             <div className="flex bg-slate-100 rounded-xl p-1">
               <button
                 onClick={() => setBillingInterval('monthly')}
-                className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
                   billingInterval === 'monthly'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
@@ -288,33 +288,33 @@ export default function UpgradeModal({
               </button>
               <button
                 onClick={() => setBillingInterval('annual')}
-                className={`flex-1 py-2 sm:py-2.5 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-medium transition-all ${
+                className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
                   billingInterval === 'annual'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 Annual
-                <span className="ml-1 sm:ml-1.5 text-xs text-emerald-600 font-semibold">Save 37%</span>
+                <span className="ml-1 text-xs text-emerald-600 font-semibold">Save 37%</span>
               </button>
             </div>
           </div>
 
           {/* Price */}
-          <div className="text-center mb-4 sm:mb-5">
+          <div className="text-center mb-3">
             {billingInterval === 'monthly' ? (
               <>
-                <div className="text-3xl sm:text-4xl font-bold text-slate-900">
-                  $19.99<span className="text-base sm:text-lg font-normal text-slate-500">/month</span>
+                <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+                  $19.99<span className="text-sm font-normal text-slate-500">/month</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">Cancel anytime. No commitment.</p>
+                <p className="text-xs text-slate-500">Cancel anytime</p>
               </>
             ) : (
               <>
-                <div className="text-3xl sm:text-4xl font-bold text-slate-900">
-                  $149.99<span className="text-base sm:text-lg font-normal text-slate-500">/year</span>
+                <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+                  $149.99<span className="text-sm font-normal text-slate-500">/year</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-500 mt-0.5 sm:mt-1">
+                <p className="text-xs text-slate-500">
                   $12.50/month • <span className="text-emerald-600 font-medium">Save $90/year</span>
                 </p>
               </>
@@ -322,10 +322,10 @@ export default function UpgradeModal({
           </div>
 
           {/* Actions */}
-          <div className="space-y-2 sm:space-y-3">
+          <div className="space-y-2">
             {/* IAP Error Message */}
             {iapError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600">
                 {iapError}
               </div>
             )}
@@ -333,7 +333,7 @@ export default function UpgradeModal({
             <Button
               onClick={handleUpgrade}
               disabled={isLoading || isRestoring || (isNativeApp && storeKit.isLoading && !storeKitTimedOut)}
-              size="lg"
+              size="default"
               className="w-full"
             >
               {isLoading ? (
@@ -342,14 +342,14 @@ export default function UpgradeModal({
                 'Loading...'
               ) : (
                 <>
-                  <SparklesIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <SparklesIcon className="w-4 h-4" />
                   Start Finding Hidden Value
                 </>
               )}
             </Button>
 
             {/* Trust badges */}
-            <div className="flex items-center justify-center gap-3 sm:gap-4 text-xs text-slate-400">
+            <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
               <span className="flex items-center gap-1">
                 <CheckIcon className="w-3 h-3" />
                 Cancel anytime
@@ -362,15 +362,13 @@ export default function UpgradeModal({
 
             {/* Restore Purchases - only in native iOS app */}
             {isNativeApp && storeKit.isAvailable && (
-              <div className="text-center">
-                <button
-                  onClick={handleRestorePurchases}
-                  disabled={isRestoring || isLoading}
-                  className="text-xs sm:text-sm text-teal-600 hover:text-teal-700 transition-colors disabled:opacity-50"
-                >
-                  {isRestoring ? 'Restoring...' : 'Restore Purchases'}
-                </button>
-              </div>
+              <button
+                onClick={handleRestorePurchases}
+                disabled={isRestoring || isLoading}
+                className="w-full text-xs text-teal-600 hover:text-teal-700 transition-colors disabled:opacity-50"
+              >
+                {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+              </button>
             )}
 
             {/* Access Code & Maybe Later - inline on mobile */}
@@ -451,15 +449,15 @@ interface FeatureCompactProps {
 
 function FeatureCompact({ icon, text, highlight }: FeatureCompactProps) {
   return (
-    <div className={`flex items-center gap-2 p-2 sm:p-2.5 rounded-lg ${
+    <div className={`flex items-center gap-1.5 p-1.5 sm:p-2 rounded-lg ${
       highlight ? 'bg-teal-50' : 'bg-slate-50'
     }`}>
-      <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-md flex items-center justify-center ${
+      <div className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center ${
         highlight ? 'bg-teal-100 text-teal-600' : 'bg-slate-200 text-slate-600'
       }`}>
         {icon}
       </div>
-      <p className={`font-medium text-xs sm:text-sm ${highlight ? 'text-teal-900' : 'text-slate-700'}`}>
+      <p className={`font-medium text-xs ${highlight ? 'text-teal-900' : 'text-slate-700'}`}>
         {text}
       </p>
     </div>
