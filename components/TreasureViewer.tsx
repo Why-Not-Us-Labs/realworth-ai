@@ -380,92 +380,84 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
         )}
 
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Image */}
-          {treasure.image_url && (
-            <div className="relative aspect-square sm:aspect-video bg-slate-100">
-              <img
-                src={treasure.image_url}
-                alt={treasure.item_name}
-                className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-
-          {/* Content */}
-          <div className="p-6 sm:p-8">
-            {/* Category & Era Badges */}
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="inline-block bg-teal-100 text-teal-800 text-sm font-semibold px-3 py-1 rounded-full">
-                {treasure.category}
-              </span>
-              {treasure.era && (
-                <span className="inline-block bg-slate-100 text-slate-600 text-sm font-medium px-3 py-1 rounded-full">
-                  {treasure.era}
-                </span>
-              )}
-              {!treasure.is_public && isOwner && (
-                <span className="inline-block bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Only you can see this
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
-            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 mb-1">
-              {treasure.item_name}
-            </h1>
-
-            {treasure.author && treasure.author !== 'N/A' && (
-              <p className="text-lg text-slate-500 mb-6">by {treasure.author}</p>
+          {/* Two-column layout on tablet+ */}
+          <div className="md:flex">
+            {/* Image - smaller on tablet */}
+            {treasure.image_url && (
+              <div className="relative aspect-square md:aspect-auto md:w-2/5 md:min-h-[300px] bg-slate-100 flex-shrink-0">
+                <img
+                  src={treasure.image_url}
+                  alt={treasure.item_name}
+                  className="w-full h-full object-contain md:object-cover"
+                />
+              </div>
             )}
 
-            {/* Value & Confidence Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              {/* Value Card */}
-              <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-2xl p-6 text-white shadow-lg shadow-teal-500/20">
-                <p className="text-xs uppercase tracking-wider opacity-80 mb-1 font-medium">Estimated Value</p>
-                <p className="text-4xl font-black mb-1">{formattedAvg}</p>
-                <p className="text-sm opacity-80">
-                  {formattedLow} - {formattedHigh}
-                </p>
+            {/* Key Info - visible immediately on tablet */}
+            <div className="p-5 md:p-6 md:flex-1 md:flex md:flex-col md:justify-center">
+              {/* Category & Era Badges */}
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="inline-block bg-teal-100 text-teal-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {treasure.category}
+                </span>
+                {treasure.era && (
+                  <span className="inline-block bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-1 rounded-full">
+                    {treasure.era}
+                  </span>
+                )}
+                {!treasure.is_public && isOwner && (
+                  <span className="inline-block bg-amber-100 text-amber-700 text-xs font-medium px-2 py-1 rounded-full flex items-center gap-1">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Private
+                  </span>
+                )}
               </div>
 
-              {/* Confidence Score Card */}
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white shadow-lg">
-                <p className="text-xs uppercase tracking-wider opacity-80 mb-1 font-medium">Confidence Score</p>
-                <div className="flex items-end gap-3">
-                  <p className="text-4xl font-black">
-                    {treasure.confidence_score ?? 75}
-                    <span className="text-lg font-normal opacity-60">/100</span>
-                  </p>
-                  {/* Confidence Level Badge */}
-                  <span className={`text-xs font-bold px-2 py-1 rounded-full mb-1 ${
-                    (treasure.confidence_score ?? 75) >= 90 ? 'bg-emerald-500/20 text-emerald-300' :
-                    (treasure.confidence_score ?? 75) >= 70 ? 'bg-teal-500/20 text-teal-300' :
-                    (treasure.confidence_score ?? 75) >= 50 ? 'bg-amber-500/20 text-amber-300' :
-                    'bg-red-500/20 text-red-300'
-                  }`}>
-                    {(treasure.confidence_score ?? 75) >= 90 ? 'Very High' :
-                     (treasure.confidence_score ?? 75) >= 70 ? 'High' :
-                     (treasure.confidence_score ?? 75) >= 50 ? 'Moderate' : 'Low'}
-                  </span>
-                </div>
-                {/* Progress Bar */}
-                <div className="mt-3 h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${
-                      (treasure.confidence_score ?? 75) >= 90 ? 'bg-emerald-400' :
-                      (treasure.confidence_score ?? 75) >= 70 ? 'bg-teal-400' :
-                      (treasure.confidence_score ?? 75) >= 50 ? 'bg-amber-400' :
-                      'bg-red-400'
-                    }`}
-                    style={{ width: `${treasure.confidence_score ?? 75}%` }}
-                  />
+              {/* Title */}
+              <h1 className="text-2xl md:text-3xl font-black text-slate-900 mb-1 leading-tight">
+                {treasure.item_name}
+              </h1>
+
+              {treasure.author && treasure.author !== 'N/A' && (
+                <p className="text-sm text-slate-500 mb-4">by {treasure.author}</p>
+              )}
+
+              {/* Value - PROMINENT */}
+              <div className="bg-gradient-to-br from-teal-500 to-emerald-500 rounded-xl p-4 text-white shadow-lg shadow-teal-500/20 mb-4">
+                <p className="text-xs uppercase tracking-wider opacity-80 font-medium">Estimated Value</p>
+                <p className="text-3xl md:text-4xl font-black">{formattedAvg}</p>
+                <p className="text-sm opacity-80">{formattedLow} - {formattedHigh}</p>
+              </div>
+
+              {/* Confidence Score - Compact */}
+              <div className="flex items-center gap-3 p-3 bg-slate-100 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-slate-600">Confidence</span>
+                    <span className="text-sm font-bold text-slate-800">{treasure.confidence_score ?? 75}/100</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        (treasure.confidence_score ?? 75) >= 90 ? 'bg-emerald-500' :
+                        (treasure.confidence_score ?? 75) >= 70 ? 'bg-teal-500' :
+                        (treasure.confidence_score ?? 75) >= 50 ? 'bg-amber-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${treasure.confidence_score ?? 75}%` }}
+                    />
+                  </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Additional Content - Below the fold */}
+          <div className="p-5 md:p-6 border-t border-slate-100">
+            {/* Value & Confidence Row - Hidden on tablet (shown above) */}
+            <div className="hidden">
+              {/* Keeping for reference but not displayed */}
             </div>
 
             {/* Confidence Factors (if available) */}
