@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { GemIcon, UsersIcon } from '@/components/icons';
 import { EngagementButtons } from '@/components/EngagementButtons';
+import { RarityBadge, RarityIndicator } from '@/components/RarityBadge';
 
 interface Treasure {
   id: string;
@@ -19,6 +20,7 @@ interface Treasure {
   like_count?: number;
   isLiked?: boolean;
   isSaved?: boolean;
+  rarity_score?: number | null;
   users: {
     name: string;
     picture: string;
@@ -145,6 +147,13 @@ export function DiscoverFeed({ treasures, showVisibility = false }: DiscoverFeed
                     />
                   )}
 
+                  {/* Rarity Badge - Top Left */}
+                  {treasure.rarity_score !== undefined && treasure.rarity_score !== null && treasure.rarity_score >= 4 && (
+                    <div className="absolute top-3 left-3">
+                      <RarityBadge score={treasure.rarity_score} size="sm" />
+                    </div>
+                  )}
+
                   {/* Value Badge */}
                   <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1.5 rounded-full">
                     <span className="text-sm font-bold flex items-center gap-1">
@@ -264,6 +273,13 @@ export function DiscoverFeed({ treasures, showVisibility = false }: DiscoverFeed
                 {showVisibility && treasure.visibility === 'friends' && (
                   <div className="absolute top-1.5 left-1.5 bg-blue-500 text-white p-1 rounded-full shadow-sm" title="From a friend">
                     <UsersIcon className="w-3 h-3" />
+                  </div>
+                )}
+
+                {/* Rarity indicator - top right */}
+                {treasure.rarity_score !== undefined && treasure.rarity_score !== null && treasure.rarity_score >= 4 && (
+                  <div className="absolute top-1.5 right-1.5">
+                    <RarityIndicator score={treasure.rarity_score} />
                   </div>
                 )}
               </Link>

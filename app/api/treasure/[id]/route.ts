@@ -58,9 +58,24 @@ export async function GET(
     treasure = data;
     isOwner = currentUserId === treasure.user_id;
 
-    // Check access: owner or public
+    // Check access: owner, public, or friend
     if (!isOwner && !treasure.is_public) {
-      return NextResponse.json({ error: 'Treasure is private' }, { status: 404 });
+      // Check if viewer is a friend of the owner
+      let isFriend = false;
+      if (currentUserId) {
+        const { data: friendship } = await supabase
+          .from('friendships')
+          .select('status')
+          .or(`and(requester_id.eq.${currentUserId},addressee_id.eq.${treasure.user_id}),and(requester_id.eq.${treasure.user_id},addressee_id.eq.${currentUserId})`)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+        isFriend = !!friendship;
+      }
+
+      if (!isFriend) {
+        return NextResponse.json({ error: 'Treasure is private' }, { status: 404 });
+      }
     }
   } else {
     // Without service role, try to fetch with explicit conditions
@@ -97,6 +112,34 @@ export async function GET(
       if (publicTreasure) {
         treasure = publicTreasure;
         isOwner = currentUserId === publicTreasure.user_id;
+      }
+    }
+
+    // If not owned and not public, check if user is a friend of the owner
+    if (!treasure && currentUserId) {
+      // First fetch the treasure to get the owner
+      const { data: privateTreasure } = await supabase
+        .from('appraisals')
+        .select(`
+          *,
+          users:user_id (id, name, picture)
+        `)
+        .eq('id', treasureId)
+        .maybeSingle();
+
+      if (privateTreasure) {
+        // Check if current user is friends with the owner
+        const { data: friendship } = await supabase
+          .from('friendships')
+          .select('status')
+          .or(`and(requester_id.eq.${currentUserId},addressee_id.eq.${privateTreasure.user_id}),and(requester_id.eq.${privateTreasure.user_id},addressee_id.eq.${currentUserId})`)
+          .eq('status', 'accepted')
+          .maybeSingle();
+
+        if (friendship) {
+          treasure = privateTreasure;
+          isOwner = false;
+        }
       }
     }
 
