@@ -1,37 +1,60 @@
 'use client';
 
 import React from 'react';
+import { SparklesIcon } from '@/components/icons';
 
 interface UsageMeterProps {
   used: number;
   limit: number;
+  credits?: number;
   isPro?: boolean;
   onUpgrade?: () => void;
 }
 
-export default function UsageMeter({ used, limit, isPro, onUpgrade }: UsageMeterProps) {
+export default function UsageMeter({ used, limit, credits = 0, isPro, onUpgrade }: UsageMeterProps) {
   if (isPro) {
     return (
       <div className="flex items-center gap-2 text-sm text-teal-600">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-        </svg>
+        <SparklesIcon className="w-4 h-4" />
         <span className="font-medium">Unlimited appraisals</span>
       </div>
     );
   }
 
-  const percentage = Math.min((used / limit) * 100, 100);
-  const remaining = Math.max(limit - used, 0);
-  const isLow = remaining <= 3;
-  const isExhausted = remaining === 0;
+  // Total available = remaining free + purchased credits
+  const freeRemaining = Math.max(limit - used, 0);
+  const totalAvailable = freeRemaining + credits;
+  const isExhausted = totalAvailable === 0;
+  const hasCredits = credits > 0;
+
+  // Progress bar segments
+  const freeUsedPercent = Math.min((used / limit) * 100, 100);
+  const freeRemainingPercent = (freeRemaining / limit) * 100;
+  // Credits extend beyond the free limit bar
+  const creditPercent = hasCredits ? Math.min((credits / limit) * 100, 50) : 0; // Cap at 50% visual width
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className={`font-medium ${isExhausted ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-700'}`}>
-          {used}/{limit} appraisals used
-        </span>
+        <div className="flex items-center gap-2">
+          {hasCredits ? (
+            <span className="font-medium text-gray-700">
+              {totalAvailable} appraisal{totalAvailable !== 1 ? 's' : ''} available
+            </span>
+          ) : (
+            <span className={`font-medium ${isExhausted ? 'text-red-600' : freeRemaining <= 1 ? 'text-amber-600' : 'text-gray-700'}`}>
+              {used}/{limit} free used
+            </span>
+          )}
+          {hasCredits && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8.5 7.5a1.5 1.5 0 113 0v3a1.5 1.5 0 01-3 0v-3zm1.5 7a1 1 0 100-2 1 1 0 000 2z" />
+              </svg>
+              {credits} credit{credits !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         {!isPro && onUpgrade && (
           <button
             onClick={onUpgrade}
@@ -41,19 +64,34 @@ export default function UsageMeter({ used, limit, isPro, onUpgrade }: UsageMeter
           </button>
         )}
       </div>
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+
+      {/* Progress bar with segments */}
+      <div className="h-2 bg-gray-200 rounded-full overflow-hidden flex">
+        {/* Used portion (teal or red if exhausted) */}
         <div
-          className={`h-full rounded-full transition-all duration-300 ${
-            isExhausted
-              ? 'bg-red-500'
-              : isLow
-              ? 'bg-amber-500'
-              : 'bg-teal-500'
+          className={`h-full transition-all duration-300 ${
+            isExhausted && !hasCredits ? 'bg-red-500' : 'bg-teal-500'
           }`}
-          style={{ width: `${percentage}%` }}
+          style={{ width: `${freeUsedPercent}%` }}
         />
+        {/* Remaining free portion (lighter teal) */}
+        {freeRemaining > 0 && (
+          <div
+            className="h-full bg-teal-200 transition-all duration-300"
+            style={{ width: `${freeRemainingPercent}%` }}
+          />
+        )}
+        {/* Credits portion (gold/amber) */}
+        {hasCredits && (
+          <div
+            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-300"
+            style={{ width: `${creditPercent}%` }}
+          />
+        )}
       </div>
-      {isExhausted && (
+
+      {/* Status messages */}
+      {isExhausted && !hasCredits && (
         <p className="text-xs text-red-600">
           You&apos;ve reached your monthly limit.{' '}
           {onUpgrade && (
@@ -63,9 +101,14 @@ export default function UsageMeter({ used, limit, isPro, onUpgrade }: UsageMeter
           )}
         </p>
       )}
-      {isLow && !isExhausted && (
+      {freeRemaining === 1 && !hasCredits && (
         <p className="text-xs text-amber-600">
-          Only {remaining} appraisal{remaining !== 1 ? 's' : ''} left this month
+          Only 1 free appraisal left this month
+        </p>
+      )}
+      {hasCredits && freeRemaining === 0 && (
+        <p className="text-xs text-amber-600">
+          Free appraisals used. {credits} paid credit{credits !== 1 ? 's' : ''} remaining.
         </p>
       )}
     </div>

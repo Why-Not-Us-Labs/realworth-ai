@@ -56,7 +56,7 @@ function HomeContent() {
   const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading, signInWithProvider } = useContext(AuthContext);
-  const { isPro, isVerifying, usageCount, checkCanAppraise, refresh: refreshSubscription, verifySubscriptionActive } = useSubscription(user?.id || null, user?.email);
+  const { isPro, isVerifying, usageCount, credits, checkCanAppraise, refresh: refreshSubscription, verifySubscriptionActive } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
@@ -402,6 +402,7 @@ function HomeContent() {
             <UsageMeter
               used={usageCount}
               limit={FREE_APPRAISAL_LIMIT}
+              credits={credits}
               isPro={isPro}
               onUpgrade={() => promptUpgrade()}
             />
