@@ -86,7 +86,7 @@ export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHead
   // Show loading skeleton
   if (isAuthLoading || isLoading) {
     return (
-      <div className="sm:hidden bg-white border-b border-slate-200 px-4 py-3">
+      <div className="sm:hidden sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-slate-200 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-200 animate-pulse" />
@@ -107,7 +107,7 @@ export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHead
   // Show sign-in prompt for non-authenticated users
   if (!user) {
     return (
-      <div className="sm:hidden bg-white border-b border-slate-200 px-4 py-3">
+      <div className="sm:hidden sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-slate-200 px-4 py-3">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-600">Discover treasures</span>
@@ -126,7 +126,7 @@ export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHead
   }
 
   return (
-    <div className="sm:hidden bg-white border-b border-slate-200 px-4 py-2.5">
+    <div className="sm:hidden sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-slate-200 px-4 py-2.5">
       <div className="max-w-4xl mx-auto flex items-center justify-between">
         {/* Left: Avatar + Name + Stats */}
         <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
