@@ -16,6 +16,7 @@ import { SparklesIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { AuthContext } from '@/components/contexts/AuthContext';
+import { BentoHeader } from '@/components/BentoHeader';
 import { AppraisalContext } from '@/components/contexts/AppraisalContext';
 import { SignInModal } from '@/components/SignInModal';
 import { dbService } from '@/services/dbService';
@@ -351,6 +352,16 @@ function HomeContent() {
   return (
     <>
       <Header onUpgradeClick={() => promptUpgrade()} />
+      <BentoHeader
+        onStartAppraisal={() => {
+          if (!user) {
+            setIsSignInModalOpen(true);
+          } else {
+            setView('FORM');
+          }
+        }}
+        onUpgrade={() => promptUpgrade()}
+      />
       <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           {renderView()}
@@ -368,12 +379,8 @@ function HomeContent() {
           </div>
         )}
 
-        {/* HomeFeed - Discover & My Treasures tabs */}
-        <HomeFeed
-          userHistory={history}
-          isLoggedIn={!!user}
-          onSelectItem={handleSelectHistoryItem}
-        />
+        {/* HomeFeed - Discover Feed */}
+        <HomeFeed isLoggedIn={!!user} />
       </main>
       <Footer />
 
