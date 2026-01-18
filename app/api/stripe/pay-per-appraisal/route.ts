@@ -12,6 +12,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Price in cents
 const APPRAISAL_PRICE_CENTS = 199; // $1.99
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://realworth.ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,151 +69,41 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id);
     }
 
-    // Create PaymentIntent for $1.99
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: APPRAISAL_PRICE_CENTS,
-      currency: 'usd',
+    // Create Checkout Session for $1.99 one-time payment
+    const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
+      payment_method_types: ['card'],
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: 'RealWorth Appraisal Credit',
+            description: 'Get 1 instant AI appraisal',
+          },
+          unit_amount: APPRAISAL_PRICE_CENTS,
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: `${APP_URL}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_URL}?purchase=canceled`,
       metadata: {
         user_id: user.id,
         type: 'pay_per_appraisal',
         credits: '1',
       },
-      description: 'RealWorth.ai - Single Appraisal Credit',
-      automatic_payment_methods: {
-        enabled: true,
-      },
     });
+
+    console.log('[PayPerAppraisal] Checkout session created:', session.id);
 
     return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id,
-      amount: APPRAISAL_PRICE_CENTS,
+      url: session.url,
+      sessionId: session.id,
     });
   } catch (error) {
-    console.error('Error creating payment intent:', error);
+    console.error('Error creating checkout session:', error);
     return NextResponse.json(
-      { error: 'Failed to create payment' },
-      { status: 500 }
-    );
-  }
-}
-
-// Confirm payment and grant credit
-export async function PUT(request: NextRequest) {
-  try {
-    const { paymentIntentId } = await request.json();
-
-    if (!paymentIntentId) {
-      return NextResponse.json(
-        { error: 'Payment intent ID required' },
-        { status: 400 }
-      );
-    }
-
-    // Verify the payment was successful
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-
-    if (paymentIntent.status !== 'succeeded') {
-      return NextResponse.json(
-        { error: 'Payment not completed', status: paymentIntent.status },
-        { status: 400 }
-      );
-    }
-
-    const userId = paymentIntent.metadata.user_id;
-    const credits = parseInt(paymentIntent.metadata.credits || '1', 10);
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Invalid payment metadata' },
-        { status: 400 }
-      );
-    }
-
-    const supabaseAdmin = getSupabaseAdmin();
-
-    // Check if we already processed this payment (idempotency)
-    const { data: existingPurchase } = await supabaseAdmin
-      .from('appraisal_purchases')
-      .select('id')
-      .eq('stripe_payment_intent_id', paymentIntentId)
-      .single();
-
-    if (existingPurchase) {
-      // Already processed - return current credit balance
-      const { data: user } = await supabaseAdmin
-        .from('users')
-        .select('appraisal_credits')
-        .eq('id', userId)
-        .single();
-
-      return NextResponse.json({
-        success: true,
-        message: 'Payment already processed',
-        credits: user?.appraisal_credits || 0,
-      });
-    }
-
-    // Record the purchase
-    const { error: purchaseError } = await supabaseAdmin
-      .from('appraisal_purchases')
-      .insert({
-        user_id: userId,
-        stripe_payment_intent_id: paymentIntentId,
-        amount_cents: paymentIntent.amount,
-        credits_granted: credits,
-      });
-
-    if (purchaseError) {
-      console.error('Error recording purchase:', purchaseError);
-      return NextResponse.json(
-        { error: 'Failed to record purchase' },
-        { status: 500 }
-      );
-    }
-
-    // Add credits to user - simple atomic increment
-    const { data: currentUser, error: fetchError } = await supabaseAdmin
-      .from('users')
-      .select('appraisal_credits')
-      .eq('id', userId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching user credits:', fetchError);
-      return NextResponse.json(
-        { error: 'Failed to fetch user credits' },
-        { status: 500 }
-      );
-    }
-
-    const newCredits = (currentUser?.appraisal_credits || 0) + credits;
-
-    const { error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({ appraisal_credits: newCredits })
-      .eq('id', userId);
-
-    if (updateError) {
-      console.error('Error updating credits:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to add credits' },
-        { status: 500 }
-      );
-    }
-
-    console.log('[PayPerAppraisal] Credits added:', { userId, credits, newCredits });
-
-    return NextResponse.json({
-      success: true,
-      credits: newCredits,
-      message: `Added ${credits} appraisal credit${credits > 1 ? 's' : ''}`,
-    });
-  } catch (error) {
-    console.error('Error confirming payment:', error);
-    return NextResponse.json(
-      { error: 'Failed to confirm payment' },
+      { error: 'Failed to create checkout' },
       { status: 500 }
     );
   }

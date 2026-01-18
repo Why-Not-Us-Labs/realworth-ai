@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { subscriptionService } from '@/services/subscriptionService';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 // Disable body parsing for webhook route
 export const runtime = 'nodejs';
@@ -79,6 +80,79 @@ export async function POST(request: NextRequest) {
           metadata: session.metadata,
         }));
 
+        // Handle one-time payment (pay-per-appraisal)
+        if (session.mode === 'payment' && session.metadata?.type === 'pay_per_appraisal') {
+          const userId = session.metadata.user_id;
+          const credits = parseInt(session.metadata.credits || '1', 10);
+
+          if (!userId) {
+            console.error('[Webhook] pay_per_appraisal: No user_id in metadata');
+            return NextResponse.json({ error: 'No user ID in session metadata' }, { status: 500 });
+          }
+
+          try {
+            const supabaseAdmin = getSupabaseAdmin();
+
+            // Check if we already processed this session (idempotency)
+            const { data: existingPurchase } = await supabaseAdmin
+              .from('appraisal_purchases')
+              .select('id')
+              .eq('stripe_payment_intent_id', session.id)
+              .single();
+
+            if (existingPurchase) {
+              console.log('[Webhook] pay_per_appraisal: Session already processed:', session.id);
+              break;
+            }
+
+            // Record the purchase
+            const { error: purchaseError } = await supabaseAdmin
+              .from('appraisal_purchases')
+              .insert({
+                user_id: userId,
+                stripe_payment_intent_id: session.id,
+                amount_cents: session.amount_total || 199,
+                credits_granted: credits,
+              });
+
+            if (purchaseError) {
+              console.error('[Webhook] pay_per_appraisal: Error recording purchase:', purchaseError);
+              return NextResponse.json({ error: 'Failed to record purchase' }, { status: 500 });
+            }
+
+            // Add credits to user
+            const { data: currentUser, error: fetchError } = await supabaseAdmin
+              .from('users')
+              .select('appraisal_credits')
+              .eq('id', userId)
+              .single();
+
+            if (fetchError) {
+              console.error('[Webhook] pay_per_appraisal: Error fetching user:', fetchError);
+              return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
+            }
+
+            const newCredits = (currentUser?.appraisal_credits || 0) + credits;
+
+            const { error: updateError } = await supabaseAdmin
+              .from('users')
+              .update({ appraisal_credits: newCredits })
+              .eq('id', userId);
+
+            if (updateError) {
+              console.error('[Webhook] pay_per_appraisal: Error updating credits:', updateError);
+              return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 });
+            }
+
+            console.log('[Webhook] pay_per_appraisal SUCCESS:', { userId, credits, newCredits, sessionId: session.id });
+          } catch (payError) {
+            console.error('[Webhook] pay_per_appraisal: Error:', payError);
+            return NextResponse.json({ error: 'Pay per appraisal handler error' }, { status: 500 });
+          }
+          break;
+        }
+
+        // Handle subscription checkout (existing logic)
         // Extract userId from metadata for fallback lookup
         const userId = session.metadata?.userId;
 

@@ -4,26 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { trackUpgradeClick, trackCheckoutStart } from '@/lib/analytics';
 import { isCapacitorApp } from '@/lib/utils';
 import { useStoreKit, STOREKIT_PRODUCTS } from '@/hooks/useStoreKit';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
   SparklesIcon,
   GemIcon,
   ShieldIcon,
-  CameraIcon,
-  GridIcon,
-  BoltIcon,
   CheckIcon,
-  ClockIcon,
-  TrendingUpIcon
+  BoltIcon
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 
 type BillingInterval = 'monthly' | 'annual';
-type PurchaseMode = 'subscription' | 'single';
-
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -45,6 +36,7 @@ export default function UpgradeModal({
   onAccessCodeSuccess,
 }: UpgradeModalProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isSingleLoading, setIsSingleLoading] = useState(false);
   const [showAccessCode, setShowAccessCode] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [accessCodeError, setAccessCodeError] = useState('');
@@ -55,10 +47,7 @@ export default function UpgradeModal({
   const [iapError, setIapError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [storeKitTimedOut, setStoreKitTimedOut] = useState(false);
-  const [purchaseMode, setPurchaseMode] = useState<PurchaseMode>('subscription');
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [singlePurchaseError, setSinglePurchaseError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // StoreKit hook for native iOS IAP
   const storeKit = useStoreKit();
@@ -103,10 +92,8 @@ export default function UpgradeModal({
       const result = await storeKit.purchase(productId);
 
       if (result.success) {
-        // Purchase successful - reload to update subscription status
         window.location.reload();
       } else if (result.error === 'Purchase cancelled') {
-        // User cancelled - just reset loading state
         setIsLoading(false);
       } else {
         setIapError(result.error || 'Purchase failed. Please try again.');
@@ -128,7 +115,6 @@ export default function UpgradeModal({
       const result = await storeKit.restorePurchases();
 
       if (result.success) {
-        // Restore successful - reload to update subscription status
         window.location.reload();
       } else {
         setIapError(result.error || 'No purchases to restore.');
@@ -141,52 +127,17 @@ export default function UpgradeModal({
     }
   };
 
-  // Handle Stripe checkout for web
-  const handleStripeCheckout = async () => {
-    setIsLoading(true);
-    trackCheckoutStart();
-    try {
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, userEmail, userName, billingInterval }),
-      });
-
-      const data = await response.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert('Failed to create checkout session');
-      }
-    } catch (error) {
-      console.error('Error creating checkout:', error);
-      alert('Failed to start checkout');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Choose the appropriate purchase handler
-  const handleUpgrade = async () => {
-    if (isNativeApp && storeKit.isAvailable) {
-      await handleIAPPurchase();
-    } else {
-      await handleStripeCheckout();
-    }
-  };
-
-  // Handle single appraisal purchase ($1.99)
-  const handleSingleAppraisalPurchase = async () => {
-    setIsLoading(true);
-    setSinglePurchaseError(null);
+  // Handle single appraisal purchase ($1.99) - redirects to Stripe Checkout
+  const handleSinglePurchase = async () => {
+    setIsSingleLoading(true);
+    setError(null);
     trackCheckoutStart();
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
-        setSinglePurchaseError('Please sign in to continue');
-        setIsLoading(false);
+        setError('Please sign in to continue');
+        setIsSingleLoading(false);
         return;
       }
 
@@ -201,49 +152,53 @@ export default function UpgradeModal({
       const data = await response.json();
 
       if (!response.ok) {
-        setSinglePurchaseError(data.error || 'Failed to start payment');
-        setIsLoading(false);
+        setError(data.error || 'Failed to start checkout');
+        setIsSingleLoading(false);
         return;
       }
 
-      setClientSecret(data.clientSecret);
-      setPaymentIntentId(data.paymentIntentId);
-      setIsLoading(false);
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
     } catch (error) {
-      console.error('Error creating payment:', error);
-      setSinglePurchaseError('Failed to start payment. Please try again.');
-      setIsLoading(false);
+      console.error('Error creating checkout:', error);
+      setError('Failed to start checkout. Please try again.');
+      setIsSingleLoading(false);
     }
   };
 
-  // Confirm payment and grant credit
-  const confirmSinglePayment = async () => {
-    if (!paymentIntentId) return;
-
+  // Handle Stripe checkout for subscription
+  const handleStripeCheckout = async () => {
     setIsLoading(true);
-    setSinglePurchaseError(null);
-
+    setError(null);
+    trackCheckoutStart();
     try {
-      const response = await fetch('/api/stripe/pay-per-appraisal', {
-        method: 'PUT',
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentIntentId }),
+        body: JSON.stringify({ userId, userEmail, userName, billingInterval }),
       });
 
       const data = await response.json();
 
-      if (data.success) {
-        // Success! Close modal and let user continue
-        onClose();
-        window.location.reload();
+      if (data.url) {
+        window.location.href = data.url;
       } else {
-        setSinglePurchaseError(data.error || 'Payment confirmation failed');
+        setError('Failed to create checkout session');
+        setIsLoading(false);
       }
     } catch (error) {
-      console.error('Error confirming payment:', error);
-      setSinglePurchaseError('Failed to confirm payment');
-    } finally {
+      console.error('Error creating checkout:', error);
+      setError('Failed to start checkout');
       setIsLoading(false);
+    }
+  };
+
+  // Choose the appropriate purchase handler
+  const handleUpgrade = async () => {
+    if (isNativeApp && storeKit.isAvailable) {
+      await handleIAPPurchase();
+    } else {
+      await handleStripeCheckout();
     }
   };
 
@@ -284,394 +239,226 @@ export default function UpgradeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] md:max-h-[85vh] overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200 flex flex-col">
-        {/* Hero Section - Compact on mobile and tablet */}
-        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 px-4 py-3 sm:py-4 md:py-3 text-white text-center relative overflow-hidden flex-shrink-0">
-          {/* Background decoration - hidden on mobile for cleaner look */}
-          <div className="absolute inset-0 opacity-10 hidden sm:block">
-            <div className="absolute top-2 left-4 w-8 h-8 border-2 border-white rounded-full" />
-            <div className="absolute top-8 right-8 w-4 h-4 bg-white rounded-full" />
-            <div className="absolute bottom-4 left-12 w-6 h-6 border-2 border-white rotate-45" />
-            <div className="absolute bottom-8 right-16 w-3 h-3 bg-white rounded-full" />
-          </div>
-
-          <div className="relative flex sm:flex-col md:flex-row items-center sm:items-center gap-3 sm:gap-0 md:gap-3">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-12 md:h-12 sm:mx-auto sm:mb-2 md:mb-0 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
-              <GemIcon className="w-6 h-6 sm:w-7 sm:h-7 md:w-6 md:h-6 text-white" />
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] overflow-hidden animate-in fade-in slide-in-from-bottom-4 sm:zoom-in duration-200 flex flex-col">
+        {/* Hero Section - Compact */}
+        <div className="bg-gradient-to-br from-teal-500 via-teal-600 to-teal-700 px-4 py-3 text-white relative overflow-hidden flex-shrink-0">
+          <div className="relative flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm flex-shrink-0">
+              <GemIcon className="w-5 h-5 text-white" />
             </div>
-            <div className="text-left sm:text-center md:text-left">
-              <h2 className="text-xl sm:text-2xl md:text-xl font-bold">Unlock Your Fortune</h2>
-              <p className="text-teal-100 text-xs sm:text-sm md:text-xs">
-                {feature ? `${feature} is a Pro feature` : 'Discover what your items are really worth'}
+            <div>
+              <h2 className="text-lg font-bold">Unlock Your Fortune</h2>
+              <p className="text-teal-100 text-xs">
+                {feature ? `${feature} is a Pro feature` : 'Get your appraisal now'}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Scrollable content area */}
-        <div className="p-4 sm:p-5 md:p-4 overflow-y-auto flex-1">
-          {/* Compelling stat - compact on tablet */}
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-2.5 sm:p-3 md:p-2.5 mb-3 sm:mb-4 md:mb-3">
-            <div className="flex items-center gap-2">
-              <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                <TrendingUpIcon className="w-4 h-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-slate-800 font-semibold text-xs">
-                  1 in 4 households owns something worth $10,000+
-                </p>
-                <p className="text-slate-500 text-xs">
-                  Most never find out. Don&apos;t leave money on the table.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Features - 2x2 grid, compact */}
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-3">
-            <FeatureCompact
-              icon={<SparklesIcon className="w-3.5 h-3.5" />}
-              text="AI Expert Analysis"
-              highlight
-            />
-            <FeatureCompact
-              icon={<BoltIcon className="w-3.5 h-3.5" />}
-              text="Unlimited Appraisals"
-            />
-            <FeatureCompact
-              icon={<CameraIcon className="w-3.5 h-3.5" />}
-              text="Unlimited Photos"
-            />
-            <FeatureCompact
-              icon={<GridIcon className="w-3.5 h-3.5" />}
-              text="Collections"
-            />
-          </div>
-
-          {/* Comparison callout */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-3 justify-center">
-            <ClockIcon className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>Traditional appraisals: $100-500 &amp; take weeks</span>
-          </div>
-
-          {/* Purchase Mode Toggle - Single vs Subscription (hide on iOS native) */}
-          {!isNativeApp && (
-            <div className="mb-3">
-              <div className="flex bg-slate-100 rounded-xl p-1">
-                <button
-                  onClick={() => { setPurchaseMode('single'); setClientSecret(null); }}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                    purchaseMode === 'single'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Just This One
-                </button>
-                <button
-                  onClick={() => { setPurchaseMode('subscription'); setClientSecret(null); }}
-                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                    purchaseMode === 'subscription'
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  Unlimited
-                  <span className="ml-1 text-xs text-emerald-600 font-semibold">Best Value</span>
-                </button>
-              </div>
+        {/* Content - with extra bottom padding for nav */}
+        <div className="p-4 pb-24 overflow-y-auto flex-1">
+          {/* Error message */}
+          {(error || iapError) && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600 mb-3">
+              {error || iapError}
             </div>
           )}
 
-          {/* Single Appraisal Purchase */}
-          {purchaseMode === 'single' && !isNativeApp && (
-            <div className="mb-3">
-              <div className="text-center mb-3">
-                <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                  $1.99<span className="text-sm font-normal text-slate-500"> one-time</span>
-                </div>
-                <p className="text-xs text-slate-500">Get 1 appraisal credit instantly</p>
-              </div>
-
-              {singlePurchaseError && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600 mb-2">
-                  {singlePurchaseError}
-                </div>
-              )}
-
-              {clientSecret ? (
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <SinglePaymentForm
-                    onSuccess={confirmSinglePayment}
-                    onError={(msg) => setSinglePurchaseError(msg)}
-                  />
-                </Elements>
-              ) : (
-                <Button
-                  onClick={handleSingleAppraisalPurchase}
-                  disabled={isLoading}
-                  size="default"
-                  className="w-full"
-                >
-                  {isLoading ? 'Processing...' : 'Pay $1.99 for 1 Appraisal'}
-                </Button>
-              )}
-
+          {/* Single Appraisal - Primary CTA (hide on iOS native) */}
+          {!isNativeApp && (
+            <div className="mb-4">
+              <Button
+                onClick={handleSinglePurchase}
+                disabled={isSingleLoading}
+                size="lg"
+                className="w-full text-base py-6"
+              >
+                {isSingleLoading ? (
+                  'Redirecting to checkout...'
+                ) : (
+                  <>
+                    <BoltIcon className="w-5 h-5 mr-2" />
+                    $1.99 - Appraise This Item
+                  </>
+                )}
+              </Button>
               <p className="text-center text-xs text-slate-400 mt-2">
-                Want unlimited? <button onClick={() => setPurchaseMode('subscription')} className="text-teal-600 hover:underline">Subscribe instead</button>
+                One-time payment for 1 appraisal credit
               </p>
             </div>
           )}
 
-          {/* Subscription Options */}
-          {(purchaseMode === 'subscription' || isNativeApp) && (
-            <>
-              {/* Billing Toggle */}
-              <div className="mb-2.5">
-                <div className="flex bg-slate-100 rounded-xl p-1">
-                  <button
-                    onClick={() => setBillingInterval('monthly')}
-                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                      billingInterval === 'monthly'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Monthly
-                  </button>
-                  <button
-                    onClick={() => setBillingInterval('annual')}
-                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                      billingInterval === 'annual'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                    }`}
-                  >
-                    Annual
-                    <span className="ml-1 text-xs text-emerald-600 font-semibold">Save 37%</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Price */}
-              <div className="text-center mb-3">
-                {billingInterval === 'monthly' ? (
-                  <>
-                    <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                      $19.99<span className="text-sm font-normal text-slate-500">/month</span>
-                    </div>
-                    <p className="text-xs text-slate-500">Cancel anytime</p>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                      $149.99<span className="text-sm font-normal text-slate-500">/year</span>
-                    </div>
-                    <p className="text-xs text-slate-500">
-                      $12.50/month • <span className="text-emerald-600 font-medium">Save $90/year</span>
-                    </p>
-                  </>
-                )}
-              </div>
-            </>
+          {/* Divider */}
+          {!isNativeApp && (
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-xs text-slate-400 font-medium">or go unlimited</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
           )}
 
-          {/* Actions - Subscription Mode Only */}
-          {(purchaseMode === 'subscription' || isNativeApp) && (
-          <div className="space-y-2">
-            {/* IAP Error Message */}
-            {iapError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600">
-                {iapError}
+          {/* Subscription Option */}
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+            <div className="flex items-center gap-2 mb-3">
+              <SparklesIcon className="w-4 h-4 text-teal-600" />
+              <span className="font-semibold text-slate-900">RealWorth Pro</span>
+              <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">Best Value</span>
+            </div>
+
+            {/* Benefits - compact */}
+            <div className="grid grid-cols-2 gap-1.5 mb-3">
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <CheckIcon className="w-3.5 h-3.5 text-teal-500" />
+                <span>Unlimited appraisals</span>
               </div>
-            )}
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <CheckIcon className="w-3.5 h-3.5 text-teal-500" />
+                <span>AI Expert analysis</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <CheckIcon className="w-3.5 h-3.5 text-teal-500" />
+                <span>Collections</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-slate-600">
+                <CheckIcon className="w-3.5 h-3.5 text-teal-500" />
+                <span>Priority support</span>
+              </div>
+            </div>
+
+            {/* Billing Toggle */}
+            <div className="flex bg-white rounded-lg p-1 mb-3 border border-slate-200">
+              <button
+                onClick={() => setBillingInterval('monthly')}
+                className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                  billingInterval === 'monthly'
+                    ? 'bg-teal-500 text-white'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingInterval('annual')}
+                className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium transition-all ${
+                  billingInterval === 'annual'
+                    ? 'bg-teal-500 text-white'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Annual
+                <span className="ml-1 text-emerald-300 font-semibold">-37%</span>
+              </button>
+            </div>
+
+            {/* Price */}
+            <div className="text-center mb-3">
+              {billingInterval === 'monthly' ? (
+                <div className="text-xl font-bold text-slate-900">
+                  $19.99<span className="text-sm font-normal text-slate-500">/month</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-xl font-bold text-slate-900">
+                    $149.99<span className="text-sm font-normal text-slate-500">/year</span>
+                  </div>
+                  <p className="text-xs text-emerald-600 font-medium">Save $90/year</p>
+                </>
+              )}
+            </div>
 
             <Button
               onClick={handleUpgrade}
               disabled={isLoading || isRestoring || (isNativeApp && storeKit.isLoading && !storeKitTimedOut)}
-              size="default"
-              className="w-full"
+              variant="outline"
+              className="w-full border-teal-500 text-teal-600 hover:bg-teal-50"
             >
               {isLoading ? (
                 'Processing...'
               ) : (isNativeApp && storeKit.isLoading && !storeKitTimedOut) ? (
                 'Loading...'
               ) : (
-                <>
-                  <SparklesIcon className="w-4 h-4" />
-                  Start Finding Hidden Value
-                </>
+                'Start Pro Subscription'
               )}
             </Button>
-
-            {/* Trust badges */}
-            <div className="flex items-center justify-center gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <CheckIcon className="w-3 h-3" />
-                Cancel anytime
-              </span>
-              <span className="flex items-center gap-1">
-                <ShieldIcon className="w-3 h-3" />
-                Secure checkout
-              </span>
-            </div>
-
-            {/* Restore Purchases - only in native iOS app */}
-            {isNativeApp && storeKit.isAvailable && (
-              <button
-                onClick={handleRestorePurchases}
-                disabled={isRestoring || isLoading}
-                className="w-full text-xs text-teal-600 hover:text-teal-700 transition-colors disabled:opacity-50"
-              >
-                {isRestoring ? 'Restoring...' : 'Restore Purchases'}
-              </button>
-            )}
-
-            {/* Access Code & Maybe Later - inline on mobile */}
-            {/* Hide access code option in native iOS app (Apple requires IAP) */}
-            <div className="flex items-center justify-center gap-2 pt-1">
-              {!isNativeApp && !showAccessCode ? (
-                <>
-                  <button
-                    onClick={() => setShowAccessCode(true)}
-                    className="text-xs sm:text-sm text-teal-600 hover:text-teal-700 transition-colors"
-                  >
-                    Have a code?
-                  </button>
-                  <span className="text-slate-300">•</span>
-                </>
-              ) : null}
-              <button
-                onClick={onClose}
-                className="text-xs sm:text-sm text-slate-500 hover:text-slate-700 transition-colors"
-              >
-                Maybe Later
-              </button>
-            </div>
-
-            {/* Access Code Form - only show when expanded and not in native app */}
-            {!isNativeApp && showAccessCode && (
-              <form onSubmit={handleAccessCodeSubmit} className="space-y-2 pt-2">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={accessCode}
-                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                    placeholder="Access code"
-                    className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase tracking-wider"
-                    disabled={isLoading}
-                    autoFocus
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoading || !accessCode.trim()}
-                    className="px-4 py-2.5 bg-teal-500 text-white rounded-xl text-sm font-medium hover:bg-teal-600 active:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {isLoading ? '...' : 'Redeem'}
-                  </button>
-                </div>
-                {accessCodeError && (
-                  <p className="text-xs text-red-500 flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {accessCodeError}
-                  </p>
-                )}
-                {accessCodeSuccess && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {accessCodeSuccess}
-                  </p>
-                )}
-              </form>
-            )}
           </div>
+
+          {/* Trust badges */}
+          <div className="flex items-center justify-center gap-3 text-xs text-slate-400 mt-3">
+            <span className="flex items-center gap-1">
+              <CheckIcon className="w-3 h-3" />
+              Cancel anytime
+            </span>
+            <span className="flex items-center gap-1">
+              <ShieldIcon className="w-3 h-3" />
+              Secure checkout
+            </span>
+          </div>
+
+          {/* Restore Purchases - only in native iOS app */}
+          {isNativeApp && storeKit.isAvailable && (
+            <button
+              onClick={handleRestorePurchases}
+              disabled={isRestoring || isLoading}
+              className="w-full text-xs text-teal-600 hover:text-teal-700 transition-colors disabled:opacity-50 mt-3"
+            >
+              {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+            </button>
+          )}
+
+          {/* Access Code & Maybe Later */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            {!isNativeApp && !showAccessCode ? (
+              <>
+                <button
+                  onClick={() => setShowAccessCode(true)}
+                  className="text-xs text-teal-600 hover:text-teal-700 transition-colors"
+                >
+                  Have a code?
+                </button>
+                <span className="text-slate-300">|</span>
+              </>
+            ) : null}
+            <button
+              onClick={onClose}
+              className="text-xs text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              Maybe Later
+            </button>
+          </div>
+
+          {/* Access Code Form */}
+          {!isNativeApp && showAccessCode && (
+            <form onSubmit={handleAccessCodeSubmit} className="space-y-2 mt-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                  placeholder="Access code"
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent uppercase tracking-wider"
+                  disabled={isLoading}
+                  autoFocus
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !accessCode.trim()}
+                  className="px-4 py-2 bg-teal-500 text-white rounded-lg text-sm font-medium hover:bg-teal-600 active:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLoading ? '...' : 'Redeem'}
+                </button>
+              </div>
+              {accessCodeError && (
+                <p className="text-xs text-red-500">{accessCodeError}</p>
+              )}
+              {accessCodeSuccess && (
+                <p className="text-xs text-green-600">{accessCodeSuccess}</p>
+              )}
+            </form>
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-// Stripe Payment Form for single appraisal purchase
-function SinglePaymentForm({
-  onSuccess,
-  onError,
-}: {
-  onSuccess: () => void;
-  onError: (message: string) => void;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!stripe || !elements) {
-      return;
-    }
-
-    setIsProcessing(true);
-
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: window.location.href,
-      },
-      redirect: 'if_required',
-    });
-
-    if (error) {
-      onError(error.message || 'Payment failed');
-      setIsProcessing(false);
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      onSuccess();
-    } else {
-      onError('Payment was not completed');
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <PaymentElement />
-      <Button
-        type="submit"
-        disabled={!stripe || isProcessing}
-        size="default"
-        className="w-full"
-      >
-        {isProcessing ? 'Processing...' : 'Pay $1.99'}
-      </Button>
-    </form>
-  );
-}
-
-interface FeatureCompactProps {
-  icon: React.ReactNode;
-  text: string;
-  highlight?: boolean;
-}
-
-function FeatureCompact({ icon, text, highlight }: FeatureCompactProps) {
-  return (
-    <div className={`flex items-center gap-1.5 p-1.5 sm:p-2 rounded-lg ${
-      highlight ? 'bg-teal-50' : 'bg-slate-50'
-    }`}>
-      <div className={`flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-md flex items-center justify-center ${
-        highlight ? 'bg-teal-100 text-teal-600' : 'bg-slate-200 text-slate-600'
-      }`}>
-        {icon}
-      </div>
-      <p className={`font-medium text-xs ${highlight ? 'text-teal-900' : 'text-slate-700'}`}>
-        {text}
-      </p>
     </div>
   );
 }
