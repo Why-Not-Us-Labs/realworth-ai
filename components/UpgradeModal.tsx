@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { trackUpgradeClick, trackCheckoutStart } from '@/lib/analytics';
 import { isCapacitorApp } from '@/lib/utils';
 import { useStoreKit, STOREKIT_PRODUCTS } from '@/hooks/useStoreKit';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import {
   SparklesIcon,
   GemIcon,
@@ -16,8 +18,12 @@ import {
   TrendingUpIcon
 } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/lib/supabase';
 
 type BillingInterval = 'monthly' | 'annual';
+type PurchaseMode = 'subscription' | 'single';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface UpgradeModalProps {
   isOpen: boolean;
@@ -49,6 +55,10 @@ export default function UpgradeModal({
   const [iapError, setIapError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [storeKitTimedOut, setStoreKitTimedOut] = useState(false);
+  const [purchaseMode, setPurchaseMode] = useState<PurchaseMode>('subscription');
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [singlePurchaseError, setSinglePurchaseError] = useState<string | null>(null);
 
   // StoreKit hook for native iOS IAP
   const storeKit = useStoreKit();
@@ -166,6 +176,77 @@ export default function UpgradeModal({
     }
   };
 
+  // Handle single appraisal purchase ($2.99)
+  const handleSingleAppraisalPurchase = async () => {
+    setIsLoading(true);
+    setSinglePurchaseError(null);
+    trackCheckoutStart();
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        setSinglePurchaseError('Please sign in to continue');
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/stripe/pay-per-appraisal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setSinglePurchaseError(data.error || 'Failed to start payment');
+        setIsLoading(false);
+        return;
+      }
+
+      setClientSecret(data.clientSecret);
+      setPaymentIntentId(data.paymentIntentId);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      setSinglePurchaseError('Failed to start payment. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  // Confirm payment and grant credit
+  const confirmSinglePayment = async () => {
+    if (!paymentIntentId) return;
+
+    setIsLoading(true);
+    setSinglePurchaseError(null);
+
+    try {
+      const response = await fetch('/api/stripe/pay-per-appraisal', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentIntentId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Success! Close modal and let user continue
+        onClose();
+        window.location.reload();
+      } else {
+        setSinglePurchaseError(data.error || 'Payment confirmation failed');
+      }
+    } catch (error) {
+      console.error('Error confirming payment:', error);
+      setSinglePurchaseError('Failed to confirm payment');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAccessCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accessCode.trim()) return;
@@ -273,55 +354,130 @@ export default function UpgradeModal({
             <span>Traditional appraisals: $100-500 &amp; take weeks</span>
           </div>
 
-          {/* Billing Toggle */}
-          <div className="mb-2.5">
-            <div className="flex bg-slate-100 rounded-xl p-1">
-              <button
-                onClick={() => setBillingInterval('monthly')}
-                className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                  billingInterval === 'monthly'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Monthly
-              </button>
-              <button
-                onClick={() => setBillingInterval('annual')}
-                className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
-                  billingInterval === 'annual'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Annual
-                <span className="ml-1 text-xs text-emerald-600 font-semibold">Save 37%</span>
-              </button>
+          {/* Purchase Mode Toggle - Single vs Subscription (hide on iOS native) */}
+          {!isNativeApp && (
+            <div className="mb-3">
+              <div className="flex bg-slate-100 rounded-xl p-1">
+                <button
+                  onClick={() => { setPurchaseMode('single'); setClientSecret(null); }}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                    purchaseMode === 'single'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Just This One
+                </button>
+                <button
+                  onClick={() => { setPurchaseMode('subscription'); setClientSecret(null); }}
+                  className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                    purchaseMode === 'subscription'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Unlimited
+                  <span className="ml-1 text-xs text-emerald-600 font-semibold">Best Value</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Price */}
-          <div className="text-center mb-3">
-            {billingInterval === 'monthly' ? (
-              <>
+          {/* Single Appraisal Purchase */}
+          {purchaseMode === 'single' && !isNativeApp && (
+            <div className="mb-3">
+              <div className="text-center mb-3">
                 <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                  $19.99<span className="text-sm font-normal text-slate-500">/month</span>
+                  $2.99<span className="text-sm font-normal text-slate-500"> one-time</span>
                 </div>
-                <p className="text-xs text-slate-500">Cancel anytime</p>
-              </>
-            ) : (
-              <>
-                <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                  $149.99<span className="text-sm font-normal text-slate-500">/year</span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  $12.50/month • <span className="text-emerald-600 font-medium">Save $90/year</span>
-                </p>
-              </>
-            )}
-          </div>
+                <p className="text-xs text-slate-500">Get 1 appraisal credit instantly</p>
+              </div>
 
-          {/* Actions */}
+              {singlePurchaseError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs text-red-600 mb-2">
+                  {singlePurchaseError}
+                </div>
+              )}
+
+              {clientSecret ? (
+                <Elements stripe={stripePromise} options={{ clientSecret }}>
+                  <SinglePaymentForm
+                    onSuccess={confirmSinglePayment}
+                    onError={(msg) => setSinglePurchaseError(msg)}
+                  />
+                </Elements>
+              ) : (
+                <Button
+                  onClick={handleSingleAppraisalPurchase}
+                  disabled={isLoading}
+                  size="default"
+                  className="w-full"
+                >
+                  {isLoading ? 'Processing...' : 'Pay $2.99 for 1 Appraisal'}
+                </Button>
+              )}
+
+              <p className="text-center text-xs text-slate-400 mt-2">
+                Want unlimited? <button onClick={() => setPurchaseMode('subscription')} className="text-teal-600 hover:underline">Subscribe instead</button>
+              </p>
+            </div>
+          )}
+
+          {/* Subscription Options */}
+          {(purchaseMode === 'subscription' || isNativeApp) && (
+            <>
+              {/* Billing Toggle */}
+              <div className="mb-2.5">
+                <div className="flex bg-slate-100 rounded-xl p-1">
+                  <button
+                    onClick={() => setBillingInterval('monthly')}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      billingInterval === 'monthly'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingInterval('annual')}
+                    className={`flex-1 py-2 px-2 rounded-lg text-xs font-medium transition-all ${
+                      billingInterval === 'annual'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Annual
+                    <span className="ml-1 text-xs text-emerald-600 font-semibold">Save 37%</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Price */}
+              <div className="text-center mb-3">
+                {billingInterval === 'monthly' ? (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+                      $19.99<span className="text-sm font-normal text-slate-500">/month</span>
+                    </div>
+                    <p className="text-xs text-slate-500">Cancel anytime</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl sm:text-3xl font-bold text-slate-900">
+                      $149.99<span className="text-sm font-normal text-slate-500">/year</span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      $12.50/month • <span className="text-emerald-600 font-medium">Save $90/year</span>
+                    </p>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Actions - Subscription Mode Only */}
+          {(purchaseMode === 'subscription' || isNativeApp) && (
           <div className="space-y-2">
             {/* IAP Error Message */}
             {iapError && (
@@ -435,9 +591,65 @@ export default function UpgradeModal({
               </form>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// Stripe Payment Form for single appraisal purchase
+function SinglePaymentForm({
+  onSuccess,
+  onError,
+}: {
+  onSuccess: () => void;
+  onError: (message: string) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessing(true);
+
+    const { error, paymentIntent } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      onError(error.message || 'Payment failed');
+      setIsProcessing(false);
+    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+      onSuccess();
+    } else {
+      onError('Payment was not completed');
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <PaymentElement />
+      <Button
+        type="submit"
+        disabled={!stripe || isProcessing}
+        size="default"
+        className="w-full"
+      >
+        {isProcessing ? 'Processing...' : 'Pay $2.99'}
+      </Button>
+    </form>
   );
 }
 

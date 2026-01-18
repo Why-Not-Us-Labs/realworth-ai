@@ -372,28 +372,31 @@ export async function POST(req: NextRequest) {
     }
 
     // SERVER-SIDE LIMIT ENFORCEMENT - Cannot be bypassed
+    let willUseCredit = false;
     if (userId) {
       // Import dynamically to avoid issues with server-side rendering
       const { subscriptionService, FREE_APPRAISAL_LIMIT } = await import('@/services/subscriptionService');
 
-      const { canCreate, remaining, isPro, currentCount } = await subscriptionService.canCreateAppraisal(userId);
+      const { canCreate, remaining, isPro, currentCount, credits, useCredit } = await subscriptionService.canCreateAppraisal(userId);
 
       if (!canCreate) {
-        console.log('[Appraise API] FREE LIMIT REACHED:', { userId, currentCount, limit: FREE_APPRAISAL_LIMIT });
+        console.log('[Appraise API] FREE LIMIT REACHED:', { userId, currentCount, limit: FREE_APPRAISAL_LIMIT, credits });
         return NextResponse.json(
           {
             error: 'Monthly appraisal limit reached',
             code: 'LIMIT_REACHED',
-            message: `You've used all ${FREE_APPRAISAL_LIMIT} free appraisals this month. Upgrade to Pro for unlimited appraisals!`,
+            message: `You've used all ${FREE_APPRAISAL_LIMIT} free appraisals this month. Upgrade to Pro for unlimited appraisals or buy a single appraisal for $2.99!`,
             currentCount,
             limit: FREE_APPRAISAL_LIMIT,
+            credits,
             requiresUpgrade: true
           },
           { status: 403 }
         );
       }
 
-      console.log('[Appraise API] Limit check passed:', { userId, currentCount, remaining, isPro });
+      willUseCredit = useCredit;
+      console.log('[Appraise API] Limit check passed:', { userId, currentCount, remaining, isPro, credits, willUseCredit });
     }
 
     // Fetch collection details if collectionId is provided
@@ -1063,13 +1066,21 @@ ${metalPriceContext}${collectionContext}`;
         // Don't fail the appraisal if streak update fails
       }
 
-      // SERVER-SIDE INCREMENT - Ensures count is always updated after successful appraisal
+      // SERVER-SIDE INCREMENT / CREDIT CONSUMPTION
       try {
         const { subscriptionService } = await import('@/services/subscriptionService');
-        const incrementResult = await subscriptionService.incrementAppraisalCount(userId);
-        console.log('[Appraise API] Incremented appraisal count:', incrementResult);
+
+        if (willUseCredit) {
+          // Consume a paid credit instead of incrementing free count
+          const creditResult = await subscriptionService.consumeCredit(userId);
+          console.log('[Appraise API] Consumed credit:', creditResult);
+        } else {
+          // Increment free appraisal count
+          const incrementResult = await subscriptionService.incrementAppraisalCount(userId);
+          console.log('[Appraise API] Incremented appraisal count:', incrementResult);
+        }
       } catch (incrementError) {
-        console.error('[Appraise API] Failed to increment count (non-blocking):', incrementError);
+        console.error('[Appraise API] Failed to update count/credit (non-blocking):', incrementError);
         // Don't fail the appraisal - the check at the start is the gatekeeper
       }
 

@@ -30,6 +30,8 @@ export interface UserSubscription {
   iapProductId: string | null;
   iapOriginalTransactionId: string | null;
   iapExpiresAt: string | null;
+  // Pay-as-you-go credits
+  appraisalCredits: number;
 }
 
 class SubscriptionService {
@@ -60,7 +62,8 @@ class SubscriptionService {
           access_code_used,
           iap_product_id,
           iap_original_transaction_id,
-          iap_expires_at
+          iap_expires_at,
+          appraisal_credits
         `)
         .eq('id', userId)
         .single();
@@ -84,6 +87,7 @@ class SubscriptionService {
         iapProductId: data.iap_product_id || null,
         iapOriginalTransactionId: data.iap_original_transaction_id || null,
         iapExpiresAt: data.iap_expires_at || null,
+        appraisalCredits: data.appraisal_credits || 0,
       };
     } catch (error) {
       console.error('Error in getUserSubscription:', error);
@@ -400,25 +404,35 @@ class SubscriptionService {
   /**
    * Check if user can create an appraisal
    * Uses admin client for reliable reads
+   * Now includes pay-as-you-go credits check
    */
-  async canCreateAppraisal(userId: string): Promise<{ canCreate: boolean; remaining: number; isPro: boolean; currentCount: number }> {
+  async canCreateAppraisal(userId: string): Promise<{
+    canCreate: boolean;
+    remaining: number;
+    isPro: boolean;
+    currentCount: number;
+    credits: number;
+    useCredit: boolean;
+  }> {
     try {
       const supabaseAdmin = getSupabaseAdmin();
 
       const { data: user, error } = await supabaseAdmin
         .from('users')
-        .select('email, monthly_appraisal_count, appraisal_count_reset_at, subscription_tier, subscription_status')
+        .select('email, monthly_appraisal_count, appraisal_count_reset_at, subscription_tier, subscription_status, appraisal_credits')
         .eq('id', userId)
         .single();
 
       if (error || !user) {
         console.error('[SubscriptionService] Failed to fetch user for canCreateAppraisal:', error);
-        return { canCreate: false, remaining: 0, isPro: false, currentCount: 0 };
+        return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
       }
+
+      const credits = user.appraisal_credits || 0;
 
       // Super admin or Pro users have unlimited
       if (this.isSuperAdmin(user.email) || (user.subscription_tier === 'pro' && user.subscription_status === 'active')) {
-        return { canCreate: true, remaining: Infinity, isPro: true, currentCount: user.monthly_appraisal_count || 0 };
+        return { canCreate: true, remaining: Infinity, isPro: true, currentCount: user.monthly_appraisal_count || 0, credits, useCredit: false };
       }
 
       let currentCount = user.monthly_appraisal_count || 0;
@@ -430,25 +444,102 @@ class SubscriptionService {
         currentCount = 0;
       }
 
-      const remaining = Math.max(0, FREE_APPRAISAL_LIMIT - currentCount);
+      const freeRemaining = Math.max(0, FREE_APPRAISAL_LIMIT - currentCount);
+      const hasFreeAppraisals = currentCount < FREE_APPRAISAL_LIMIT;
+      const hasCredits = credits > 0;
+
+      // Can create if: has free appraisals remaining OR has credits
+      const canCreate = hasFreeAppraisals || hasCredits;
+      // Will use credit only if no free appraisals left but has credits
+      const useCredit = !hasFreeAppraisals && hasCredits;
 
       console.log('[SubscriptionService] canCreateAppraisal check:', {
         userId,
         currentCount,
         limit: FREE_APPRAISAL_LIMIT,
-        remaining,
-        canCreate: currentCount < FREE_APPRAISAL_LIMIT
+        freeRemaining,
+        credits,
+        canCreate,
+        useCredit,
       });
 
       return {
-        canCreate: currentCount < FREE_APPRAISAL_LIMIT,
-        remaining,
+        canCreate,
+        remaining: freeRemaining,
         isPro: false,
         currentCount,
+        credits,
+        useCredit,
       };
     } catch (error) {
       console.error('[SubscriptionService] Error in canCreateAppraisal:', error);
-      return { canCreate: false, remaining: 0, isPro: false, currentCount: 0 };
+      return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+    }
+  }
+
+  /**
+   * Consume one appraisal credit (for pay-as-you-go)
+   * Returns true if credit was consumed, false if no credits available
+   */
+  async consumeCredit(userId: string): Promise<{ consumed: boolean; remaining: number }> {
+    try {
+      const supabaseAdmin = getSupabaseAdmin();
+
+      // Get current credits
+      const { data: user, error: fetchError } = await supabaseAdmin
+        .from('users')
+        .select('appraisal_credits')
+        .eq('id', userId)
+        .single();
+
+      if (fetchError || !user) {
+        console.error('[SubscriptionService] Failed to fetch credits:', fetchError);
+        return { consumed: false, remaining: 0 };
+      }
+
+      const currentCredits = user.appraisal_credits || 0;
+
+      if (currentCredits <= 0) {
+        console.log('[SubscriptionService] No credits to consume for user:', userId);
+        return { consumed: false, remaining: 0 };
+      }
+
+      // Decrement credit
+      const newCredits = currentCredits - 1;
+      const { error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({ appraisal_credits: newCredits })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('[SubscriptionService] Failed to consume credit:', updateError);
+        return { consumed: false, remaining: currentCredits };
+      }
+
+      console.log('[SubscriptionService] Credit consumed:', { userId, newCredits });
+      return { consumed: true, remaining: newCredits };
+    } catch (error) {
+      console.error('[SubscriptionService] Error in consumeCredit:', error);
+      return { consumed: false, remaining: 0 };
+    }
+  }
+
+  /**
+   * Get user's current credit balance
+   */
+  async getCreditBalance(userId: string): Promise<number> {
+    try {
+      const supabaseAdmin = getSupabaseAdmin();
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('appraisal_credits')
+        .eq('id', userId)
+        .single();
+
+      if (error || !data) return 0;
+      return data.appraisal_credits || 0;
+    } catch {
+      return 0;
     }
   }
 
