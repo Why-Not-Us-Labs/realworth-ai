@@ -2,10 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
 import { socialService } from '@/services/socialService';
 
+// Maximum items per user to prevent feed domination
+const MAX_ITEMS_PER_USER = 5;
+// Fetch extra items to ensure we have enough after per-user filtering
+const FETCH_MULTIPLIER = 3;
+
+/**
+ * Filter items to cap at MAX_ITEMS_PER_USER per user
+ * This ensures variety in the feed when one user has many items
+ */
+function capItemsPerUser<T extends { user_id: string }>(items: T[], maxPerUser: number): T[] {
+  const userCounts: Record<string, number> = {};
+  const result: T[] = [];
+
+  for (const item of items) {
+    const userId = item.user_id;
+    const currentCount = userCounts[userId] || 0;
+
+    if (currentCount < maxPerUser) {
+      result.push(item);
+      userCounts[userId] = currentCount + 1;
+    }
+  }
+
+  return result;
+}
+
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
+  const targetCount = 50;
 
   try {
     // If no userId, return only public items (no social state)
@@ -18,17 +45,20 @@ export async function GET(request: NextRequest) {
         `)
         .eq('is_public', true)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(targetCount * FETCH_MULTIPLIER);
 
       if (error) throw error;
 
+      // Apply per-user cap
+      const cappedData = capItemsPerUser(data || [], MAX_ITEMS_PER_USER).slice(0, targetCount);
+
       return NextResponse.json({
-        treasures: data?.map(t => ({
+        treasures: cappedData.map(t => ({
           ...t,
           visibility: 'public',
           isLiked: false,
           isSaved: false,
-        })) || []
+        }))
       });
     }
 
@@ -47,6 +77,7 @@ export async function GET(request: NextRequest) {
     ) || [];
 
     // Query: public items OR friends' items (all of them, not just public)
+    // Fetch extra items to ensure variety after per-user filtering
     let query = supabase
       .from('appraisals')
       .select(`
@@ -54,7 +85,7 @@ export async function GET(request: NextRequest) {
         users:user_id (name, picture)
       `)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .limit(targetCount * FETCH_MULTIPLIER);
 
     if (friendIds.length > 0) {
       // Get public items OR items from friends (regardless of is_public)
@@ -71,15 +102,18 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
+    // Apply per-user cap to ensure feed variety
+    const cappedData = capItemsPerUser(data || [], MAX_ITEMS_PER_USER).slice(0, targetCount);
+
     // Get user's likes and saves for these items
-    const appraisalIds = data?.map(t => t.id) || [];
+    const appraisalIds = cappedData.map(t => t.id);
     const [likedIds, savedIds] = await Promise.all([
       socialService.getUserLikedIds(userId, appraisalIds),
       socialService.getUserSavedIds(userId, appraisalIds),
     ]);
 
     // Mark items with visibility type and social state
-    const treasures = data?.map(treasure => {
+    const treasures = cappedData.map(treasure => {
       const isFriend = friendIds.includes(treasure.user_id);
       const isPublic = treasure.is_public;
 
@@ -90,7 +124,7 @@ export async function GET(request: NextRequest) {
         isLiked: likedIds.includes(treasure.id),
         isSaved: savedIds.includes(treasure.id),
       };
-    }) || [];
+    });
 
     return NextResponse.json({ treasures });
   } catch (error) {
