@@ -84,18 +84,18 @@ export default async function DiscoverPage() {
         </div>
       </header>
 
-      {/* Hero - Compact on tablet */}
-      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-8 sm:py-6 md:py-4 px-4">
-        <div className="max-w-4xl mx-auto text-center md:flex md:items-center md:justify-center md:gap-3">
-          <CompassIcon className="w-12 h-12 sm:w-8 sm:h-8 md:w-6 md:h-6 text-white/80 mx-auto md:mx-0 mb-2 md:mb-0" />
-          <div className="md:text-left">
-            <h1 className="text-3xl sm:text-2xl md:text-xl font-bold mb-1 md:mb-0">
-              Discover Treasures
-            </h1>
-            <p className="text-white/90 text-sm md:text-xs md:hidden">
-              See what amazing finds others are uncovering.
-            </p>
+      {/* Hero */}
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-6 sm:py-8 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="flex justify-center mb-3">
+            <CompassIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />
           </div>
+          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+            Discover Treasures
+          </h1>
+          <p className="text-white/90 text-sm sm:text-base max-w-2xl mx-auto">
+            See what amazing finds others are uncovering
+          </p>
         </div>
       </div>
 

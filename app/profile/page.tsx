@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { Header } from '@/components/Header';
 import { GamificationStats } from '@/components/GamificationStats';
 import { Achievements } from '@/components/Achievements';
-import { DailyChallenges } from '@/components/DailyChallenges';
 import { TreasureGrid } from '@/components/TreasureGrid';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { AppraisalContext } from '@/components/contexts/AppraisalContext';

@@ -80,7 +80,7 @@ export default function TreasuresPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <Header />
       
-      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-8 sm:py-12 px-4">
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-6 sm:py-8 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex justify-center mb-3">
             <GemIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />

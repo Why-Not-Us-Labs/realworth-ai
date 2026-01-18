@@ -318,7 +318,7 @@ function HomeContent() {
       case 'HOME':
       default:
         return (
-          <div className="text-center p-6 sm:p-6 md:p-8">
+          <div className="text-center py-6 md:py-8">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 text-slate-900 px-2">
                 Turn Clutter into <span className="gradient-text">Cash</span>!
@@ -343,19 +343,6 @@ function HomeContent() {
                 {user ? 'Start Appraisal' : 'Sign in to Start'}
               </Button>
             </div>
-            {/* Mobile upgrade button - visible only on mobile where header button is hidden */}
-            {user && !isPro && (
-              <Button
-                onClick={() => promptUpgrade()}
-                variant="premium"
-                className="sm:hidden mt-6"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-                Upgrade to Pro - $19.99/mo
-              </Button>
-            )}
           </div>
         );
     }

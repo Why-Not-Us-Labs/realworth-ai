@@ -44,6 +44,11 @@ function timeAgo(date: string) {
   return new Date(date).toLocaleDateString();
 }
 
+function getStaggerClass(index: number): string {
+  const staggerIndex = Math.min(index + 1, 12);
+  return `animate-fadeInUp stagger-${staggerIndex}`;
+}
+
 // Grid icon (for gallery view)
 const GridIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -64,7 +69,9 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
   if (treasures.length === 0) {
     return (
       <div className="text-center py-16 sm:py-12 bg-white rounded-2xl border border-slate-200">
-        <div className="text-5xl mb-4">🔍</div>
+        <div className="flex justify-center mb-4">
+          <GemIcon className="w-12 h-12 text-slate-300" />
+        </div>
         <h2 className="text-xl font-bold text-slate-800 mb-2">No Public Treasures Yet</h2>
         <p className="text-slate-500 text-sm mb-6">Be the first to share your discoveries!</p>
         <Link
@@ -113,14 +120,14 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
       {/* Cards View */}
       {viewMode === 'cards' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {treasures.map((treasure) => {
+          {treasures.map((treasure, index) => {
             const avgValue = (treasure.price_low + treasure.price_high) / 2;
 
             return (
               <Link
                 key={treasure.id}
                 href={`/treasure/${treasure.id}`}
-                className="bg-white rounded-2xl border border-slate-200 hover:shadow-lg transition-all duration-300 overflow-hidden group active:scale-[0.98]"
+                className={`bg-white rounded-2xl border border-slate-200 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden group active:scale-[0.98] ${getStaggerClass(index)}`}
               >
                 {/* Image */}
                 <div className="relative aspect-square bg-slate-100 overflow-hidden">
@@ -188,14 +195,14 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
       {/* Instagram Grid View */}
       {viewMode === 'grid' && (
         <div className="grid grid-cols-3 gap-0.5 sm:gap-1">
-          {treasures.map((treasure) => {
+          {treasures.map((treasure, index) => {
             const avgValue = (treasure.price_low + treasure.price_high) / 2;
 
             return (
               <Link
                 key={treasure.id}
                 href={`/treasure/${treasure.id}`}
-                className="relative aspect-square bg-slate-100 overflow-hidden group"
+                className={`relative aspect-square bg-slate-100 overflow-hidden group ${getStaggerClass(index)}`}
               >
                 {/* Image */}
                 {treasure.image_url && (
