@@ -9,7 +9,7 @@ import { Achievements } from '@/components/Achievements';
 import { TreasureGrid } from '@/components/TreasureGrid';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { AppraisalContext } from '@/components/contexts/AppraisalContext';
-import { LockIcon, MapIcon, CheckIcon, UsersIcon, UserIcon, SearchIcon } from '@/components/icons';
+import { LockIcon, MapIcon, CheckIcon, UsersIcon, UserIcon, SearchIcon, GearIcon } from '@/components/icons';
 import { SubscriptionSection } from '@/components/SubscriptionSection';
 import { useSubscription } from '@/hooks/useSubscription';
 import { dbService } from '@/services/dbService';
@@ -18,6 +18,7 @@ import { AppraisalResult } from '@/lib/types';
 import { ProfileHeaderSkeleton, GamificationStatsSkeleton, HistoryGridSkeleton } from '@/components/Skeleton';
 import { Footer } from '@/components/Footer';
 import { DeleteAccountModal } from '@/components/DeleteAccountModal';
+import { SettingsModal } from '@/components/SettingsModal';
 import { useRouter } from 'next/navigation';
 
 type ProfileTab = 'treasures' | 'friends';
@@ -29,8 +30,9 @@ export default function ProfilePage() {
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Delete account modal state
+  // Modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<ProfileTab>('treasures');
@@ -236,7 +238,7 @@ export default function ProfilePage() {
       <Header />
       <main className="max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
         {/* Profile Header */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6 relative">
           <div className="flex items-center gap-4">
             {user.picture ? (
               <img
@@ -249,6 +251,14 @@ export default function ProfilePage() {
                 {user.name?.charAt(0) || '?'}
               </div>
             )}
+            {/* Settings Button */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              title="Settings"
+            >
+              <GearIcon className="w-5 h-5" />
+            </button>
             <div className="flex-grow">
               <h1 className="text-2xl font-bold text-slate-900">{user.name}</h1>
 
@@ -560,18 +570,19 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Account Settings - Subtle link at bottom */}
-        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
-          <button
-            onClick={() => setShowDeleteModal(true)}
-            className="text-xs text-slate-400 hover:text-red-500 transition-colors"
-          >
-            Delete Account
-          </button>
-        </div>
       </main>
 
       <Footer />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onDeleteAccount={() => {
+          setShowSettingsModal(false);
+          setShowDeleteModal(true);
+        }}
+      />
 
       {/* Delete Account Modal */}
       <DeleteAccountModal
