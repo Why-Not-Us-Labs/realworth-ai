@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { GemIcon } from '@/components/icons';
+import { GemIcon, UsersIcon } from '@/components/icons';
 
 interface Treasure {
   id: string;
@@ -14,6 +14,7 @@ interface Treasure {
   category: string;
   era: string | null;
   created_at: string;
+  visibility?: 'public' | 'friends';
   users: {
     name: string;
     picture: string;
@@ -22,6 +23,7 @@ interface Treasure {
 
 interface DiscoverFeedProps {
   treasures: Treasure[];
+  showVisibility?: boolean;
 }
 
 type ViewMode = 'cards' | 'grid';
@@ -63,7 +65,7 @@ const CardsIcon = () => (
   </svg>
 );
 
-export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
+export function DiscoverFeed({ treasures, showVisibility = false }: DiscoverFeedProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('cards');
 
   if (treasures.length === 0) {
@@ -147,11 +149,17 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
                     </span>
                   </div>
 
-                  {/* Category */}
-                  <div className="absolute bottom-3 left-3">
+                  {/* Category & Friends Badge */}
+                  <div className="absolute bottom-3 left-3 flex items-center gap-1.5">
                     <span className="bg-white/90 backdrop-blur-sm text-slate-800 text-xs font-semibold px-2 py-1 rounded-full">
                       {treasure.category}
                     </span>
+                    {showVisibility && treasure.visibility === 'friends' && (
+                      <span className="bg-blue-500/90 backdrop-blur-sm text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+                        <UsersIcon className="w-3 h-3" />
+                        Friends
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -234,6 +242,13 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
                       alt={treasure.users.name}
                       className="w-full h-full object-cover"
                     />
+                  </div>
+                )}
+
+                {/* Friends badge - top left */}
+                {showVisibility && treasure.visibility === 'friends' && (
+                  <div className="absolute top-1.5 left-1.5 bg-blue-500 text-white p-1 rounded-full shadow-sm" title="From a friend">
+                    <UsersIcon className="w-3 h-3" />
                   </div>
                 )}
               </Link>

@@ -1,50 +1,62 @@
+'use client';
 
-import { createClient } from '@supabase/supabase-js';
-import { Metadata } from 'next';
+import React, { useContext, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { LogoIcon, CompassIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
 import { DiscoverFeed } from '@/components/DiscoverFeed';
+import { AuthContext } from '@/components/contexts/AuthContext';
+import { SkeletonGrid } from '@/components/SkeletonCard';
 
-export const metadata: Metadata = {
-  title: 'Discover Treasures | RealWorth.ai',
-  description: 'See what treasures others are finding! Get inspired and discover hidden value in your own items.',
-  openGraph: {
-    title: 'Discover Treasures | RealWorth.ai',
-    description: 'See what treasures others are finding!',
-  },
-};
-
-// Revalidate every 60 seconds for fresh content
-export const revalidate = 60;
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-async function getPublicTreasures() {
-  const { data, error } = await supabase
-    .from('appraisals')
-    .select(`
-      *,
-      users:user_id (name, picture)
-    `)
-    .eq('is_public', true)
-    .order('created_at', { ascending: false })
-    .limit(50);
-
-  if (error) {
-    console.error('Error fetching public treasures:', error);
-    return [];
-  }
-
-  return data || [];
+interface Treasure {
+  id: string;
+  item_name: string;
+  image_url: string;
+  price_low: number;
+  price_high: number;
+  currency: string;
+  category: string;
+  era: string | null;
+  created_at: string;
+  visibility?: 'public' | 'friends';
+  users: {
+    name: string;
+    picture: string;
+  } | null;
 }
 
-export default async function DiscoverPage() {
-  const treasures = await getPublicTreasures();
+export default function DiscoverPage() {
+  const { user, isAuthLoading } = useContext(AuthContext);
+  const [treasures, setTreasures] = useState<Treasure[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchTreasures() {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (user?.id) {
+          params.set('userId', user.id);
+        }
+
+        const response = await fetch(`/api/discover?${params.toString()}`);
+        const data = await response.json();
+
+        if (data.treasures) {
+          setTreasures(data.treasures);
+        }
+      } catch (error) {
+        console.error('Error fetching treasures:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    // Wait for auth to finish loading before fetching
+    if (!isAuthLoading) {
+      fetchTreasures();
+    }
+  }, [user?.id, isAuthLoading]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -101,7 +113,17 @@ export default async function DiscoverPage() {
 
       {/* Feed */}
       <main className="max-w-6xl mx-auto px-4 py-6 sm:p-6 md:p-8">
-        <DiscoverFeed treasures={treasures} />
+        {isLoading || isAuthLoading ? (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
+              <div className="h-9 w-20 bg-slate-200 rounded-lg animate-pulse" />
+            </div>
+            <SkeletonGrid count={6} variant="card" />
+          </div>
+        ) : (
+          <DiscoverFeed treasures={treasures} showVisibility={!!user} />
+        )}
       </main>
 
       <Footer />
