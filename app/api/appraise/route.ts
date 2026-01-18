@@ -189,6 +189,33 @@ function validateAppraisal(result: AppraisalData): AppraisalData {
   const eraYear = parseInt(result.era?.replace(/\D/g, '') || '0');
   const isVintage = eraYear > 0 && eraYear < 1980;
 
+  // Apply minimum floor values for vintage coins to prevent $0 valuations
+  if (categoryLower.includes('coin') && isVintage) {
+    // Minimum floors based on age - older coins have higher collector value
+    let minimumLow = 0.25; // Default minimum for any vintage coin
+    let minimumHigh = 1.00;
+
+    if (eraYear < 1900) {
+      minimumLow = 5.00;
+      minimumHigh = 25.00;
+    } else if (eraYear < 1940) {
+      minimumLow = 1.00;
+      minimumHigh = 5.00;
+    } else if (eraYear < 1965) {
+      minimumLow = 0.50;
+      minimumHigh = 2.00;
+    }
+
+    // Apply floors
+    if (result.priceRange.low < minimumLow) {
+      console.log(`[Appraisal Validation] Applying minimum floor: $${result.priceRange.low} -> $${minimumLow} for ${result.itemName}`);
+      result.priceRange.low = minimumLow;
+    }
+    if (result.priceRange.high < minimumHigh) {
+      result.priceRange.high = Math.max(minimumHigh, result.priceRange.low * 4);
+    }
+  }
+
   if (indicator && isVintage) {
     // Old item valued at face value = likely error, add warning
     result.confidenceScore = Math.min(result.confidenceScore, 60);
