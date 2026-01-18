@@ -29,6 +29,7 @@ import { QueueStatus } from '@/components/QueueStatus';
 import { FREE_APPRAISAL_LIMIT } from '@/lib/constants';
 import { AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
+import { toast } from 'sonner';
 
 type View = 'HOME' | 'FORM' | 'LOADING' | 'CELEBRATION' | 'RESULT';
 
@@ -112,7 +113,7 @@ function HomeContent() {
   // IMPORTANT: Must wait for auth to load before processing, otherwise userId is null
   const [pendingSubscriptionSuccess, setPendingSubscriptionSuccess] = useState(false);
 
-  // Step 1: Detect subscription success and store it (runs once on mount)
+  // Step 1: Detect subscription/purchase success and store it (runs once on mount)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('subscription') === 'success') {
@@ -121,7 +122,18 @@ function HomeContent() {
       // Clear URL params immediately to prevent re-triggering on refresh
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, []);
+    // Handle one-time purchase success (pay-per-appraisal)
+    if (params.get('purchase') === 'success') {
+      console.log('[Purchase] One-time payment success detected');
+      toast.success('Payment successful! You have 1 appraisal credit ready to use.', {
+        duration: 5000,
+      });
+      // Refresh subscription to get updated credits
+      refreshSubscription();
+      // Clear URL params
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [refreshSubscription]);
 
   // Step 2: Process subscription success after auth is ready
   useEffect(() => {
@@ -158,11 +170,12 @@ function HomeContent() {
   // Check for ?capture=true to auto-open capture form
   useEffect(() => {
     if (searchParams?.get('capture') === 'true') {
-      setView('FORM');
-      // Clear URL params
+      // Clear URL params first
       window.history.replaceState({}, '', window.location.pathname);
+      // Use handleStartAppraisal to check limits before showing form
+      handleStartAppraisal();
     }
-  }, [searchParams]);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show upgrade modal with specific feature
   const promptUpgrade = (feature?: string) => {
@@ -170,8 +183,26 @@ function HomeContent() {
     setShowUpgradeModal(true);
   };
 
+  // Check limits BEFORE showing the form - called when clicking "Start Appraisal"
+  const handleStartAppraisal = async () => {
+    if (!user) {
+      setIsSignInModalOpen(true);
+      return;
+    }
+
+    // Check if user can create appraisal
+    const { canCreate } = await checkCanAppraise();
+    if (!canCreate) {
+      promptUpgrade('Unlimited Appraisals');
+      return;
+    }
+
+    // User can appraise - show the form
+    setView('FORM');
+  };
+
   const handleAppraisalRequest = async (request: AppraisalRequest) => {
-    // Check if user can create appraisal (for logged-in users)
+    // Double-check limit (in case user was sitting on form for a while)
     if (user) {
       const { canCreate } = await checkCanAppraise();
       if (!canCreate) {
@@ -246,10 +277,20 @@ function HomeContent() {
     }
   };
 
-  const handleStartNew = () => {
+  const handleStartNew = async () => {
     setCurrentResult(null);
     setCelebrationStreakInfo(null);
     setTriviaPointsEarned(0);
+
+    // Check limits before showing form
+    if (user) {
+      const { canCreate } = await checkCanAppraise();
+      if (!canCreate) {
+        promptUpgrade('Unlimited Appraisals');
+        setView('HOME');
+        return;
+      }
+    }
     setView('FORM');
   };
 
@@ -330,13 +371,7 @@ function HomeContent() {
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
               <Button
-                onClick={() => {
-                  if (!user) {
-                    setIsSignInModalOpen(true);
-                  } else {
-                    setView('FORM');
-                  }
-                }}
+                onClick={handleStartAppraisal}
                 size="xl"
                 className="w-full sm:w-auto"
               >
@@ -353,13 +388,7 @@ function HomeContent() {
     <>
       <Header onUpgradeClick={() => promptUpgrade()} />
       <BentoHeader
-        onStartAppraisal={() => {
-          if (!user) {
-            setIsSignInModalOpen(true);
-          } else {
-            setView('FORM');
-          }
-        }}
+        onStartAppraisal={handleStartAppraisal}
         onUpgrade={() => promptUpgrade()}
       />
       <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
