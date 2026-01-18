@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabase';
+import { FlameIcon, GemIcon, UsersIcon } from '@/components/icons';
 
 type BentoStats = {
   streak: number;
@@ -29,10 +30,23 @@ function formatValue(amount: number): string {
 }
 
 export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHeaderProps) {
-  const { user, isAuthLoading } = useContext(AuthContext);
+  const { user, isAuthLoading, signOut } = useContext(AuthContext);
   const { isPro, isLoading: isSubLoading } = useSubscription(user?.id ?? null, user?.email);
   const [stats, setStats] = useState<BentoStats>({ streak: 0, totalValue: 0, friendCount: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     async function fetchStats() {
@@ -128,44 +142,78 @@ export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHead
   return (
     <div className="sm:hidden sticky top-0 z-50 bg-white/95 backdrop-blur-lg border-b border-slate-200 px-4 py-2.5">
       <div className="max-w-4xl mx-auto flex items-center justify-between">
-        {/* Left: Avatar + Name + Stats */}
-        <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-          {/* Avatar */}
-          {user.picture ? (
-            <img
-              src={user.picture}
-              alt={user.name}
-              className="w-10 h-10 rounded-full border-2 border-teal-100"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-lg font-bold text-teal-600">
-              {user.name?.charAt(0) || '?'}
+        {/* Left: Avatar + Name + Stats (with dropdown) */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            {/* Avatar */}
+            {user.picture ? (
+              <img
+                src={user.picture}
+                alt={user.name}
+                className="w-10 h-10 rounded-full border-2 border-teal-100"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-lg font-bold text-teal-600">
+                {user.name?.charAt(0) || '?'}
+              </div>
+            )}
+
+            {/* Name + Stats Row */}
+            <div className="text-left">
+              <p className="font-semibold text-slate-900 text-sm leading-tight">
+                {user.name?.split(' ')[0]}
+              </p>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                {stats.streak > 0 && (
+                  <span className="flex items-center gap-0.5" title="Day streak">
+                    <FlameIcon className="w-3 h-3 text-orange-500" />
+                    <span>{stats.streak}</span>
+                  </span>
+                )}
+                <span className="flex items-center gap-0.5" title="Total value discovered">
+                  <GemIcon className="w-3 h-3 text-teal-500" />
+                  <span>{formatValue(stats.totalValue)}</span>
+                </span>
+                <span className="flex items-center gap-0.5" title="Friends">
+                  <UsersIcon className="w-3 h-3 text-blue-500" />
+                  <span>{stats.friendCount}</span>
+                </span>
+              </div>
+            </div>
+          </button>
+
+          {/* Dropdown Menu */}
+          {isMenuOpen && (
+            <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
+              <Link
+                href="/profile"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                My Profile
+              </Link>
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  signOut();
+                }}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Sign Out
+              </button>
             </div>
           )}
-
-          {/* Name + Stats Row */}
-          <div>
-            <p className="font-semibold text-slate-900 text-sm leading-tight">
-              {user.name?.split(' ')[0]}
-            </p>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              {stats.streak > 0 && (
-                <span className="flex items-center gap-0.5" title="Day streak">
-                  <span className="text-orange-500">🔥</span>
-                  <span>{stats.streak}</span>
-                </span>
-              )}
-              <span className="flex items-center gap-0.5" title="Total value discovered">
-                <span className="text-teal-500">💎</span>
-                <span>{formatValue(stats.totalValue)}</span>
-              </span>
-              <span className="flex items-center gap-0.5" title="Friends">
-                <span className="text-blue-500">👥</span>
-                <span>{stats.friendCount}</span>
-              </span>
-            </div>
-          </div>
-        </Link>
+        </div>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2">
