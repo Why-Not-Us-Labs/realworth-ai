@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { GemIcon, UsersIcon } from '@/components/icons';
+import { EngagementButtons } from '@/components/EngagementButtons';
 
 interface Treasure {
   id: string;
@@ -15,6 +16,9 @@ interface Treasure {
   era: string | null;
   created_at: string;
   visibility?: 'public' | 'friends';
+  like_count?: number;
+  isLiked?: boolean;
+  isSaved?: boolean;
   users: {
     name: string;
     picture: string;
@@ -173,17 +177,28 @@ export function DiscoverFeed({ treasures, showVisibility = false }: DiscoverFeed
                     <p className="text-sm text-slate-500 mt-0.5">{treasure.era}</p>
                   )}
 
+                  {/* Engagement Buttons */}
+                  <div className="mt-3 pt-3 border-t border-slate-100">
+                    <EngagementButtons
+                      appraisalId={treasure.id}
+                      initialLikeCount={treasure.like_count ?? 0}
+                      initialIsLiked={treasure.isLiked ?? false}
+                      initialIsSaved={treasure.isSaved ?? false}
+                      size="sm"
+                    />
+                  </div>
+
                   {/* Owner & Time */}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-2">
                       {treasure.users?.picture ? (
                         <img
                           src={treasure.users.picture}
                           alt={treasure.users.name}
-                          className="w-6 h-6 rounded-full"
+                          className="w-5 h-5 rounded-full"
                         />
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-slate-200" />
+                        <div className="w-5 h-5 rounded-full bg-slate-200" />
                       )}
                       <span className="text-xs text-slate-600 truncate max-w-[100px]">
                         {treasure.users?.name || 'Anonymous'}

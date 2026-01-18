@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { socialService } from '@/services/socialService';
 
 export async function GET(request: NextRequest) {
   const supabase = getSupabaseAdmin();
@@ -7,7 +8,7 @@ export async function GET(request: NextRequest) {
   const userId = searchParams.get('userId');
 
   try {
-    // If no userId, return only public items
+    // If no userId, return only public items (no social state)
     if (!userId) {
       const { data, error } = await supabase
         .from('appraisals')
@@ -22,7 +23,12 @@ export async function GET(request: NextRequest) {
       if (error) throw error;
 
       return NextResponse.json({
-        treasures: data?.map(t => ({ ...t, visibility: 'public' })) || []
+        treasures: data?.map(t => ({
+          ...t,
+          visibility: 'public',
+          isLiked: false,
+          isSaved: false,
+        })) || []
       });
     }
 
@@ -65,7 +71,14 @@ export async function GET(request: NextRequest) {
 
     if (error) throw error;
 
-    // Mark items with visibility type
+    // Get user's likes and saves for these items
+    const appraisalIds = data?.map(t => t.id) || [];
+    const [likedIds, savedIds] = await Promise.all([
+      socialService.getUserLikedIds(userId, appraisalIds),
+      socialService.getUserSavedIds(userId, appraisalIds),
+    ]);
+
+    // Mark items with visibility type and social state
     const treasures = data?.map(treasure => {
       const isFriend = friendIds.includes(treasure.user_id);
       const isPublic = treasure.is_public;
@@ -73,7 +86,9 @@ export async function GET(request: NextRequest) {
       return {
         ...treasure,
         // Visibility: 'public' = anyone can see, 'friends' = visible because you're friends
-        visibility: isPublic ? 'public' : (isFriend ? 'friends' : 'public')
+        visibility: isPublic ? 'public' : (isFriend ? 'friends' : 'public'),
+        isLiked: likedIds.includes(treasure.id),
+        isSaved: savedIds.includes(treasure.id),
       };
     }) || [];
 
