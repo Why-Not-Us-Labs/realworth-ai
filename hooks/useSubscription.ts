@@ -256,6 +256,7 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     isSuperAdmin: userEmail ? subscriptionService.isSuperAdmin(userEmail) : false,
     usageCount: subscription?.monthlyAppraisalCount || 0,
     credits: subscription?.appraisalCredits || 0,
+    resetAt: subscription?.appraisalCountResetAt || null,
     checkCanAppraise,
     incrementUsage,
     openPortal,
