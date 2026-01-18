@@ -9,6 +9,21 @@ const config: Config = {
   ],
   theme: {
   	extend: {
+  		animation: {
+  			'heart-burst': 'heartBurst 800ms ease-out forwards',
+  			'like-scale': 'likeScale 200ms ease-out',
+  		},
+  		keyframes: {
+  			heartBurst: {
+  				'0%': { transform: 'scale(0)', opacity: '1' },
+  				'50%': { transform: 'scale(1.2)', opacity: '1' },
+  				'100%': { transform: 'scale(1)', opacity: '0' },
+  			},
+  			likeScale: {
+  				'0%, 100%': { transform: 'scale(1)' },
+  				'50%': { transform: 'scale(1.3)' },
+  			},
+  		},
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',

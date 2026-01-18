@@ -4,8 +4,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { CompassIcon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
-import { RarityBadge, RarityIndicator } from '@/components/RarityBadge';
-import { FullScreenFeed } from '@/components/FullScreenFeed';
+import { RarityIndicator } from '@/components/RarityBadge';
+import { InstagramFeed } from '@/components/InstagramFeed';
 
 const ITEMS_PER_PAGE = 30;
 
@@ -13,7 +13,7 @@ interface HomeFeedProps {
   isLoggedIn: boolean;
 }
 
-type ViewMode = 'cards' | 'grid' | 'full';
+type ViewMode = 'feed' | 'grid';
 
 interface PublicTreasure {
   id: string;
@@ -40,15 +40,6 @@ function formatCurrency(amount: number, currency: string = 'USD') {
   }).format(amount);
 }
 
-function timeAgo(date: string) {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return new Date(date).toLocaleDateString();
-}
-
 // Icons
 const GridIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -56,21 +47,15 @@ const GridIcon = () => (
   </svg>
 );
 
-const CardsIcon = () => (
+// Feed icon (Instagram-style)
+const FeedIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-  </svg>
-);
-
-// Full screen / TikTok-style icon
-const FullScreenIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
   </svg>
 );
 
 export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [viewMode, setViewMode] = useState<ViewMode>('feed');
   const [publicTreasures, setPublicTreasures] = useState<PublicTreasure[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -173,16 +158,16 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
         </div>
         <div className="flex items-center gap-1 bg-white rounded-lg p-0.5 border border-slate-200">
           <button
-            onClick={() => setViewMode('full')}
+            onClick={() => setViewMode('feed')}
             className={`p-1.5 rounded transition-all ${
-              viewMode === 'full'
+              viewMode === 'feed'
                 ? 'bg-teal-500 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-600'
             }`}
-            aria-label="Full screen view"
-            title="Full screen (TikTok-style)"
+            aria-label="Feed view"
+            title="Instagram-style feed"
           >
-            <FullScreenIcon />
+            <FeedIcon />
           </button>
           <button
             onClick={() => setViewMode('grid')}
@@ -195,144 +180,81 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
           >
             <GridIcon />
           </button>
-          <button
-            onClick={() => setViewMode('cards')}
-            className={`p-1.5 rounded transition-all ${
-              viewMode === 'cards'
-                ? 'bg-teal-500 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-600'
-            }`}
-            aria-label="Card view"
-          >
-            <CardsIcon />
-          </button>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-2 sm:p-3">
-        {isLoading ? (
-          <div className="py-12 text-center text-slate-400">
-            <div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-sm">Loading treasures...</p>
-          </div>
-        ) : isEmpty ? (
-          <div className="py-12 text-center">
-            <CompassIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">No public treasures yet</p>
-            <p className="text-slate-400 text-xs mt-1">Be the first to share!</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-          /* Grid View */
-          <div className="grid grid-cols-3 gap-1 sm:gap-2">
-            {publicTreasures.map((treasure) => {
-              const avgValue = (treasure.price_low + treasure.price_high) / 2;
-              return (
-                <Link
-                  key={treasure.id}
-                  href={`/treasure/${treasure.id}`}
-                  className="relative aspect-square bg-slate-100 overflow-hidden group"
-                >
-                  <img
-                    src={treasure.image_url}
-                    alt={treasure.item_name}
-                    className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  {/* Rarity indicator - top right */}
-                  {treasure.rarity_score !== null && treasure.rarity_score >= 4 && (
-                    <div className="absolute top-1.5 right-1.5">
-                      <RarityIndicator score={treasure.rarity_score} />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div className="text-white text-center px-1">
-                      <p className="font-bold text-sm drop-shadow-lg">
-                        {formatCurrency(avgValue, treasure.currency)}
-                      </p>
-                    </div>
-                  </div>
-                  {treasure.users?.picture && (
-                    <div className="absolute bottom-1 left-1 w-5 h-5 rounded-full border-2 border-white overflow-hidden shadow-sm">
-                      <img src={treasure.users.picture} alt="" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
-
-            {/* Load more trigger for infinite scroll */}
-            <div ref={loadMoreRef} className="col-span-3 py-4 flex justify-center">
-              {isLoadingMore ? (
-                <div className="flex items-center gap-2 text-slate-400">
-                  <div className="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full" />
-                  <span className="text-sm">Loading more...</span>
-                </div>
-              ) : hasMore ? (
-                <span className="text-xs text-slate-400">Scroll for more</span>
-              ) : publicTreasures.length > 0 ? (
-                <span className="text-xs text-slate-400">You've seen all {totalCount} treasures!</span>
-              ) : null}
+      {viewMode === 'feed' ? (
+        /* Instagram-style Feed View */
+        <InstagramFeed />
+      ) : (
+        /* Grid View */
+        <div className="p-2 sm:p-3">
+          {isLoading ? (
+            <div className="py-12 text-center text-slate-400">
+              <div className="animate-spin w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full mx-auto mb-3" />
+              <p className="text-sm">Loading treasures...</p>
             </div>
-          </div>
-        ) : (
-          /* Cards View */
-          <div className="space-y-2">
-            {publicTreasures.map((treasure) => {
-              const avgValue = (treasure.price_low + treasure.price_high) / 2;
-              return (
-                <Link
-                  key={treasure.id}
-                  href={`/treasure/${treasure.id}`}
-                  className="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 transition-colors active:bg-slate-100"
-                >
-                  <div className="relative w-16 h-16 rounded-lg bg-slate-100 overflow-hidden flex-shrink-0">
-                    <img src={treasure.image_url} alt={treasure.item_name} className="w-full h-full object-cover" />
-                    {/* Rarity indicator on card thumbnail */}
+          ) : isEmpty ? (
+            <div className="py-12 text-center">
+              <CompassIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">No public treasures yet</p>
+              <p className="text-slate-400 text-xs mt-1">Be the first to share!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-1 sm:gap-2">
+              {publicTreasures.map((treasure) => {
+                const avgValue = (treasure.price_low + treasure.price_high) / 2;
+                return (
+                  <Link
+                    key={treasure.id}
+                    href={`/treasure/${treasure.id}`}
+                    className="relative aspect-square bg-slate-100 overflow-hidden group"
+                  >
+                    <img
+                      src={treasure.image_url}
+                      alt={treasure.item_name}
+                      className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    {/* Rarity indicator - top right */}
                     {treasure.rarity_score !== null && treasure.rarity_score >= 4 && (
-                      <div className="absolute top-0.5 right-0.5">
+                      <div className="absolute top-1.5 right-1.5">
                         <RarityIndicator score={treasure.rarity_score} />
                       </div>
                     )}
-                  </div>
-                  <div className="flex-grow min-w-0">
-                    <h4 className="font-semibold text-slate-800 text-sm truncate">{treasure.item_name}</h4>
-                    <p className="text-xs text-slate-500">{treasure.category} {treasure.era ? `· ${treasure.era}` : ''}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm font-bold text-teal-600">{formatCurrency(avgValue, treasure.currency)}</span>
-                      {treasure.rarity_score !== null && treasure.rarity_score >= 7 && (
-                        <RarityBadge score={treasure.rarity_score} size="sm" showLabel={false} />
-                      )}
-                      <span className="text-xs text-slate-400">{timeAgo(treasure.created_at)}</span>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="text-white text-center px-1">
+                        <p className="font-bold text-sm drop-shadow-lg">
+                          {formatCurrency(avgValue, treasure.currency)}
+                        </p>
+                      </div>
                     </div>
+                    {treasure.users?.picture && (
+                      <div className="absolute bottom-1 left-1 w-5 h-5 rounded-full border-2 border-white overflow-hidden shadow-sm">
+                        <img src={treasure.users.picture} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+
+              {/* Load more trigger for infinite scroll */}
+              <div ref={loadMoreRef} className="col-span-3 py-4 flex justify-center">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <div className="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full" />
+                    <span className="text-sm">Loading more...</span>
                   </div>
-                  {treasure.users?.picture && (
-                    <img src={treasure.users.picture} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
-                  )}
-                </Link>
-              );
-            })}
-
-            {/* Load more trigger for cards view */}
-            <div ref={loadMoreRef} className="py-4 flex justify-center">
-              {isLoadingMore ? (
-                <div className="flex items-center gap-2 text-slate-400">
-                  <div className="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full" />
-                  <span className="text-sm">Loading more...</span>
-                </div>
-              ) : hasMore ? (
-                <span className="text-xs text-slate-400">Scroll for more</span>
-              ) : publicTreasures.length > 0 ? (
-                <span className="text-xs text-slate-400">You've seen all {totalCount} treasures!</span>
-              ) : null}
+                ) : hasMore ? (
+                  <span className="text-xs text-slate-400">Scroll for more</span>
+                ) : publicTreasures.length > 0 ? (
+                  <span className="text-xs text-slate-400">You've seen all {totalCount} treasures!</span>
+                ) : null}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Full Screen Feed Modal */}
-      {viewMode === 'full' && (
-        <FullScreenFeed onClose={() => setViewMode('grid')} />
+          )}
+        </div>
       )}
     </div>
   );

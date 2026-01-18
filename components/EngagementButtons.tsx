@@ -13,6 +13,7 @@ type EngagementButtonsProps = {
   commentCount?: number;
   onCommentClick?: () => void;
   onShare?: () => void;
+  onLikeChange?: (isLiked: boolean, likeCount: number) => void;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'horizontal' | 'vertical';
   showLabels?: boolean;
@@ -27,6 +28,7 @@ export function EngagementButtons({
   commentCount = 0,
   onCommentClick,
   onShare,
+  onLikeChange,
   size = 'md',
   variant = 'horizontal',
   showLabels = false,
@@ -52,8 +54,10 @@ export function EngagementButtons({
 
     // Optimistic update
     const newIsLiked = !isLiked;
+    const newLikeCount = newIsLiked ? likeCount + 1 : likeCount - 1;
     setIsLiked(newIsLiked);
-    setLikeCount(prev => newIsLiked ? prev + 1 : prev - 1);
+    setLikeCount(newLikeCount);
+    onLikeChange?.(newIsLiked, newLikeCount);
     setIsLiking(true);
 
     try {
@@ -61,7 +65,8 @@ export function EngagementButtons({
       if (!session?.access_token) {
         // Revert optimistic update
         setIsLiked(!newIsLiked);
-        setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
+        setLikeCount(likeCount);
+        onLikeChange?.(!newIsLiked, likeCount);
         return;
       }
 
@@ -77,18 +82,21 @@ export function EngagementButtons({
       if (!response.ok) {
         // Revert optimistic update
         setIsLiked(!newIsLiked);
-        setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
+        setLikeCount(likeCount);
+        onLikeChange?.(!newIsLiked, likeCount);
       } else {
         // Update with actual server values
         const data = await response.json();
         setIsLiked(data.liked);
         setLikeCount(data.likeCount);
+        onLikeChange?.(data.liked, data.likeCount);
       }
     } catch (error) {
       console.error('Error toggling like:', error);
       // Revert optimistic update
       setIsLiked(!newIsLiked);
-      setLikeCount(prev => newIsLiked ? prev - 1 : prev + 1);
+      setLikeCount(likeCount);
+      onLikeChange?.(!newIsLiked, likeCount);
     } finally {
       setIsLiking(false);
     }

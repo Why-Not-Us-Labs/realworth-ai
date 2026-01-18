@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   // Get like count
   const { count: likeCount } = await supabase
-    .from('appraisal_likes')
+    .from('likes')
     .select('*', { count: 'exact', head: true })
     .eq('appraisal_id', appraisalId);
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   let isLiked = false;
   if (userId) {
     const { data: likeData } = await supabase
-      .from('appraisal_likes')
+      .from('likes')
       .select('id')
       .eq('appraisal_id', appraisalId)
       .eq('user_id', userId)
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
   let isSaved = false;
   if (userId) {
     const { data: saveData } = await supabase
-      .from('appraisal_saves')
+      .from('saves')
       .select('id')
       .eq('appraisal_id', appraisalId)
       .eq('user_id', userId)
