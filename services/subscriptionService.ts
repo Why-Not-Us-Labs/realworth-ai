@@ -379,11 +379,14 @@ class SubscriptionService {
       const newCount = currentCount + 1;
       const limitReached = newCount >= FREE_APPRAISAL_LIMIT;
 
+      // Calculate first day of next month for reset date
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
       const { error: updateError } = await supabaseAdmin
         .from('users')
         .update({
           monthly_appraisal_count: newCount,
-          appraisal_count_reset_at: now.toISOString(),
+          appraisal_count_reset_at: nextMonth.toISOString(),
         })
         .eq('id', userId);
 
