@@ -15,6 +15,7 @@ type BentoStats = {
 type BentoHeaderProps = {
   onStartAppraisal?: () => void;
   onUpgrade?: () => void;
+  onSignIn?: () => void;
 };
 
 function formatValue(amount: number): string {
@@ -27,7 +28,7 @@ function formatValue(amount: number): string {
   return `$${Math.round(amount)}`;
 }
 
-export function BentoHeader({ onStartAppraisal, onUpgrade }: BentoHeaderProps) {
+export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHeaderProps) {
   const { user, isAuthLoading } = useContext(AuthContext);
   const { isPro, isLoading: isSubLoading } = useSubscription(user?.id ?? null, user?.email);
   const [stats, setStats] = useState<BentoStats>({ streak: 0, totalValue: 0, friendCount: 0 });
@@ -113,13 +114,10 @@ export function BentoHeader({ onStartAppraisal, onUpgrade }: BentoHeaderProps) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onStartAppraisal}
+              onClick={onSignIn}
               className="flex items-center gap-1.5 bg-teal-500 hover:bg-teal-600 text-white font-semibold text-sm px-3 py-2 rounded-lg transition-colors"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Appraise</span>
+              <span>Sign In</span>
             </button>
           </div>
         </div>

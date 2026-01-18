@@ -53,7 +53,8 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
   return (
     <>
       <HelpChatWidget isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-    <header className="p-3 sm:p-4 md:p-6">
+    {/* Hide on mobile - BentoHeader handles mobile view */}
+    <header className="hidden sm:block p-3 sm:p-4 md:p-6">
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:px-4">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
