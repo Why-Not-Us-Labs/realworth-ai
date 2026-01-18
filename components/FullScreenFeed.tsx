@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { RarityBadge } from '@/components/RarityBadge';
 import { EngagementButtons } from '@/components/EngagementButtons';
+import { CommentSheet } from '@/components/CommentSheet';
 import { AuthContext } from '@/components/contexts/AuthContext';
 
 const ITEMS_PER_PAGE = 10;
@@ -77,6 +78,8 @@ export function FullScreenFeed({ onClose }: FullScreenFeedProps) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showComments, setShowComments] = useState(false);
+  const [activeCommentTreasure, setActiveCommentTreasure] = useState<Treasure | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
@@ -265,6 +268,10 @@ export function FullScreenFeed({ onClose }: FullScreenFeedProps) {
                     initialLikeCount={treasure.like_count || 0}
                     initialIsLiked={false}
                     initialIsSaved={false}
+                    onCommentClick={() => {
+                      setActiveCommentTreasure(treasure);
+                      setShowComments(true);
+                    }}
                     size="lg"
                     variant="vertical"
                     showLabels
@@ -345,6 +352,19 @@ export function FullScreenFeed({ onClose }: FullScreenFeedProps) {
             <span className="text-xs">Swipe up</span>
           </div>
         </div>
+      )}
+
+      {/* Comment Sheet */}
+      {activeCommentTreasure && (
+        <CommentSheet
+          isOpen={showComments}
+          onClose={() => {
+            setShowComments(false);
+            setActiveCommentTreasure(null);
+          }}
+          appraisalId={activeCommentTreasure.id}
+          ownerId={activeCommentTreasure.users?.id || ''}
+        />
       )}
     </div>
   );

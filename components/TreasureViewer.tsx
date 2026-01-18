@@ -10,6 +10,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import UpgradeModal from '@/components/UpgradeModal';
 import { CollapsibleText } from '@/components/CollapsibleText';
+import { EngagementButtons } from '@/components/EngagementButtons';
+import { CommentSheet } from '@/components/CommentSheet';
 
 interface TreasureData {
   id: string;
@@ -53,6 +55,15 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
   const [authReady, setAuthReady] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isDownloadingCertificate, setIsDownloadingCertificate] = useState(false);
+
+  // Comments state
+  const [showComments, setShowComments] = useState(false);
+
+  // Engagement state
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
 
   // Image gallery state
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -131,6 +142,35 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
 
     fetchTreasure();
   }, [treasureId, accessToken, authReady]);
+
+  // Fetch engagement data when treasure is loaded
+  useEffect(() => {
+    if (!treasure) return;
+    const treasureId = treasure.id;
+
+    async function fetchEngagement() {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        }
+
+        // Fetch like/save status
+        const engagementRes = await fetch(`/api/feed/engagement?appraisalId=${treasureId}`, { headers });
+        if (engagementRes.ok) {
+          const data = await engagementRes.json();
+          setLikeCount(data.likeCount || 0);
+          setIsLiked(data.isLiked || false);
+          setIsSaved(data.isSaved || false);
+          setCommentCount(data.commentCount || 0);
+        }
+      } catch (error) {
+        console.error('[TreasureViewer] Error fetching engagement:', error);
+      }
+    }
+
+    fetchEngagement();
+  }, [treasure?.id, accessToken]);
 
   const togglePublic = async () => {
     if (!treasure || !isOwner || isTogglingPublic) return;
@@ -779,6 +819,31 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 </div>
               </div>
             )}
+
+            {/* Engagement Buttons */}
+            <div className="border-t pt-4 mt-4">
+              <EngagementButtons
+                appraisalId={treasure.id}
+                initialLikeCount={likeCount}
+                initialIsLiked={isLiked}
+                initialIsSaved={isSaved}
+                commentCount={commentCount}
+                onCommentClick={() => setShowComments(true)}
+                onShare={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: treasure.item_name,
+                      text: `Check out this treasure valued at ${formattedAvg}!`,
+                      url: window.location.href,
+                    });
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                  }
+                }}
+                size="md"
+                showLabels
+              />
+            </div>
           </div>
         </div>
 
@@ -798,6 +863,14 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
       <footer className="text-center p-6 text-slate-500 text-sm">
         <p>&copy; {new Date().getFullYear()} RealWorth.ai. All rights reserved.</p>
       </footer>
+
+      {/* Comment Sheet */}
+      <CommentSheet
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+        appraisalId={treasure.id}
+        ownerId={treasure.user_id}
+      />
 
       {/* Upgrade Modal */}
       {user && (
