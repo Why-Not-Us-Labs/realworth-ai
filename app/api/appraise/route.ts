@@ -3,6 +3,9 @@ import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
+import { getEbayMarketValue, buildSearchKeywords, buildCategoryAspects, type EbayMarketData } from '@/services/ebayPriceService';
+import { getMetalPrices, formatMetalPricesForPrompt } from '@/services/metalPriceService';
+import type { ValuationBreakdown, EbayComparable, FutureValuePrediction } from '@/lib/types';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -111,6 +114,23 @@ const responseSchema = {
       description: "3-5 specific preservation and care recommendations for this type of item. Include storage, handling, cleaning, and environmental considerations. Be practical and actionable.",
       items: { type: Type.STRING }
     },
+    rarityScore: {
+      type: Type.NUMBER,
+      description: "Rarity score from 0.0 to 10.0 (one decimal place). Consider: production/mintage numbers, survival rate, condition rarity, key dates/varieties, historical significance, collector demand. 9.0-10.0 = extremely rare (< 100 known), 7.0-8.9 = very rare (< 1,000 known), 5.0-6.9 = moderately rare, 3.0-4.9 = somewhat uncommon, 0.0-2.9 = common."
+    },
+    rarityFactors: {
+      type: Type.ARRAY,
+      description: "2-4 factors explaining the rarity score with individual scores",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          factor: { type: Type.STRING, description: "Short label like 'Low Mintage', 'Key Date', 'Condition Rarity', 'Limited Production', 'High Demand'" },
+          score: { type: Type.NUMBER, description: "This factor's contribution to rarity (0-10)" },
+          detail: { type: Type.STRING, description: "1-2 sentence explanation of why this affects rarity" }
+        },
+        required: ["factor", "score", "detail"]
+      }
+    },
     collectibleDetails: {
       type: Type.OBJECT,
       description: "Additional details for collectible items like coins, stamps, and currency. Required for Coin, Stamp, and Currency categories.",
@@ -125,7 +145,7 @@ const responseSchema = {
       }
     }
   },
-  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips"]
+  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "rarityScore", "rarityFactors"]
 };
 
 // Validation function to catch face-value errors for collectibles
@@ -138,6 +158,8 @@ interface AppraisalData {
   confidenceFactors: Array<{ factor: string; impact: string; detail: string }>;
   validationNotes?: string;
   careTips?: string[];
+  rarityScore?: number;
+  rarityFactors?: Array<{ factor: string; score: number; detail: string }>;
   collectibleDetails?: {
     mintMark?: string;
     gradeEstimate?: string;
@@ -196,6 +218,80 @@ function validateAppraisal(result: AppraisalData): AppraisalData {
   }
 
   return result;
+}
+
+/**
+ * Generate simple future value predictions based on category and age
+ * Returns probability-based appreciation forecasts for 10, 25, 50, 100 years
+ */
+function generateFutureValuePredictions(
+  category: string,
+  era: string,
+  currentValue: number
+): FutureValuePrediction[] {
+  // Extract year from era if possible
+  const eraYear = parseInt(era?.replace(/\D/g, '') || '0');
+  const itemAge = eraYear > 0 ? new Date().getFullYear() - eraYear : 0;
+
+  // Category-based appreciation rates (historical averages)
+  const categoryRates: Record<string, { baseRate: number; volatility: number }> = {
+    'Coin': { baseRate: 0.05, volatility: 0.3 }, // 5% avg annual, 30% volatility
+    'Book': { baseRate: 0.03, volatility: 0.4 }, // Books vary more
+    'Art': { baseRate: 0.07, volatility: 0.5 }, // Art can spike
+    'Jewelry': { baseRate: 0.04, volatility: 0.2 }, // More stable
+    'Watch': { baseRate: 0.06, volatility: 0.3 },
+    'Toy': { baseRate: 0.04, volatility: 0.5 }, // Nostalgia driven
+    'Collectible': { baseRate: 0.04, volatility: 0.4 },
+    'Stamp': { baseRate: 0.02, volatility: 0.3 }, // Declining market
+    'Currency': { baseRate: 0.03, volatility: 0.3 },
+  };
+
+  const categoryLower = category?.toLowerCase() || '';
+  const rates = Object.entries(categoryRates).find(([key]) =>
+    categoryLower.includes(key.toLowerCase())
+  )?.[1] || { baseRate: 0.03, volatility: 0.4 };
+
+  // Age bonus: older items tend to appreciate more
+  const ageBonus = itemAge > 100 ? 0.02 : itemAge > 50 ? 0.01 : 0;
+  const adjustedRate = rates.baseRate + ageBonus;
+
+  // Generate predictions for different time horizons
+  const timeframes: Array<10 | 25 | 50 | 100> = [10, 25, 50, 100];
+
+  return timeframes.map((years) => {
+    // Compound growth with uncertainty
+    const baseMultiplier = Math.pow(1 + adjustedRate, years);
+    const lowMultiplier = Math.max(0.5, baseMultiplier * (1 - rates.volatility));
+    const highMultiplier = baseMultiplier * (1 + rates.volatility);
+
+    // Probability decreases with longer timeframes (more uncertainty)
+    // Also affected by category stability
+    const baseProbability = 75 - (years * 0.3) - (rates.volatility * 20);
+    const probability = Math.round(Math.max(30, Math.min(85, baseProbability)));
+
+    // Generate reasoning based on category
+    const reasonings: Record<string, string> = {
+      'Coin': `Historical coin values have appreciated 3-7% annually. ${itemAge > 50 ? 'Vintage coins (50+ years) often see premium appreciation.' : ''} Rarity and condition are key factors.`,
+      'Book': `First editions and rare books have shown steady appreciation. ${itemAge > 100 ? 'Pre-1900 books are increasingly scarce.' : ''} Condition and provenance matter significantly.`,
+      'Art': `Art appreciation varies widely by artist and period. ${itemAge > 50 ? 'Mid-century and older works often appreciate faster.' : ''} Market trends can cause significant swings.`,
+      'Jewelry': `Precious metals and gemstones provide baseline value. Designer and vintage pieces command premiums that grow over time.`,
+      'Watch': `Luxury watches, especially Swiss brands, have shown strong appreciation. ${itemAge > 30 ? 'Vintage watches are increasingly collectible.' : ''} Limited editions appreciate faster.`,
+      'Toy': `Vintage toys appreciate based on nostalgia cycles. ${itemAge > 40 ? 'Pre-1980s toys are highly sought after.' : ''} Condition and original packaging are crucial.`,
+      'default': `Collectibles typically appreciate 2-5% annually. Rarity, condition, and market demand are the primary drivers of long-term value.`,
+    };
+
+    const reasoning = Object.entries(reasonings).find(([key]) =>
+      categoryLower.includes(key.toLowerCase())
+    )?.[1] || reasonings['default'];
+
+    return {
+      years,
+      probability,
+      multiplierLow: Math.round(lowMultiplier * 10) / 10,
+      multiplierHigh: Math.round(highMultiplier * 10) / 10,
+      reasoning: reasoning.trim(),
+    };
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -317,6 +413,11 @@ You must also provide validation feedback:
         },
       };
     }));
+
+    // Fetch current precious metal prices for accurate coin/jewelry valuations
+    const metalPrices = await getMetalPrices();
+    const metalPriceContext = formatMetalPricesForPrompt(metalPrices);
+    console.log(`[Appraise API] Metal prices fetched: Silver $${metalPrices.silver.toFixed(2)}/oz, Gold $${metalPrices.gold.toFixed(2)}/oz`);
 
     // Step 1: Get the detailed appraisal data
     const appraisalSystemInstruction = `You are a senior appraiser at RealWorth.ai, trained in the tradition of the world's finest auction houses and the legendary experts from Antiques Roadshow. You bring decades of combined expertise from Christie's, Sotheby's, Heritage Auctions, and specialty dealers.
@@ -573,7 +674,31 @@ REFERENCE REQUIREMENTS:
 3. Include at least one auction house or price guide for credibility
 4. If exact matches aren't found, cite comparable items and explain the comparison
 
-Users will click these links to verify your valuation, so accuracy is critical!${collectionContext}`;
+Users will click these links to verify your valuation, so accuracy is critical!
+
+RARITY SCORING (0-10 scale with one decimal place):
+Score the item's rarity and provide 2-4 factors explaining the score.
+
+RARITY SCALE:
+- 9.0-10.0: Extremely rare (< 100 known, museum quality, one-of-a-kind)
+- 7.0-8.9: Very rare (< 1,000 known, highly sought after, key dates)
+- 5.0-6.9: Moderately rare (limited production, growing collector interest)
+- 3.0-4.9: Somewhat uncommon (below average availability)
+- 0.0-2.9: Common (mass-produced, readily available)
+
+RARITY FACTORS TO CONSIDER:
+1. Production/Mintage: How many were originally made?
+2. Survival Rate: How many still exist in any condition?
+3. Condition Rarity: How rare is THIS specific grade/condition?
+4. Key Date/Variety: Is this a special issue, error, or variant?
+5. Collector Demand: Current market interest and desirability
+
+For each factor, provide:
+- A short label (e.g., "Low Mintage", "High Survival Rate")
+- A score (0-10) for that specific factor
+- A brief explanation
+
+${metalPriceContext}${collectionContext}`;
     const appraisalTextPart = { text: condition
       ? `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}`
       : `Please assess the item's condition from the photos provided.${collectionContext ? '\n\n' + collectionContext : ''}` };
@@ -595,6 +720,165 @@ Users will click these links to verify your valuation, so accuracy is critical!$
 
     // Validate appraisal to catch face-value errors for collectibles
     appraisalData = validateAppraisal(appraisalData as AppraisalData);
+
+    // Step 1.5: Enhance valuation with real eBay sold data
+    let valuationBreakdown: ValuationBreakdown | undefined;
+    let ebayComparables: EbayComparable[] | undefined;
+    let futureValuePredictions: FutureValuePrediction[] | undefined;
+
+    try {
+      // Build search keywords from Gemini's identification
+      const searchKeywords = buildSearchKeywords({
+        itemName: appraisalData.itemName,
+        category: appraisalData.category,
+        era: appraisalData.era,
+        author: appraisalData.author,
+        collectibleDetails: appraisalData.collectibleDetails,
+      });
+
+      // Build category-specific aspects for better search
+      const aspects = buildCategoryAspects(
+        appraisalData.category,
+        appraisalData.collectibleDetails
+      );
+
+      console.log(`[Appraise API] Searching eBay for: "${searchKeywords}"`);
+
+      // Fetch real market data from eBay
+      const ebayData = await getEbayMarketValue({
+        keywords: searchKeywords,
+        aspects: aspects.length > 0 ? aspects : undefined,
+      });
+
+      if (ebayData && ebayData.sampleSize >= 5) {
+        // We have sufficient eBay data - use it!
+        console.log(`[Appraise API] eBay data found: ${ebayData.sampleSize} results, avg $${ebayData.average.toFixed(2)}`);
+
+        // Store original Gemini prices for comparison
+        const geminiPrices = { ...appraisalData.priceRange };
+
+        // Calculate condition modifier from Gemini's assessment
+        // Default to 0.85 (Excellent) if no specific condition issues noted
+        let conditionModifier = 0.85;
+        let conditionNote = '';
+
+        if (appraisalData.collectibleDetails?.gradeEstimate) {
+          const grade = appraisalData.collectibleDetails.gradeEstimate.toUpperCase();
+          if (grade.includes('MS-6') || grade.includes('MINT')) {
+            conditionModifier = 1.0;
+            conditionNote = 'Mint/Near Mint condition';
+          } else if (grade.includes('MS-') || grade.includes('AU-') || grade.includes('EXCELLENT')) {
+            conditionModifier = 0.90;
+            conditionNote = 'Excellent condition';
+          } else if (grade.includes('VF-') || grade.includes('EF-') || grade.includes('VERY GOOD')) {
+            conditionModifier = 0.75;
+            conditionNote = 'Very Good condition';
+          } else if (grade.includes('F-') || grade.includes('GOOD')) {
+            conditionModifier = 0.60;
+            conditionNote = 'Good condition';
+          } else if (grade.includes('VG-') || grade.includes('FAIR')) {
+            conditionModifier = 0.45;
+            conditionNote = 'Fair condition';
+          } else if (grade.includes('G-') || grade.includes('POOR')) {
+            conditionModifier = 0.25;
+            conditionNote = 'Poor condition';
+          }
+        }
+
+        // Use eBay median as base (more reliable than average for outliers)
+        const baseMarketValue = ebayData.median > 0 ? ebayData.median : ebayData.average;
+
+        // Apply condition modifier to get adjusted value
+        const adjustedValue = baseMarketValue * conditionModifier;
+
+        // Use eBay's range, adjusted for condition
+        // Low = eBay low * condition, High = eBay high * condition
+        const newPriceLow = Math.round(ebayData.low * conditionModifier);
+        const newPriceHigh = Math.round(ebayData.high * conditionModifier);
+
+        // Only override Gemini's prices if eBay data seems reliable
+        // (sufficient sample size and prices are in reasonable range)
+        if (ebayData.confidence >= 0.2 && newPriceHigh > 0) {
+          // Update the price range with real market data
+          appraisalData.priceRange = {
+            low: Math.max(newPriceLow, 1), // Ensure at least $1
+            high: Math.max(newPriceHigh, newPriceLow + 1),
+          };
+
+          // Boost confidence if we have good eBay data
+          const ebayConfidenceBoost = Math.round(ebayData.confidence * 20); // Up to +20 from eBay
+          appraisalData.confidenceScore = Math.min(100,
+            (appraisalData.confidenceScore || 50) + ebayConfidenceBoost
+          );
+
+          // Add eBay data source to confidence factors
+          if (!appraisalData.confidenceFactors) {
+            appraisalData.confidenceFactors = [];
+          }
+          appraisalData.confidenceFactors.unshift({
+            factor: 'Real Market Data',
+            impact: 'positive',
+            detail: `Based on ${ebayData.sampleSize} recent eBay sold listings (avg: $${ebayData.average.toFixed(2)})`,
+          });
+
+          console.log(`[Appraise API] Updated prices: $${appraisalData.priceRange.low}-$${appraisalData.priceRange.high} (was $${geminiPrices.low}-$${geminiPrices.high})`);
+        }
+
+        // Build valuation breakdown for transparency
+        valuationBreakdown = {
+          baseMarketValue: Math.round(baseMarketValue),
+          source: 'ebay',
+          conditionModifier,
+          conditionNote: conditionNote || undefined,
+          sampleSize: ebayData.sampleSize,
+          comparablesUsed: Math.min(ebayData.comparables.length, 5),
+          ebayData,
+        };
+
+        // Store top comparables for reference
+        ebayComparables = ebayData.comparables.slice(0, 5);
+
+        // Update references to include actual eBay comparables
+        if (ebayComparables.length > 0 && appraisalData.references) {
+          // Add eBay sold listings reference at the top
+          const ebayReference = {
+            title: `eBay Sold Listings (${ebayData.sampleSize} recent sales)`,
+            url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchKeywords)}&LH_Complete=1&LH_Sold=1`,
+          };
+          appraisalData.references = [ebayReference, ...appraisalData.references.slice(0, 3)];
+        }
+
+      } else {
+        // Insufficient eBay data - keep Gemini's estimate
+        console.log(`[Appraise API] Insufficient eBay data (${ebayData?.sampleSize || 0} results) - using Gemini estimate`);
+
+        valuationBreakdown = {
+          baseMarketValue: Math.round((appraisalData.priceRange.low + appraisalData.priceRange.high) / 2),
+          source: 'gemini',
+          conditionModifier: 1.0,
+          sampleSize: 0,
+          comparablesUsed: 0,
+        };
+      }
+
+      // Generate simple future value predictions
+      futureValuePredictions = generateFutureValuePredictions(
+        appraisalData.category,
+        appraisalData.era,
+        (appraisalData.priceRange.low + appraisalData.priceRange.high) / 2
+      );
+
+    } catch (ebayError) {
+      console.error('[Appraise API] eBay lookup failed (non-blocking):', ebayError);
+      // Continue with Gemini's estimate - eBay is enhancement only
+      valuationBreakdown = {
+        baseMarketValue: Math.round((appraisalData.priceRange.low + appraisalData.priceRange.high) / 2),
+        source: 'gemini',
+        conditionModifier: 1.0,
+        sampleSize: 0,
+        comparablesUsed: 0,
+      };
+    }
 
     // Step 2: Regenerate the image
     const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
@@ -794,6 +1078,10 @@ Users will click these links to verify your valuation, so accuracy is critical!$
         seriesIdentifier: appraisalData.seriesIdentifier || ''
       } : undefined,
       streakInfo, // Streak data for gamification
+      // v2 Hybrid Valuation Engine data
+      valuationBreakdown, // How the value was calculated
+      ebayComparables, // Actual eBay sold listings used
+      futureValuePredictions, // Appreciation forecasts
     });
 
   } catch (error) {

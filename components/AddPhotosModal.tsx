@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 
@@ -32,6 +32,7 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
 }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [mounted, setMounted] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   // Ensure client-side only rendering
   useEffect(() => {
@@ -40,41 +41,37 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
       setSession(session);
     });
   }, []);
+
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [reanalyze, setReanalyze] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Calculate remaining slots for photos
+  const maxImages = 10;
+  const remainingSlots = maxImages - currentImageCount - selectedFiles.length;
+
+  // Handle files from native camera input
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Limit total images
-    const maxImages = 10;
-    const availableSlots = maxImages - currentImageCount;
-
-    if (files.length > availableSlots) {
-      setError(`You can only add ${availableSlots} more image${availableSlots === 1 ? '' : 's'}`);
-      return;
-    }
-
-    setSelectedFiles(files);
+    // Add to existing files
+    setSelectedFiles(prev => [...prev, ...files]);
     setError(null);
 
-    // Generate previews
-    const newPreviews: string[] = [];
+    // Generate previews for new files
     files.forEach(file => {
       const reader = new FileReader();
-      reader.onload = (e) => {
-        newPreviews.push(e.target?.result as string);
-        if (newPreviews.length === files.length) {
-          setPreviews([...newPreviews]);
-        }
+      reader.onload = (ev) => {
+        setPreviews(prev => [...prev, ev.target?.result as string]);
       };
       reader.readAsDataURL(file);
     });
+
+    // Reset input so same file can be selected again
+    if (e.target) e.target.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -212,27 +209,36 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
             </div>
           </div>
 
-          {/* File Input */}
+          {/* Native Camera Input - hidden but triggered by button */}
           <input
-            ref={fileInputRef}
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
-            multiple
-            onChange={handleFileSelect}
+            capture="environment"
+            onChange={handleFileChange}
             className="hidden"
+            aria-label="Take photo"
           />
 
-          {/* Upload Area */}
+          {/* Camera Capture Area */}
           {previews.length === 0 ? (
             <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-slate-300 rounded-xl p-8 hover:border-teal-400 hover:bg-teal-50 transition-all text-center"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={remainingSlots <= 0}
+              className="w-full border-2 border-dashed border-slate-300 rounded-xl p-8 hover:border-teal-400 hover:bg-teal-50 transition-all text-center disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg className="w-10 h-10 mx-auto text-slate-400 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <svg className="w-10 h-10 mx-auto text-teal-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <p className="font-medium text-slate-700">Click to select photos</p>
-              <p className="text-sm text-slate-500 mt-1">JPG, PNG up to 10MB each</p>
+              <p className="font-medium text-slate-700">Take a Photo</p>
+              <p className="text-sm text-slate-500 mt-1">Tap to open camera</p>
+              <p className="text-xs text-slate-400 mt-2 flex items-center justify-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Real-time photos ensure authenticity
+              </p>
             </button>
           ) : (
             <div>
@@ -250,14 +256,18 @@ export const AddPhotosModal: React.FC<AddPhotosModalProps> = ({
                     </button>
                   </div>
                 ))}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="aspect-square rounded-lg border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50 transition-all flex items-center justify-center"
-                >
-                  <svg className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
+                {remainingSlots > 0 && (
+                  <button
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="aspect-square rounded-lg border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50 transition-all flex flex-col items-center justify-center gap-1"
+                  >
+                    <svg className="w-6 h-6 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-[10px] text-slate-500">Take more</span>
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -15,6 +15,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabase';
 import { AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
+import { CollapsibleText } from './CollapsibleText';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -37,6 +38,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [showRarityBreakdown, setShowRarityBreakdown] = useState(false);
 
   const handleSelectProvider = async (provider: AuthProvider) => {
     setIsSignInModalOpen(false);
@@ -311,6 +313,72 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
               </div>
             </div>
 
+            {/* Rarity Score Section */}
+            {currentResult.rarityScore !== undefined && (() => {
+              const score = currentResult.rarityScore;
+              const isVeryRare = score >= 8.0;
+              const isModeratelyRare = score >= 5.0;
+
+              const bgClass = isVeryRare ? 'bg-rose-50 border-rose-200' : isModeratelyRare ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200';
+              const iconClass = isVeryRare ? 'text-rose-500' : isModeratelyRare ? 'text-amber-500' : 'text-slate-400';
+              const titleClass = isVeryRare ? 'text-rose-900' : isModeratelyRare ? 'text-amber-900' : 'text-slate-700';
+              const scoreClass = isVeryRare ? 'text-rose-700' : isModeratelyRare ? 'text-amber-700' : 'text-slate-600';
+              const labelClass = isVeryRare ? 'text-rose-500' : isModeratelyRare ? 'text-amber-500' : 'text-slate-400';
+              const borderClass = isVeryRare ? 'border-rose-200' : isModeratelyRare ? 'border-amber-200' : 'border-slate-200';
+              const factorTitleClass = isVeryRare ? 'text-rose-800' : isModeratelyRare ? 'text-amber-800' : 'text-slate-700';
+              const factorScoreClass = isVeryRare ? 'text-rose-600' : isModeratelyRare ? 'text-amber-600' : 'text-slate-500';
+              const barBgClass = isVeryRare ? 'bg-rose-100' : isModeratelyRare ? 'bg-amber-100' : 'bg-slate-200';
+              const barFillClass = isVeryRare ? 'bg-rose-500' : isModeratelyRare ? 'bg-amber-500' : 'bg-slate-400';
+              const detailClass = isVeryRare ? 'text-rose-700' : isModeratelyRare ? 'text-amber-700' : 'text-slate-500';
+
+              return (
+                <div className={`mb-4 rounded-xl border overflow-hidden transition-colors ${bgClass}`}>
+                  <button
+                    onClick={() => setShowRarityBreakdown(!showRarityBreakdown)}
+                    className="w-full p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <svg className={`w-5 h-5 ${iconClass}`} fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 3L9.5 8.5L4 11l5.5 2.5L12 19l2.5-5.5L20 11l-5.5-2.5z"/>
+                        </svg>
+                        <span className={`font-semibold ${titleClass}`}>Rarity Score</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-2xl font-bold ${scoreClass}`}>
+                          {score.toFixed(1)}
+                        </span>
+                        <span className={`text-sm ${labelClass}`}>/10</span>
+                        <svg className={`w-5 h-5 transition-transform ${showRarityBreakdown ? 'rotate-180' : ''} ${labelClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </button>
+
+                  {showRarityBreakdown && currentResult.rarityFactors && currentResult.rarityFactors.length > 0 && (
+                    <div className={`px-4 pb-4 space-y-3 border-t ${borderClass} pt-4`}>
+                      {currentResult.rarityFactors.map((factor, i) => (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`font-medium text-sm ${factorTitleClass}`}>{factor.factor}</span>
+                            <span className={`text-sm font-medium ${factorScoreClass}`}>{factor.score.toFixed(1)}</span>
+                          </div>
+                          <div className={`h-2 rounded-full ${barBgClass}`}>
+                            <div
+                              className={`h-2 rounded-full transition-all ${barFillClass}`}
+                              style={{ width: `${factor.score * 10}%` }}
+                            />
+                          </div>
+                          <p className={`text-xs mt-1 ${detailClass}`}>{factor.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Collection Opportunity Banner - Stewart's Smart Suggestion */}
             {currentResult.collectionOpportunity?.isPartOfSet && (
               <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 relative overflow-hidden">
@@ -490,12 +558,20 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
 
             <div className="space-y-4 text-slate-600 flex-grow">
               <div>
-                <h4 className="font-semibold text-slate-800">AI-Generated Description</h4>
-                <p className="whitespace-pre-wrap overflow-wrap-anywhere">{currentResult.description}</p>
+                <h4 className="font-semibold text-slate-800 mb-1">Description</h4>
+                <CollapsibleText
+                  text={currentResult.description}
+                  previewLength={150}
+                  className="text-slate-600"
+                />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-800">Valuation Rationale</h4>
-                <p className="whitespace-pre-wrap overflow-wrap-anywhere">{currentResult.reasoning}</p>
+                <h4 className="font-semibold text-slate-800 mb-1">Valuation Rationale</h4>
+                <CollapsibleText
+                  text={currentResult.reasoning}
+                  previewLength={150}
+                  className="text-slate-600"
+                />
               </div>
 
               {/* Care & Preservation Tips */}
@@ -560,64 +636,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
                 </div>
               )}
 
-              {/* Get Expert Opinion Section */}
-              <div>
-                <h4 className="font-semibold text-slate-800 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Want a Second Opinion?
-                </h4>
-                <p className="text-sm text-slate-500 mb-3">
-                  Get a professional appraisal from trusted experts:
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <a
-                    href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(currentResult.itemName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                  >
-                    <span className="font-medium">Search eBay</span>
-                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                  <a
-                    href="https://www.valuemystuff.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                  >
-                    <span className="font-medium">ValueMyStuff</span>
-                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                  <a
-                    href="https://www.ha.com/free-auction-appraisal.s"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                  >
-                    <span className="font-medium">Heritage Auctions</span>
-                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                  <a
-                    href="https://www.mearto.com/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                  >
-                    <span className="font-medium">Mearto</span>
-                    <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
             </div>
 
             <button

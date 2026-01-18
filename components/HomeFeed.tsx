@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { AppraisalResult } from '@/lib/types';
 import { GemIcon, CompassIcon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
+
+const ITEMS_PER_PAGE = 30;
 
 interface HomeFeedProps {
   userHistory: AppraisalResult[];
@@ -71,30 +73,84 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
   const [activeTab, setActiveTab] = useState<FeedTab>('discover');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [publicTreasures, setPublicTreasures] = useState<PublicTreasure[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Fetch public treasures
-  useEffect(() => {
-    async function fetchPublicTreasures() {
+  // Fetch public treasures with pagination
+  const fetchPublicTreasures = useCallback(async (offset = 0, append = false) => {
+    if (offset === 0) {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          id, item_name, image_url, price_low, price_high, currency, category, era, created_at,
-          users:user_id (name, picture)
-        `)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(30);
-
-      if (!error && data) {
-        setPublicTreasures(data as unknown as PublicTreasure[]);
-      }
-      setIsLoading(false);
+    } else {
+      setIsLoadingMore(true);
     }
 
-    fetchPublicTreasures();
+    // Fetch count on initial load
+    if (offset === 0) {
+      const { count } = await supabase
+        .from('appraisals')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_public', true);
+
+      setTotalCount(count || 0);
+    }
+
+    const { data, error } = await supabase
+      .from('appraisals')
+      .select(`
+        id, item_name, image_url, price_low, price_high, currency, category, era, created_at,
+        users:user_id (name, picture)
+      `)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + ITEMS_PER_PAGE - 1);
+
+    if (!error && data) {
+      if (append) {
+        setPublicTreasures(prev => [...prev, ...(data as unknown as PublicTreasure[])]);
+      } else {
+        setPublicTreasures(data as unknown as PublicTreasure[]);
+      }
+      setHasMore(data.length === ITEMS_PER_PAGE);
+    }
+
+    setIsLoading(false);
+    setIsLoadingMore(false);
   }, []);
+
+  // Initial fetch
+  useEffect(() => {
+    fetchPublicTreasures(0, false);
+  }, [fetchPublicTreasures]);
+
+  // Load more function
+  const loadMore = useCallback(() => {
+    if (!isLoadingMore && hasMore) {
+      fetchPublicTreasures(publicTreasures.length, true);
+    }
+  }, [fetchPublicTreasures, isLoadingMore, hasMore, publicTreasures.length]);
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    if (activeTab !== 'discover') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [activeTab, hasMore, isLoadingMore, loadMore]);
 
   // Calculate totals for My Treasures
   const totalValue = userHistory.reduce((acc, item) => acc + (item.priceRange.high + item.priceRange.low) / 2, 0);
@@ -119,7 +175,7 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
               <CompassIcon className="w-5 h-5" />
               <span>Discover</span>
               <span className="text-xs bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">
-                {publicTreasures.length}
+                {totalCount > 0 ? totalCount : publicTreasures.length}
               </span>
             </div>
             {activeTab === 'discover' && (
@@ -285,12 +341,28 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
                     </Link>
                   );
                 })}
+
+            {/* Load more trigger for infinite scroll */}
+            {activeTab === 'discover' && (
+              <div ref={loadMoreRef} className="col-span-3 py-4 flex justify-center">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <div className="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full" />
+                    <span className="text-sm">Loading more...</span>
+                  </div>
+                ) : hasMore ? (
+                  <span className="text-xs text-slate-400">Scroll for more</span>
+                ) : publicTreasures.length > 0 ? (
+                  <span className="text-xs text-slate-400">You've seen all {totalCount} treasures!</span>
+                ) : null}
+              </div>
+            )}
           </div>
         ) : (
           /* Cards View */
           <div className="space-y-2">
             {activeTab === 'discover'
-              ? publicTreasures.slice(0, 10).map((treasure) => {
+              ? publicTreasures.map((treasure) => {
                   const avgValue = (treasure.price_low + treasure.price_high) / 2;
                   return (
                     <Link
@@ -315,7 +387,7 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
                     </Link>
                   );
                 })
-              : userHistory.slice(0, 10).map((item) => {
+              : userHistory.map((item) => {
                   const avgValue = (item.priceRange.low + item.priceRange.high) / 2;
                   return (
                     <Link
@@ -340,30 +412,24 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
                   );
                 })}
 
-            {/* See More Link */}
-            {currentItems.length > 10 && (
-              <Link
-                href={activeTab === 'discover' ? '/discover' : '/profile'}
-                className="block text-center py-3 text-teal-600 font-medium text-sm hover:bg-slate-50 rounded-lg transition-colors"
-              >
-                See all {currentItems.length} treasures →
-              </Link>
+            {/* Load more trigger for cards view */}
+            {activeTab === 'discover' && (
+              <div ref={loadMoreRef} className="py-4 flex justify-center">
+                {isLoadingMore ? (
+                  <div className="flex items-center gap-2 text-slate-400">
+                    <div className="animate-spin w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full" />
+                    <span className="text-sm">Loading more...</span>
+                  </div>
+                ) : hasMore ? (
+                  <span className="text-xs text-slate-400">Scroll for more</span>
+                ) : publicTreasures.length > 0 ? (
+                  <span className="text-xs text-slate-400">You've seen all {totalCount} treasures!</span>
+                ) : null}
+              </div>
             )}
           </div>
         )}
       </div>
-
-      {/* See More for Grid View */}
-      {viewMode === 'grid' && currentItems.length > 0 && (
-        <div className="border-t border-slate-100 p-3">
-          <Link
-            href={activeTab === 'discover' ? '/discover' : '/profile'}
-            className="block text-center text-teal-600 font-medium text-sm hover:text-teal-700 transition-colors"
-          >
-            {activeTab === 'discover' ? 'Explore more treasures' : 'View all my treasures'} →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

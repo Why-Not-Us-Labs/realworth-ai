@@ -1,33 +1,64 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { TriviaQuestion, getRandomQuestions } from '@/lib/triviaQuestions';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { TriviaQuestion, getRandomQuestionExcluding, triviaQuestions } from '@/lib/triviaQuestions';
 import { GemIcon, CheckIcon, XIcon } from './icons';
 
 interface TriviaQuizProps {
   onPointsEarned?: (points: number) => void;
-  maxQuestions?: number;
 }
 
 type AnswerState = 'unanswered' | 'correct' | 'incorrect';
 
-export function TriviaQuiz({ onPointsEarned, maxQuestions = 5 }: TriviaQuizProps) {
-  const [questions, setQuestions] = useState<TriviaQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+export function TriviaQuiz({ onPointsEarned }: TriviaQuizProps) {
+  const [currentQuestion, setCurrentQuestion] = useState<TriviaQuestion | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [answerState, setAnswerState] = useState<AnswerState>('unanswered');
   const [totalPoints, setTotalPoints] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
 
-  // Initialize questions
+  // Track shown question IDs to keep them fresh
+  const shownQuestionIds = useRef<Set<string>>(new Set());
+  const autoAdvanceTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Get next fresh question (resets pool if all shown)
+  const getNextQuestion = useCallback(() => {
+    // If we've shown all questions, reset the pool
+    if (shownQuestionIds.current.size >= triviaQuestions.length) {
+      shownQuestionIds.current.clear();
+    }
+
+    const nextQuestion = getRandomQuestionExcluding(Array.from(shownQuestionIds.current));
+    if (nextQuestion) {
+      shownQuestionIds.current.add(nextQuestion.id);
+      setCurrentQuestion(nextQuestion);
+    }
+  }, []);
+
+  // Initialize first question
   useEffect(() => {
-    setQuestions(getRandomQuestions(maxQuestions));
-  }, [maxQuestions]);
+    getNextQuestion();
+    // Cleanup timer on unmount
+    return () => {
+      if (autoAdvanceTimer.current) clearTimeout(autoAdvanceTimer.current);
+    };
+  }, [getNextQuestion]);
 
-  const currentQuestion = questions[currentIndex];
+  // Advance to next question immediately
+  const advanceToNext = useCallback(() => {
+    if (autoAdvanceTimer.current) {
+      clearTimeout(autoAdvanceTimer.current);
+      autoAdvanceTimer.current = null;
+    }
+    setSelectedAnswer(null);
+    setAnswerState('unanswered');
+    setShowExplanation(false);
+    getNextQuestion();
+  }, [getNextQuestion]);
 
   const handleAnswer = useCallback((optionIndex: number) => {
-    if (answerState !== 'unanswered') return; // Already answered
+    if (answerState !== 'unanswered' || !currentQuestion) return;
 
     setSelectedAnswer(optionIndex);
     const isCorrect = optionIndex === currentQuestion.correctIndex;
@@ -42,17 +73,13 @@ export function TriviaQuiz({ onPointsEarned, maxQuestions = 5 }: TriviaQuizProps
     }
 
     setShowExplanation(true);
+    setQuestionsAnswered(prev => prev + 1);
 
-    // Auto-advance to next question after delay
-    setTimeout(() => {
-      if (currentIndex < questions.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-        setSelectedAnswer(null);
-        setAnswerState('unanswered');
-        setShowExplanation(false);
-      }
-    }, 3000);
-  }, [answerState, currentQuestion, currentIndex, questions.length, totalPoints, onPointsEarned]);
+    // Auto-advance to next question after delay (user can tap to skip)
+    autoAdvanceTimer.current = setTimeout(() => {
+      advanceToNext();
+    }, 4000); // 4 seconds gives time to read explanation
+  }, [answerState, currentQuestion, totalPoints, onPointsEarned, advanceToNext]);
 
   if (!currentQuestion) {
     return null;
@@ -67,7 +94,7 @@ export function TriviaQuiz({ onPointsEarned, maxQuestions = 5 }: TriviaQuizProps
           <span className="text-sm font-bold text-amber-700">{totalPoints} pts</span>
         </div>
         <span className="text-xs text-slate-500">
-          {currentIndex + 1} / {questions.length}
+          {questionsAnswered + 1} answered
         </span>
       </div>
 
@@ -144,7 +171,7 @@ export function TriviaQuiz({ onPointsEarned, maxQuestions = 5 }: TriviaQuizProps
                   </svg>
                 </span>
               )}
-              <div>
+              <div className="flex-1">
                 <p className={`font-medium mb-1 ${
                   answerState === 'correct' ? 'text-green-800' : 'text-amber-800'
                 }`}>
@@ -155,22 +182,32 @@ export function TriviaQuiz({ onPointsEarned, maxQuestions = 5 }: TriviaQuizProps
                 </p>
               </div>
             </div>
+            {/* Next button for immediate advancement */}
+            <button
+              onClick={advanceToNext}
+              className="mt-3 w-full py-2 px-4 bg-teal-500 hover:bg-teal-600 active:bg-teal-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              Next Question
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </button>
           </div>
         )}
       </div>
 
-      {/* Progress Dots */}
-      <div className="flex justify-center gap-1.5 mt-4">
-        {questions.map((_, index) => (
-          <div
-            key={index}
-            className={`w-2 h-2 rounded-full transition-all ${
-              index < currentIndex ? 'bg-teal-500' :
-              index === currentIndex ? 'bg-teal-500 w-4' :
-              'bg-slate-200'
-            }`}
-          />
-        ))}
+      {/* Infinite Progress Indicator */}
+      <div className="flex justify-center items-center gap-2 mt-4">
+        <div className="flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"
+              style={{ animationDelay: `${i * 0.2}s` }}
+            />
+          ))}
+        </div>
+        <span className="text-xs text-slate-400">Keep playing while we appraise</span>
       </div>
     </div>
   );

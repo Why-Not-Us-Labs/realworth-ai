@@ -141,9 +141,8 @@ class AuthService {
 
     try {
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
-      // Include the full pathname to preserve any query params or hash
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
-      const redirectUrl = `${currentOrigin}${currentPath}`;
+      // Use the auth callback route to properly exchange the code for a session
+      const redirectUrl = `${currentOrigin}/auth/callback`;
 
       console.log(`[Auth] Signing in with ${provider}, redirectTo:`, redirectUrl);
       console.log(`[Auth] Current origin:`, currentOrigin);

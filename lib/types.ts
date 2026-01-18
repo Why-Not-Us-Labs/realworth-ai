@@ -40,6 +40,12 @@ export interface CollectionOpportunity {
   photographyTips?: string;
 }
 
+export interface RarityFactor {
+  factor: string;   // e.g., "Low Mintage", "Key Date", "Condition Rarity"
+  score: number;    // 0-10 scale
+  detail: string;   // 1-2 sentence explanation
+}
+
 export interface AppraisalResult {
   id: string;
   image: string; // Primary/result image (backward compatible)
@@ -61,6 +67,8 @@ export interface AppraisalResult {
   collectibleDetails?: CollectibleDetails; // Additional details for coins, stamps, currency
   collectionOpportunity?: CollectionOpportunity; // Detected set/collection opportunity
   careTips?: string[]; // Preservation and care recommendations
+  rarityScore?: number; // 0-10 scale (e.g., 6.3)
+  rarityFactors?: RarityFactor[]; // Factors contributing to rarity score
   timestamp: number;
   isPublic?: boolean; // Whether this treasure is publicly shareable
 }
@@ -116,3 +124,66 @@ export interface CollectionSummary {
   goalDate?: string;
   thumbnailUrl?: string;
 }
+
+// ============================================
+// v2 Hybrid Valuation Engine Types
+// ============================================
+
+/**
+ * Comparable item from eBay sold listings
+ */
+export type EbayComparable = {
+  title: string;
+  price: number;
+  soldDate: string;
+  listingType: 'auction' | 'buy_it_now' | 'fixed_price';
+  url?: string;
+};
+
+/**
+ * Market data from eBay API
+ */
+export type EbayMarketData = {
+  average: number;
+  median: number;
+  low: number;
+  high: number;
+  sampleSize: number;
+  source: 'ebay';
+  comparables: EbayComparable[];
+  confidence: number; // 0-1 based on sample size
+  cachedAt?: string;
+};
+
+/**
+ * Breakdown of how the final value was calculated
+ */
+export type ValuationBreakdown = {
+  baseMarketValue: number;
+  source: 'ebay' | 'gemini' | 'hybrid';
+  conditionModifier: number; // 0.15-1.0
+  conditionNote?: string; // e.g., "Minor scratches noted"
+  sampleSize: number;
+  comparablesUsed: number;
+  ebayData?: EbayMarketData;
+};
+
+/**
+ * Future value prediction (Antiques Roadshow style)
+ */
+export type FutureValuePrediction = {
+  years: 10 | 25 | 50 | 100;
+  probability: number; // 0-100
+  multiplierLow: number; // e.g., 1.5 = 1.5x current value
+  multiplierHigh: number; // e.g., 3.0 = 3x current value
+  reasoning: string;
+};
+
+/**
+ * Extended appraisal result with v2 valuation data
+ */
+export type AppraisalResultV2 = AppraisalResult & {
+  valuationBreakdown?: ValuationBreakdown;
+  futureValuePredictions?: FutureValuePrediction[];
+  ebayComparables?: EbayComparable[];
+};

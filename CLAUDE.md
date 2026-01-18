@@ -62,9 +62,17 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 
 **Appraisal API** (`/api/appraise/route.ts`):
 - Uses Gemini structured output with JSON schema for consistent responses
-- Two-step AI process: (1) appraisal data extraction, (2) image regeneration
+- Three-step process: (1) Gemini identification, (2) eBay price lookup, (3) image regeneration
+- **v2 Hybrid Valuation Engine**: Gemini identifies items, eBay API provides real sold prices
 - Supports collection validation when `collectionId` provided
 - Images stored in Supabase Storage, falls back to original URL on upload failure
+- Returns `valuationBreakdown`, `ebayComparables`, `futureValuePredictions` for transparency
+
+**eBay Price Service** (`services/ebayPriceService.ts`):
+- Integrates with eBay Average Selling Price API via RapidAPI
+- 48-hour caching in `price_cache` table to minimize API costs
+- Returns average, median, price range from real sold listings
+- Falls back to Gemini estimates when insufficient eBay data (<5 results)
 
 **Gamification System**:
 - Streak tracking via `updateUserStreak()` in `dbService.ts`
@@ -158,6 +166,7 @@ STRIPE_SECRET_KEY="..."                   # Server-side only
 STRIPE_WEBHOOK_SECRET="..."               # For webhook verification
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="..."  # Public - for Stripe Elements
 NEXT_PUBLIC_MAPBOX_TOKEN="..."            # Public - for map views
+RAPIDAPI_KEY="..."                        # Server-side only - eBay Average Selling Price API
 ```
 
 ## MCP Integrations

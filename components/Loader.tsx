@@ -58,7 +58,7 @@ export const Loader: React.FC<LoaderProps> = ({ onPointsEarned }) => {
             While you wait, test your knowledge!
           </p>
         </div>
-        <TriviaQuiz onPointsEarned={handlePointsEarned} maxQuestions={5} />
+        <TriviaQuiz onPointsEarned={handlePointsEarned} />
       </div>
 
       {/* Progress indicator */}

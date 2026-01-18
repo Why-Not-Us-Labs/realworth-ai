@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef } from 'react';
 import Link from 'next/link';
 import { LogoIcon, LockIcon } from '@/components/icons';
 import { AuthContext } from '@/components/contexts/AuthContext';
@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import UpgradeModal from '@/components/UpgradeModal';
+import { CollapsibleText } from '@/components/CollapsibleText';
 
 interface TreasureData {
   id: string;
@@ -22,6 +23,7 @@ interface TreasureData {
   currency: string;
   reasoning: string;
   image_url: string;
+  images?: string[];
   is_public: boolean;
   user_id: string;
   confidence_score?: number;
@@ -48,6 +50,14 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
   const [authReady, setAuthReady] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isDownloadingCertificate, setIsDownloadingCertificate] = useState(false);
+
+  // Image gallery state
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  // Minimum swipe distance (in px)
+  const minSwipeDistance = 50;
 
   // Get subscription status
   const { isPro } = useSubscription(user?.id || null, user?.email);
@@ -183,6 +193,40 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
       alert('Failed to generate certificate. Please try again.');
     } finally {
       setIsDownloadingCertificate(false);
+    }
+  };
+
+  // Image gallery helpers
+  const getAllImages = () => {
+    if (treasure?.images && treasure.images.length > 0) {
+      return treasure.images;
+    }
+    return treasure?.image_url ? [treasure.image_url] : [];
+  };
+
+  const allImages = treasure ? getAllImages() : [];
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && currentImageIndex < allImages.length - 1) {
+      setCurrentImageIndex(prev => prev + 1);
+    }
+    if (isRightSwipe && currentImageIndex > 0) {
+      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
@@ -408,14 +452,27 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Two-column layout on tablet+ */}
           <div className="md:flex">
-            {/* Image - smaller on tablet */}
-            {treasure.image_url && (
-              <div className="relative aspect-square md:aspect-auto md:w-2/5 md:min-h-[300px] bg-slate-100 flex-shrink-0">
+            {/* Image Gallery - with swipe support */}
+            {allImages.length > 0 && (
+              <div
+                className="relative aspect-square md:aspect-auto md:w-2/5 md:min-h-[300px] bg-slate-100 flex-shrink-0 overflow-hidden"
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+              >
                 <img
-                  src={treasure.image_url}
+                  src={allImages[currentImageIndex]}
                   alt={treasure.item_name}
-                  className="w-full h-full object-contain md:object-cover"
+                  className="w-full h-full object-contain md:object-cover transition-opacity duration-200"
+                  draggable={false}
                 />
+
+                {/* Image counter badge */}
+                {allImages.length > 1 && (
+                  <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
+                    {currentImageIndex + 1}/{allImages.length}
+                  </div>
+                )}
               </div>
             )}
 
@@ -567,7 +624,11 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 </svg>
                 About This Item
               </h3>
-              <p className="text-slate-600 leading-relaxed">{treasure.description}</p>
+              <CollapsibleText
+                text={treasure.description}
+                previewLength={150}
+                className="text-slate-600 leading-relaxed"
+              />
             </div>
 
             {/* Valuation Reasoning Card */}
@@ -578,66 +639,11 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 </svg>
                 Valuation Reasoning
               </h3>
-              <p className="text-amber-900/80 leading-relaxed">{treasure.reasoning}</p>
-            </div>
-
-            {/* Get Expert Opinion Section */}
-            <div className="mb-6">
-              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
-                <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Want a Second Opinion?
-              </h3>
-              <p className="text-sm text-slate-500 mb-3">
-                Get a professional appraisal from trusted experts:
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <a
-                  href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(treasure.item_name)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                >
-                  <span className="font-medium">Search eBay</span>
-                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                <a
-                  href="https://www.valuemystuff.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                >
-                  <span className="font-medium">ValueMyStuff</span>
-                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                <a
-                  href="https://www.ha.com/free-auction-appraisal.s"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                >
-                  <span className="font-medium">Heritage Auctions</span>
-                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                <a
-                  href="https://www.mearto.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
-                >
-                  <span className="font-medium">Mearto</span>
-                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              </div>
+              <CollapsibleText
+                text={treasure.reasoning}
+                previewLength={150}
+                className="text-amber-900/80 leading-relaxed"
+              />
             </div>
 
             {/* Owner Info */}
