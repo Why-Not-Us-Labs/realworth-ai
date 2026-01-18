@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer';
 import { DiscoverFeed } from '@/components/DiscoverFeed';
 import { AuthContext } from '@/components/contexts/AuthContext';
 import { SkeletonGrid } from '@/components/SkeletonCard';
+import { WeeklyLeaderboard } from '@/components/WeeklyLeaderboard';
 
 interface Treasure {
   id: string;
@@ -98,16 +99,23 @@ export default function DiscoverPage() {
 
       {/* Hero */}
       <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-6 sm:py-8 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className="flex justify-center mb-3">
-            <CompassIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-4">
+            <div className="flex justify-center mb-3">
+              <CompassIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+              Discover Treasures
+            </h1>
+            <p className="text-white/90 text-sm sm:text-base max-w-2xl mx-auto">
+              See what amazing finds others are uncovering
+            </p>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold mb-2">
-            Discover Treasures
-          </h1>
-          <p className="text-white/90 text-sm sm:text-base max-w-2xl mx-auto">
-            See what amazing finds others are uncovering
-          </p>
+
+          {/* Weekly Leaderboard */}
+          <div className="mt-4">
+            <WeeklyLeaderboard />
+          </div>
         </div>
       </div>
 
