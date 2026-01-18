@@ -176,7 +176,7 @@ export default function UpgradeModal({
     }
   };
 
-  // Handle single appraisal purchase ($2.99)
+  // Handle single appraisal purchase ($1.99)
   const handleSingleAppraisalPurchase = async () => {
     setIsLoading(true);
     setSinglePurchaseError(null);
@@ -388,7 +388,7 @@ export default function UpgradeModal({
             <div className="mb-3">
               <div className="text-center mb-3">
                 <div className="text-2xl sm:text-3xl font-bold text-slate-900">
-                  $2.99<span className="text-sm font-normal text-slate-500"> one-time</span>
+                  $1.99<span className="text-sm font-normal text-slate-500"> one-time</span>
                 </div>
                 <p className="text-xs text-slate-500">Get 1 appraisal credit instantly</p>
               </div>
@@ -413,7 +413,7 @@ export default function UpgradeModal({
                   size="default"
                   className="w-full"
                 >
-                  {isLoading ? 'Processing...' : 'Pay $2.99 for 1 Appraisal'}
+                  {isLoading ? 'Processing...' : 'Pay $1.99 for 1 Appraisal'}
                 </Button>
               )}
 
@@ -647,7 +647,7 @@ function SinglePaymentForm({
         size="default"
         className="w-full"
       >
-        {isProcessing ? 'Processing...' : 'Pay $2.99'}
+        {isProcessing ? 'Processing...' : 'Pay $1.99'}
       </Button>
     </form>
   );

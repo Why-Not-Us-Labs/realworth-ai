@@ -11,7 +11,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Price in cents
-const APPRAISAL_PRICE_CENTS = 299; // $2.99
+const APPRAISAL_PRICE_CENTS = 199; // $1.99
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id);
     }
 
-    // Create PaymentIntent for $2.99
+    // Create PaymentIntent for $1.99
     const paymentIntent = await stripe.paymentIntents.create({
       amount: APPRAISAL_PRICE_CENTS,
       currency: 'usd',

@@ -53,12 +53,20 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 
 **Subscription System**:
 - `subscriptionService.ts` manages Pro tier logic with Stripe integration
-- Free tier: 3 appraisals/month (tracked in `users.monthly_appraisal_count`)
+- Free tier: 2 appraisals/month (tracked in `users.monthly_appraisal_count`)
 - Pro tier: $19.99/mo or $149.99/yr (V2 prices with legacy $9.99 grandfathering)
+- **Pay-per-appraisal**: $1.99 one-time for 1 credit (tracked in `users.appraisal_credits`)
 - Free limit defined in `lib/constants.ts` as `FREE_APPRAISAL_LIMIT`
 - Super admin emails bypass limits (hardcoded in subscriptionService)
 - `useSubscription` hook provides subscription state to components
 - Stripe webhooks (`/api/stripe/webhook`) handle subscription lifecycle
+
+**Pay-Per-Appraisal System** (`/api/stripe/pay-per-appraisal`):
+- POST: Creates PaymentIntent for $1.99, returns clientSecret for Stripe Elements
+- PUT: Confirms payment, records in `appraisal_purchases`, adds credits to user
+- Credits only consumed on successful appraisal (errors don't deduct)
+- `subscriptionService.canCreateAppraisal()` checks both free count AND credits
+- `subscriptionService.consumeCredit()` deducts credit after appraisal success
 
 **Appraisal API** (`/api/appraise/route.ts`):
 - Uses Gemini structured output with JSON schema for consistent responses
@@ -104,6 +112,7 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 | `/api/stripe/checkout` | POST | Create checkout session |
 | `/api/stripe/portal` | POST | Customer portal redirect |
 | `/api/stripe/cancel` | POST | Cancel subscription |
+| `/api/stripe/pay-per-appraisal` | POST/PUT | Pay-per-appraisal ($1.99 credits) |
 | `/api/treasure/[id]` | GET/PATCH | Public appraisal endpoint |
 | `/api/queue/add` | POST | Add to batch queue |
 | `/api/queue/status` | GET | Poll queue status |
@@ -117,6 +126,10 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 | `/api/events` | GET/POST | List/create local events |
 | `/api/events/[id]` | GET/PATCH/DELETE | Manage event |
 | `/api/seller/*` | Various | Seller onboarding (Stripe Connect, phone) |
+| `/api/feed` | GET | Instagram-style discovery feed |
+| `/api/feed/like` | POST | Toggle like on appraisal |
+| `/api/feed/save` | POST | Toggle save/bookmark |
+| `/api/feed/comment` | GET/POST/DELETE | Comments CRUD |
 
 ### Services Layer (`services/`)
 - `authService.ts` - Supabase Auth wrapper
@@ -144,13 +157,22 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 ### Database Schema
 
 Main tables (see `supabase/schema.sql` and migrations):
-- `users` - Extends auth.users with profile, subscription, and streak fields
+- `users` - Extends auth.users with profile, subscription, streak, and credit fields
+  - `appraisal_credits` (INTEGER) - Pay-per-appraisal balance
+  - `monthly_appraisal_count` (INTEGER) - Free tier usage tracking
 - `appraisals` - Appraisal results with foreign key to users
+  - `is_public` (BOOLEAN) - Whether visible in discovery feed
+  - `like_count`, `comment_count` (INTEGER) - Denormalized counters
+  - `image_urls` (TEXT[]) - Multi-image carousel support
 - `collections` - User collections with validation metadata
 - `access_codes` - Pro access codes for promotional grants
 - `friendships` - Friend requests (user_id, friend_id, status)
 - `chat_messages` - Pro user AI chat history
 - `surveys` - Feature validation survey responses
+- `likes` - User likes on appraisals (user_id, appraisal_id)
+- `saves` - User bookmarks/saves (user_id, appraisal_id)
+- `comments` - Comments on appraisals with threading (parent_id)
+- `appraisal_purchases` - Pay-per-appraisal transaction history
 
 User profile auto-created via `handle_new_user()` trigger on auth signup.
 

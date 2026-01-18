@@ -4,6 +4,74 @@ This document tracks significant features, fixes, and improvements made to the p
 
 ---
 
+## January 18, 2026
+
+### Instagram-Style Discovery Feed
+**Commits:** `7380f50`
+
+Replaced TikTok-style vertical snap scroll with Instagram-style card feed for the Discover page.
+
+**New Components Created:**
+- `components/InstagramFeed.tsx` - Main scrollable feed with infinite scroll
+- `components/FeedPost.tsx` - Individual post card with user header, carousel, engagement
+- `components/ImageCarousel.tsx` - Swipeable image gallery with dot pagination
+- `components/PostHeader.tsx` - User avatar, name, timestamp header
+- `components/HeartAnimation.tsx` - Double-tap like animation (CSS keyframes)
+- `lib/formatters.ts` - Shared `formatCurrency()` and `timeAgo()` utilities
+
+**New API Endpoint:**
+- `GET /api/feed` - Returns public appraisals with user data, like/save state
+
+**Features:**
+- 4:5 aspect ratio images (Instagram standard)
+- Horizontal swipe carousel with dot indicators
+- Double-tap to like with heart animation
+- Optimistic UI updates for likes/saves
+- Efficient batch queries (no N+1)
+- Integrated with existing `CommentSheet` component
+
+**Components Modified:**
+- `components/HomeFeed.tsx` - Now uses InstagramFeed
+- `components/EngagementButtons.tsx` - Added `onLikeChange` callback
+
+**Components Deleted:**
+- `components/FullScreenFeed.tsx` - Replaced by InstagramFeed
+
+---
+
+### $1.99 Pay-Per-Appraisal
+**Feature:** Low-barrier pay-as-you-go option for users who exceed free tier.
+
+**Stripe Setup:**
+- Created price `price_1Sr3C9CVhCc8z8wiP8xC3VCs` ($1.99 one-time)
+- Product: RealWorth Pro (`prod_TTQ9nVd9uSkgvu`)
+
+**Pricing Tiers:**
+| Tier | Price | Appraisals |
+|------|-------|------------|
+| Free | $0 | 2/month |
+| Pay-As-You-Go | $1.99 | 1 credit (success only) |
+| Pro Monthly | $19.99/mo | Unlimited |
+| Pro Annual | $149.99/yr | Unlimited |
+
+**Files Modified:**
+- `app/api/stripe/pay-per-appraisal/route.ts` - `APPRAISAL_PRICE_CENTS = 199`
+- `app/api/appraise/route.ts` - Error message shows $1.99
+- `components/UpgradeModal.tsx` - UI displays $1.99
+
+**User Flow:**
+1. User exhausts 2 free appraisals
+2. Shown "Buy for $1.99" option in UpgradeModal
+3. Stripe Elements payment form
+4. On success: 1 credit added to `users.appraisal_credits`
+5. Credit consumed only on successful appraisal (errors don't deduct)
+
+**Database:**
+- `users.appraisal_credits` - Balance field
+- `appraisal_purchases` - Transaction history (idempotency)
+
+---
+
 ## January 2, 2026
 
 ### shadcn/ui Integration & Mobile Optimization

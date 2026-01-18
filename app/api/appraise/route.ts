@@ -385,7 +385,7 @@ export async function POST(req: NextRequest) {
           {
             error: 'Monthly appraisal limit reached',
             code: 'LIMIT_REACHED',
-            message: `You've used all ${FREE_APPRAISAL_LIMIT} free appraisals this month. Upgrade to Pro for unlimited appraisals or buy a single appraisal for $2.99!`,
+            message: `You've used all ${FREE_APPRAISAL_LIMIT} free appraisals this month. Upgrade to Pro for unlimited appraisals or buy a single appraisal for $1.99!`,
             currentCount,
             limit: FREE_APPRAISAL_LIMIT,
             credits,
