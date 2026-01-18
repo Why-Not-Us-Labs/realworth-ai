@@ -13,7 +13,9 @@ type EngagementButtonsProps = {
   commentCount?: number;
   onCommentClick?: () => void;
   onShare?: () => void;
-  size?: 'sm' | 'md';
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'horizontal' | 'vertical';
+  showLabels?: boolean;
   className?: string;
 };
 
@@ -26,6 +28,8 @@ export function EngagementButtons({
   onCommentClick,
   onShare,
   size = 'md',
+  variant = 'horizontal',
+  showLabels = false,
   className = '',
 }: EngagementButtonsProps) {
   const { user } = useContext(AuthContext);
@@ -35,9 +39,10 @@ export function EngagementButtons({
   const [isLiking, setIsLiking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const iconSize = size === 'sm' ? 'w-4 h-4' : 'w-5 h-5';
-  const buttonPadding = size === 'sm' ? 'p-1.5' : 'p-2';
-  const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
+  const iconSize = size === 'sm' ? 'w-4 h-4' : size === 'lg' ? 'w-7 h-7' : 'w-5 h-5';
+  const buttonPadding = size === 'sm' ? 'p-1.5' : size === 'lg' ? 'p-3' : 'p-2';
+  const textSize = size === 'sm' ? 'text-xs' : size === 'lg' ? 'text-sm' : 'text-sm';
+  const isVertical = variant === 'vertical';
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -142,25 +147,39 @@ export function EngagementButtons({
     onShare?.();
   };
 
+  // Vertical layout styles for full-screen feed
+  const verticalButtonStyles = isVertical
+    ? 'flex flex-col items-center gap-1'
+    : 'flex items-center gap-1';
+
+  const verticalContainerStyles = isVertical
+    ? 'flex flex-col items-center gap-4'
+    : 'flex items-center gap-1';
+
+  // For vertical dark mode (full-screen feed)
+  const bgHover = isVertical ? 'hover:bg-white/20' : '';
+
   return (
-    <div className={`flex items-center gap-1 ${className}`}>
+    <div className={`${verticalContainerStyles} ${className}`}>
       {/* Like button */}
       <button
         onClick={handleLike}
         disabled={!user || isLiking}
-        className={`flex items-center gap-1 ${buttonPadding} rounded-full transition-all ${
+        className={`${verticalButtonStyles} ${buttonPadding} rounded-full transition-all ${
           isLiked
             ? 'text-red-500 hover:text-red-600'
-            : 'text-slate-400 hover:text-red-500'
-        } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50'}`}
+            : isVertical ? 'text-white hover:text-red-400' : 'text-slate-400 hover:text-red-500'
+        } ${!user ? 'opacity-50 cursor-not-allowed' : isVertical ? bgHover : 'hover:bg-red-50'}`}
         aria-label={isLiked ? 'Unlike' : 'Like'}
       >
         <HeartIcon
           className={`${iconSize} transition-transform ${isLiked ? 'scale-110' : ''}`}
           fill={isLiked ? 'currentColor' : 'none'}
         />
-        {likeCount > 0 && (
-          <span className={`${textSize} font-medium`}>{likeCount}</span>
+        {(likeCount > 0 || showLabels) && (
+          <span className={`${textSize} font-medium`}>
+            {likeCount > 0 ? likeCount : showLabels ? 'Like' : ''}
+          </span>
         )}
       </button>
 
@@ -168,12 +187,16 @@ export function EngagementButtons({
       {onCommentClick && (
         <button
           onClick={handleComment}
-          className={`flex items-center gap-1 ${buttonPadding} rounded-full text-slate-400 hover:text-teal-500 hover:bg-teal-50 transition-all`}
+          className={`${verticalButtonStyles} ${buttonPadding} rounded-full transition-all ${
+            isVertical ? 'text-white hover:text-teal-300' : 'text-slate-400 hover:text-teal-500'
+          } ${isVertical ? bgHover : 'hover:bg-teal-50'}`}
           aria-label="Comment"
         >
           <ChatBubbleIcon className={iconSize} />
-          {commentCount > 0 && (
-            <span className={`${textSize} font-medium`}>{commentCount}</span>
+          {(commentCount > 0 || showLabels) && (
+            <span className={`${textSize} font-medium`}>
+              {commentCount > 0 ? commentCount : showLabels ? 'Comment' : ''}
+            </span>
           )}
         </button>
       )}
@@ -182,27 +205,33 @@ export function EngagementButtons({
       <button
         onClick={handleSave}
         disabled={!user || isSaving}
-        className={`${buttonPadding} rounded-full transition-all ${
+        className={`${verticalButtonStyles} ${buttonPadding} rounded-full transition-all ${
           isSaved
-            ? 'text-teal-500 hover:text-teal-600'
-            : 'text-slate-400 hover:text-teal-500'
-        } ${!user ? 'opacity-50 cursor-not-allowed' : 'hover:bg-teal-50'}`}
+            ? 'text-teal-400 hover:text-teal-300'
+            : isVertical ? 'text-white hover:text-teal-300' : 'text-slate-400 hover:text-teal-500'
+        } ${!user ? 'opacity-50 cursor-not-allowed' : isVertical ? bgHover : 'hover:bg-teal-50'}`}
         aria-label={isSaved ? 'Unsave' : 'Save'}
       >
         <BookmarkIcon
           className={`${iconSize} transition-transform ${isSaved ? 'scale-110' : ''}`}
           fill={isSaved ? 'currentColor' : 'none'}
         />
+        {showLabels && (
+          <span className={`${textSize} font-medium`}>{isSaved ? 'Saved' : 'Save'}</span>
+        )}
       </button>
 
       {/* Share button (optional) */}
       {onShare && (
         <button
           onClick={handleShare}
-          className={`${buttonPadding} rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all`}
+          className={`${verticalButtonStyles} ${buttonPadding} rounded-full transition-all ${
+            isVertical ? 'text-white hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'
+          } ${isVertical ? bgHover : 'hover:bg-slate-100'}`}
           aria-label="Share"
         >
           <ShareIcon className={iconSize} />
+          {showLabels && <span className={`${textSize} font-medium`}>Share</span>}
         </button>
       )}
     </div>

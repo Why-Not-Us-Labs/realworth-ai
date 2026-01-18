@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CompassIcon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import { RarityBadge, RarityIndicator } from '@/components/RarityBadge';
+import { FullScreenFeed } from '@/components/FullScreenFeed';
 
 const ITEMS_PER_PAGE = 30;
 
@@ -12,7 +13,7 @@ interface HomeFeedProps {
   isLoggedIn: boolean;
 }
 
-type ViewMode = 'cards' | 'grid';
+type ViewMode = 'cards' | 'grid' | 'full';
 
 interface PublicTreasure {
   id: string;
@@ -58,6 +59,13 @@ const GridIcon = () => (
 const CardsIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+  </svg>
+);
+
+// Full screen / TikTok-style icon
+const FullScreenIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
   </svg>
 );
 
@@ -164,6 +172,18 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
           <span>See what others are finding</span>
         </div>
         <div className="flex items-center gap-1 bg-white rounded-lg p-0.5 border border-slate-200">
+          <button
+            onClick={() => setViewMode('full')}
+            className={`p-1.5 rounded transition-all ${
+              viewMode === 'full'
+                ? 'bg-teal-500 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-600'
+            }`}
+            aria-label="Full screen view"
+            title="Full screen (TikTok-style)"
+          >
+            <FullScreenIcon />
+          </button>
           <button
             onClick={() => setViewMode('grid')}
             className={`p-1.5 rounded transition-all ${
@@ -309,6 +329,11 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
           </div>
         )}
       </div>
+
+      {/* Full Screen Feed Modal */}
+      {viewMode === 'full' && (
+        <FullScreenFeed onClose={() => setViewMode('grid')} />
+      )}
     </div>
   );
 }
