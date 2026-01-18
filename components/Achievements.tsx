@@ -153,8 +153,52 @@ function calculateAchievements(history: AppraisalResult[]): Achievement[] {
 }
 
 export const Achievements: React.FC<AchievementsProps> = ({ history }) => {
+  const [showLocked, setShowLocked] = React.useState(false);
   const achievements = calculateAchievements(history);
-  const unlockedCount = achievements.filter(a => a.unlocked).length;
+  const unlocked = achievements.filter(a => a.unlocked);
+  const locked = achievements.filter(a => !a.unlocked);
+
+  const AchievementCard = ({ achievement, isLocked = false }: { achievement: Achievement; isLocked?: boolean }) => (
+    <div
+      className={`relative p-3 rounded-lg border transition-all ${
+        achievement.unlocked
+          ? 'border-teal-200 bg-teal-50'
+          : 'border-slate-100 bg-slate-50'
+      }`}
+      title={achievement.description}
+    >
+      <div className="text-center">
+        <div className={`mb-1.5 flex justify-center ${
+          achievement.unlocked ? 'text-teal-600' : 'text-slate-400'
+        }`}>
+          {achievement.icon}
+        </div>
+        <p className={`text-xs font-medium truncate ${
+          achievement.unlocked ? 'text-slate-800' : 'text-slate-500'
+        }`}>
+          {achievement.name}
+        </p>
+        {achievement.progress !== undefined && !achievement.unlocked && (
+          <div className="mt-1.5">
+            <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-teal-500 rounded-full"
+                style={{ width: `${(achievement.progress / (achievement.total || 1)) * 100}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">
+              {achievement.progress}/{achievement.total}
+            </p>
+          </div>
+        )}
+        {achievement.unlocked && (
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full flex items-center justify-center">
+            <CheckIcon className="w-2.5 h-2.5 text-white" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
@@ -164,54 +208,53 @@ export const Achievements: React.FC<AchievementsProps> = ({ history }) => {
           <h3 className="font-semibold text-slate-900 text-sm">Achievements</h3>
         </div>
         <span className="text-xs text-slate-500">
-          {unlockedCount}/{achievements.length}
+          {unlocked.length}/{achievements.length}
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {achievements.map((achievement) => (
-          <div
-            key={achievement.id}
-            className={`relative p-3 rounded-lg border transition-all ${
-              achievement.unlocked
-                ? 'border-teal-200 bg-teal-50'
-                : 'border-slate-100 bg-slate-50 opacity-50'
-            }`}
-            title={achievement.description}
+      {/* Unlocked Achievements */}
+      {unlocked.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+          {unlocked.map((achievement) => (
+            <AchievementCard key={achievement.id} achievement={achievement} />
+          ))}
+        </div>
+      )}
+
+      {/* Locked Achievements - Collapsible */}
+      {locked.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowLocked(!showLocked)}
+            className="w-full flex items-center justify-center gap-2 py-2 text-xs text-slate-500 hover:text-slate-700 transition-colors"
           >
-            <div className="text-center">
-              <div className={`mb-1.5 flex justify-center ${
-                achievement.unlocked ? 'text-teal-600' : 'text-slate-400'
-              }`}>
-                {achievement.icon}
-              </div>
-              <p className={`text-xs font-medium truncate ${
-                achievement.unlocked ? 'text-slate-800' : 'text-slate-500'
-              }`}>
-                {achievement.name}
-              </p>
-              {achievement.progress !== undefined && !achievement.unlocked && (
-                <div className="mt-1.5">
-                  <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-teal-500 rounded-full"
-                      style={{ width: `${(achievement.progress / (achievement.total || 1)) * 100}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    {achievement.progress}/{achievement.total}
-                  </p>
-                </div>
-              )}
-              {achievement.unlocked && (
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-teal-500 rounded-full flex items-center justify-center">
-                  <CheckIcon className="w-2.5 h-2.5 text-white" />
-                </div>
-              )}
+            <span>{showLocked ? 'Hide' : 'Show'} {locked.length} locked</span>
+            <svg
+              className={`w-4 h-4 transition-transform ${showLocked ? 'rotate-180' : ''}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showLocked && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2 opacity-60">
+              {locked.map((achievement) => (
+                <AchievementCard key={achievement.id} achievement={achievement} isLocked />
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {unlocked.length === 0 && (
+        <p className="text-center text-sm text-slate-400 py-4">
+          Start appraising items to unlock achievements!
+        </p>
+      )}
     </div>
   );
 };
