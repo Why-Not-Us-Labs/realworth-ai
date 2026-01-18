@@ -72,6 +72,25 @@ Replaced TikTok-style vertical snap scroll with Instagram-style card feed for th
 
 ---
 
+### Remove AI Image Regeneration
+**Reason:** User trust - regenerated images confused users when they didn't match their original photos.
+
+**Previous Behavior:**
+- Used `gemini-3-pro-image-preview` to regenerate uploaded images
+- Prompt: "Regenerate this image exactly as it is, without any changes."
+- Result: Stylized images with different backgrounds (not faithful copies)
+
+**New Behavior:**
+- Display the user's original uploaded image directly
+- No AI image generation step
+- Faster appraisals (removed extra API call)
+- All original images preserved in `image_urls` array
+
+**Files Modified:**
+- `app/api/appraise/route.ts` - Removed regeneration, use `imageUrls[0]` directly
+
+---
+
 ## January 2, 2026
 
 ### shadcn/ui Integration & Mobile Optimization

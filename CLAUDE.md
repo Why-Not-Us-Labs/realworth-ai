@@ -19,7 +19,7 @@ git push origin main # Auto-deploys to Vercel
 
 - **Framework**: Next.js 14 (App Router) with TypeScript
 - **Styling**: Tailwind CSS
-- **AI**: Google Gemini (`@google/genai`) - `gemini-3-pro-preview` for appraisals, `gemini-3-pro-image-preview` for image regeneration
+- **AI**: Google Gemini (`@google/genai`) - `gemini-3-pro-preview` for appraisals
 - **Auth**: Supabase Auth (Google OAuth)
 - **Database**: Supabase PostgreSQL with RLS
 - **Storage**: Supabase Storage (appraisal-images bucket)
@@ -33,9 +33,8 @@ git push origin main # Auto-deploys to Vercel
 ### Core Data Flow
 1. User uploads images via `AppraisalForm.tsx` → images uploaded to Supabase Storage
 2. API route `/api/appraise/route.ts` fetches images, sends to Gemini for structured JSON appraisal
-3. Gemini regenerates a clean version of the image using `gemini-3-pro-image-preview`
-4. Results stored in Supabase via `services/dbService.ts`
-5. Auth state managed globally via `AuthContext.tsx` wrapping the app
+3. Results stored in Supabase via `services/dbService.ts`
+4. Auth state managed globally via `AuthContext.tsx` wrapping the app
 
 ### View State Machine (`app/page.tsx`)
 The main page uses a state machine for the appraisal flow:
@@ -70,10 +69,10 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 
 **Appraisal API** (`/api/appraise/route.ts`):
 - Uses Gemini structured output with JSON schema for consistent responses
-- Three-step process: (1) Gemini identification, (2) eBay price lookup, (3) image regeneration
+- Two-step process: (1) Gemini identification, (2) eBay price lookup
 - **v2 Hybrid Valuation Engine**: Gemini identifies items, eBay API provides real sold prices
 - Supports collection validation when `collectionId` provided
-- Images stored in Supabase Storage, falls back to original URL on upload failure
+- Uses original uploaded images (no AI regeneration)
 - Returns `valuationBreakdown`, `ebayComparables`, `futureValuePredictions` for transparency
 
 **eBay Price Service** (`services/ebayPriceService.ts`):
