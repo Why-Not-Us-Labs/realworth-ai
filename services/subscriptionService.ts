@@ -343,56 +343,27 @@ class SubscriptionService {
     try {
       const supabaseAdmin = getSupabaseAdmin();
 
-      // First check if we need to reset the count (new month)
-      const { data: user, error: fetchError } = await supabaseAdmin
-        .from('users')
-        .select('monthly_appraisal_count, appraisal_count_reset_at, subscription_tier, email')
-        .eq('id', userId)
-        .single();
-
-      if (fetchError || !user) {
-        console.error('[SubscriptionService] Failed to fetch user for increment:', fetchError);
+      // Check if Pro or super admin (no counting needed)
+      const isPro = await this.isPro(userId);
+      if (isPro) {
         return { count: 0, limitReached: false };
       }
 
-      // Super admin users have unlimited appraisals
-      if (user.email && this.isSuperAdmin(user.email)) {
-        return { count: user.monthly_appraisal_count || 0, limitReached: false };
-      }
-
-      // Pro users have unlimited appraisals
-      if (user.subscription_tier === 'pro') {
-        return { count: user.monthly_appraisal_count || 0, limitReached: false };
-      }
-
-      let currentCount = user.monthly_appraisal_count || 0;
-      const resetAt = user.appraisal_count_reset_at ? new Date(user.appraisal_count_reset_at) : null;
-      const now = new Date();
-
-      // Reset count if it's a new month
-      if (!resetAt || now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-        console.log('[SubscriptionService] Resetting monthly count for user:', userId);
-        currentCount = 0;
-      }
+      // Get current state - month reset already handled by canCreateAppraisal()
+      // but we call ensureMonthReset() for safety in case called independently
+      const { currentCount } = await this.ensureMonthReset(userId);
 
       // Increment count
       const newCount = currentCount + 1;
       const limitReached = newCount >= FREE_APPRAISAL_LIMIT;
 
-      // Calculate first day of next month for reset date
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
       const { error: updateError } = await supabaseAdmin
         .from('users')
-        .update({
-          monthly_appraisal_count: newCount,
-          appraisal_count_reset_at: nextMonth.toISOString(),
-        })
+        .update({ monthly_appraisal_count: newCount })
         .eq('id', userId);
 
       if (updateError) {
         console.error('[SubscriptionService] CRITICAL: Failed to increment appraisal count:', updateError);
-        // Return current count but don't mark as failed - the appraisal already happened
         return { count: currentCount, limitReached: currentCount >= FREE_APPRAISAL_LIMIT };
       }
 
@@ -438,14 +409,8 @@ class SubscriptionService {
         return { canCreate: true, remaining: Infinity, isPro: true, currentCount: user.monthly_appraisal_count || 0, credits, useCredit: false };
       }
 
-      let currentCount = user.monthly_appraisal_count || 0;
-      const resetAt = user.appraisal_count_reset_at ? new Date(user.appraisal_count_reset_at) : null;
-      const now = new Date();
-
-      // Reset count if it's a new month
-      if (!resetAt || now.getMonth() !== resetAt.getMonth() || now.getFullYear() !== resetAt.getFullYear()) {
-        currentCount = 0;
-      }
+      // Ensure month is properly reset (uses single source of truth)
+      const { currentCount } = await this.ensureMonthReset(userId);
 
       const freeRemaining = Math.max(0, FREE_APPRAISAL_LIMIT - currentCount);
       const hasFreeAppraisals = currentCount < FREE_APPRAISAL_LIMIT;
@@ -544,6 +509,77 @@ class SubscriptionService {
     } catch {
       return 0;
     }
+  }
+
+  /**
+   * Ensure month reset is properly handled (Single Source of Truth)
+   * This method checks if a new month has started and resets the counter if needed.
+   * ALWAYS persists to database to avoid inconsistencies.
+   */
+  private async ensureMonthReset(userId: string): Promise<{
+    currentCount: number;
+    resetAt: Date;
+  }> {
+    const supabaseAdmin = getSupabaseAdmin();
+
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('monthly_appraisal_count, appraisal_count_reset_at')
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      console.error('[SubscriptionService] ensureMonthReset - failed to fetch user:', error);
+      // Return safe defaults
+      const nextMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1));
+      return { currentCount: 0, resetAt: nextMonth };
+    }
+
+    const now = new Date();
+    const resetAt = user.appraisal_count_reset_at
+      ? new Date(user.appraisal_count_reset_at)
+      : null;
+
+    // Check if reset needed (different month or never set)
+    // Use UTC to avoid timezone issues
+    const needsReset = !resetAt ||
+      now.getUTCMonth() !== resetAt.getUTCMonth() ||
+      now.getUTCFullYear() !== resetAt.getUTCFullYear();
+
+    if (needsReset) {
+      // Reset and persist to DB
+      const firstOfNextMonth = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth() + 1,
+        1
+      ));
+
+      console.log('[SubscriptionService] Month reset triggered:', {
+        userId,
+        oldResetAt: resetAt?.toISOString() || 'null',
+        newResetAt: firstOfNextMonth.toISOString(),
+        oldCount: user.monthly_appraisal_count || 0,
+      });
+
+      const { error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({
+          monthly_appraisal_count: 0,
+          appraisal_count_reset_at: firstOfNextMonth.toISOString()
+        })
+        .eq('id', userId);
+
+      if (updateError) {
+        console.error('[SubscriptionService] Failed to persist month reset:', updateError);
+      }
+
+      return { currentCount: 0, resetAt: firstOfNextMonth };
+    }
+
+    return {
+      currentCount: user.monthly_appraisal_count || 0,
+      resetAt: resetAt!
+    };
   }
 
   /**

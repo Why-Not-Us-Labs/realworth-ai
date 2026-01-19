@@ -140,6 +140,42 @@ Test another appraisal to verify improved keyword search returns eBay results
 
 ---
 
+## Test #004: Mobile Header Redesign - Sticky + Dropdown + Icons
+**Date:** 2026-01-18
+
+### Hypothesis
+Mobile header should be sticky, have a profile dropdown with sign-out, and use SVG icons instead of emojis.
+
+### Steps
+1. Open app on mobile device
+2. Sign in with Google
+3. Scroll down the page
+4. Tap on avatar/name area in header
+5. Verify dropdown appears with "My Profile" and "Sign Out"
+6. Tap outside dropdown to close
+7. Verify stats icons are SVGs (flame, gem, users) not emojis
+
+### Desired Outcome
+- Header sticks to top on scroll with blur effect
+- Tapping avatar opens dropdown menu
+- Dropdown has "My Profile" link and red "Sign Out" button
+- Clicking outside closes dropdown
+- Stats use SVG icons: FlameIcon (orange), GemIcon (teal), UsersIcon (blue)
+
+### Actual Outcome
+**PASSED** - All features working as expected:
+- Sticky header with glassmorphism effect (bg-white/95 backdrop-blur-lg)
+- Dropdown menu appears on avatar tap
+- "My Profile" navigates to /profile
+- "Sign Out" logs user out successfully
+- SVG icons render correctly in stats row
+- Click outside closes menu
+
+### Conclusion
+**PASSED** - Mobile header redesign complete and functional.
+
+---
+
 ## Template
 
 ```markdown
