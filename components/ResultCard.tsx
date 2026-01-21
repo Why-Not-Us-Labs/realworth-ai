@@ -316,20 +316,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
             {/* Rarity Score Section */}
             {currentResult.rarityScore !== undefined && (() => {
               const score = currentResult.rarityScore;
-              const isVeryRare = score >= 8.0;
-              const isModeratelyRare = score >= 5.0;
-
-              const bgClass = isVeryRare ? 'bg-rose-50 border-rose-200' : isModeratelyRare ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200';
-              const iconClass = isVeryRare ? 'text-rose-500' : isModeratelyRare ? 'text-amber-500' : 'text-slate-400';
-              const titleClass = isVeryRare ? 'text-rose-900' : isModeratelyRare ? 'text-amber-900' : 'text-slate-700';
-              const scoreClass = isVeryRare ? 'text-rose-700' : isModeratelyRare ? 'text-amber-700' : 'text-slate-600';
-              const labelClass = isVeryRare ? 'text-rose-500' : isModeratelyRare ? 'text-amber-500' : 'text-slate-400';
-              const borderClass = isVeryRare ? 'border-rose-200' : isModeratelyRare ? 'border-amber-200' : 'border-slate-200';
-              const factorTitleClass = isVeryRare ? 'text-rose-800' : isModeratelyRare ? 'text-amber-800' : 'text-slate-700';
-              const factorScoreClass = isVeryRare ? 'text-rose-600' : isModeratelyRare ? 'text-amber-600' : 'text-slate-500';
-              const barBgClass = isVeryRare ? 'bg-rose-100' : isModeratelyRare ? 'bg-amber-100' : 'bg-slate-200';
-              const barFillClass = isVeryRare ? 'bg-rose-500' : isModeratelyRare ? 'bg-amber-500' : 'bg-slate-400';
-              const detailClass = isVeryRare ? 'text-rose-700' : isModeratelyRare ? 'text-amber-700' : 'text-slate-500';
+              const rarity = score >= 8.0 ? 'veryRare' : score >= 5.0 ? 'rare' : 'common';
+              const colors = {
+                veryRare: { bg: 'bg-rose-50 border-rose-200', icon: 'text-rose-500', title: 'text-rose-900', score: 'text-rose-700', label: 'text-rose-500', border: 'border-rose-200', factorTitle: 'text-rose-800', factorScore: 'text-rose-600', barBg: 'bg-rose-100', barFill: 'bg-rose-500', detail: 'text-rose-700' },
+                rare: { bg: 'bg-amber-50 border-amber-200', icon: 'text-amber-500', title: 'text-amber-900', score: 'text-amber-700', label: 'text-amber-500', border: 'border-amber-200', factorTitle: 'text-amber-800', factorScore: 'text-amber-600', barBg: 'bg-amber-100', barFill: 'bg-amber-500', detail: 'text-amber-700' },
+                common: { bg: 'bg-slate-50 border-slate-200', icon: 'text-slate-400', title: 'text-slate-700', score: 'text-slate-600', label: 'text-slate-400', border: 'border-slate-200', factorTitle: 'text-slate-700', factorScore: 'text-slate-500', barBg: 'bg-slate-200', barFill: 'bg-slate-400', detail: 'text-slate-500' },
+              }[rarity];
+              const { bg: bgClass, icon: iconClass, title: titleClass, score: scoreClass, label: labelClass, border: borderClass, factorTitle: factorTitleClass, factorScore: factorScoreClass, barBg: barBgClass, barFill: barFillClass, detail: detailClass } = colors;
 
               return (
                 <div className={`mb-4 rounded-xl border overflow-hidden transition-colors ${bgClass}`}>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { CompassIcon } from '@/components/icons';
+import { CompassIcon, GridOutlineIcon, FeedIcon } from '@/components/icons';
 import { supabase } from '@/lib/supabase';
 import { RarityIndicator } from '@/components/RarityBadge';
 import { InstagramFeed } from '@/components/InstagramFeed';
@@ -40,19 +40,6 @@ function formatCurrency(amount: number, currency: string = 'USD') {
   }).format(amount);
 }
 
-// Icons
-const GridIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-  </svg>
-);
-
-// Feed icon (Instagram-style)
-const FeedIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-  </svg>
-);
 
 export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('feed');
@@ -167,7 +154,7 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
             aria-label="Feed view"
             title="Instagram-style feed"
           >
-            <FeedIcon />
+            <FeedIcon className="w-5 h-5" />
           </button>
           <button
             onClick={() => setViewMode('grid')}
@@ -178,7 +165,7 @@ export function HomeFeed({ isLoggedIn }: HomeFeedProps) {
             }`}
             aria-label="Grid view"
           >
-            <GridIcon />
+            <GridOutlineIcon className="w-5 h-5" />
           </button>
         </div>
       </div>

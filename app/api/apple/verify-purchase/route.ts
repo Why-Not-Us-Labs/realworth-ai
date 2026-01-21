@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import * as jwt from 'jsonwebtoken';
 
 // App Store Connect API configuration
@@ -15,18 +15,6 @@ const PRODUCT_TIERS: Record<string, 'pro'> = {
   'ai.realworth.pro.monthly': 'pro',
   'ai.realworth.pro.annual': 'pro',
 };
-
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
 
 /**
  * Generate JWT for App Store Server API authentication
