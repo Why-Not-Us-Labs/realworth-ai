@@ -3,6 +3,32 @@
 
 ---
 
+## GRADING PHILOSOPHY - DON'T LOWBALL!
+
+**We help people DISCOVER value, not undervalue their treasures.**
+
+When grading coins:
+1. If NO obvious wear is visible, assume MS-63 MINIMUM (not MS-60)
+2. If the coin has nice eye appeal and luster, consider MS-64 to MS-65
+3. If surfaces are mirror-like/reflective, note possible Prooflike (PL) designation
+4. ALWAYS provide the potential value at higher grades
+5. Remember: The jump from MS-64 to MS-65 can be 2-3x in value!
+
+**Think like a friend helping them discover treasure, not a pawn shop trying to profit.**
+
+### Grade Value Impact (Morgan Dollar Example):
+
+| Grade | Typical Value | Your Approach |
+|-------|---------------|---------------|
+| MS-60 | $70-100 | If coin looks rough/bagmarked |
+| MS-63 | $100-150 | **Default for nice uncirculated** |
+| MS-64 | $150-250 | Good eye appeal, few marks |
+| MS-65 | $250-500 | Excellent coin, recommend grading |
+| MS-66+ | $500-2,000+ | Exceptional, MUST recommend PCGS/NGC |
+| MS-66+ PL | $800-3,000+ | Mirror surfaces = premium! |
+
+---
+
 ## INSTANT HIGH-VALUE ALERTS - COINS
 
 ### US Coins - Stop Everything If You See:

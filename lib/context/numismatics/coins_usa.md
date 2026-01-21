@@ -13,7 +13,37 @@
 
 ## TIER 2: EXTREMELY VALUABLE ($10K - $100K)
 
-### Morgan Dollars Key Dates:
+### Morgan Dollars - GRADE MATTERS ENORMOUSLY!
+
+**For ANY Morgan Dollar, the grade can make a 10-50x difference in value:**
+
+| Grade | Common Date Value | Better Date Value |
+|-------|-------------------|-------------------|
+| VF-20 | $35-50 | $50-100 |
+| AU-58 | $50-80 | $75-150 |
+| MS-63 | $80-150 | $150-400 |
+| MS-64 | $125-250 | $300-800 |
+| **MS-65** | **$250-500** | **$600-2,000** |
+| **MS-66** | **$500-1,500** | **$1,500-5,000** |
+| MS-67+ | $2,000-10,000+ | $5,000-50,000+ |
+
+**Special Designations add major value:**
+- PL (Prooflike): +25-100% premium
+- DMPL (Deep Mirror Prooflike): +50-200% premium
+- + grade (MS-65+, MS-66+): +15-30% premium
+
+### Morgan Dollars - Notable Dates:
+
+| Year | Mint | Why Special | MS-65 Value |
+|------|------|-------------|-------------|
+| 1878 | S | **First year of issue** | $300-500 |
+| 1878 | P (8TF) | 8 tail feathers variety | $400-800 |
+| 1878 | P (7TF) | 7 tail feathers | $250-450 |
+| 1879 | S | Strong strike | $250-400 |
+| 1880 | S | Commonly available gem | $200-350 |
+| 1881 | S | Most common MS | $200-350 |
+
+### Morgan Dollars Key Dates (Rare):
 
 | Year | Mint | Mintage | Est. Value |
 |------|------|---------|------------|
