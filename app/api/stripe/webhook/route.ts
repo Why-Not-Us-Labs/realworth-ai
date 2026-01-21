@@ -37,24 +37,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trim any whitespace from secret (common issue)
     const trimmedSecret = webhookSecret.trim();
-
-    // Debug: Log first few chars of secret (for verification, not full secret)
-    console.log('[Webhook] Using webhook secret:', trimmedSecret.substring(0, 15) + '...');
-    console.log('[Webhook] Secret length:', trimmedSecret.length);
-    console.log('[Webhook] Body length:', body.length);
-    console.log('[Webhook] Signature header present:', !!signature);
-    if (signature) {
-      console.log('[Webhook] Signature starts with:', signature.substring(0, 20) + '...');
-    }
-
     const stripe = getStripe();
     let event: Stripe.Event;
 
     try {
       event = stripe.webhooks.constructEvent(body, signature!, trimmedSecret);
-      console.log('[Webhook] ✅ Signature verified, event type:', event.type);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('[Webhook] Signature verification failed:', errorMessage);
@@ -67,17 +55,6 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-
-        // DEBUG: Log session data for troubleshooting
-        console.log('[Webhook] checkout.session.completed - RAW SESSION:', JSON.stringify({
-          id: session.id,
-          customer: session.customer,
-          subscription: session.subscription,
-          mode: session.mode,
-          payment_status: session.payment_status,
-          status: session.status,
-          metadata: session.metadata,
-        }));
 
         // Handle one-time payment (pay-per-appraisal)
         if (session.mode === 'payment' && session.metadata?.type === 'pay_per_appraisal') {
@@ -143,7 +120,7 @@ export async function POST(request: NextRequest) {
               return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 });
             }
 
-            console.log('[Webhook] pay_per_appraisal SUCCESS:', { userId, credits, newCredits, sessionId: session.id });
+            console.log('[Webhook] pay_per_appraisal: Added', credits, 'credits for user:', userId);
           } catch (payError) {
             console.error('[Webhook] pay_per_appraisal: Error:', payError);
             return NextResponse.json({ error: 'Pay per appraisal handler error' }, { status: 500 });
@@ -151,8 +128,6 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        // Handle subscription checkout (existing logic)
-        // Extract userId from metadata for fallback lookup
         const userId = session.metadata?.userId;
 
         // Handle both string and object cases for customer/subscription
@@ -163,15 +138,6 @@ export async function POST(request: NextRequest) {
         const subscriptionId = typeof session.subscription === 'string'
           ? session.subscription
           : (session.subscription as any)?.id;
-
-        console.log('[Webhook] checkout.session.completed - PARSED:', {
-          customerId,
-          subscriptionId,
-          userId,
-          hasSubscriptionId: !!subscriptionId,
-          customerType: typeof session.customer,
-          subscriptionType: typeof session.subscription,
-        });
 
         if (!customerId) {
           console.error('[Webhook] NO CUSTOMER ID! Cannot process.');
@@ -225,28 +191,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid expiration date' }, { status: 500 });
           }
 
-          console.log('[Webhook] Calling activateProSubscription with:', {
-            customerId,
-            subscriptionId,
-            expiresAt: expiresAt.toISOString(),
-            userId: userId || 'none',
-          });
-
           const success = await subscriptionService.activateProSubscription(
             customerId,
             subscriptionId,
             expiresAt,
-            userId  // Pass userId for fallback lookup
+            userId
           );
 
-          console.log('[Webhook] activateProSubscription returned:', success);
-
           if (!success) {
-            console.error(`[Webhook] CRITICAL: activateProSubscription failed for customer ${customerId}`);
+            console.error('[Webhook] Failed to activate subscription for customer:', customerId);
             return NextResponse.json({ error: 'Failed to activate subscription' }, { status: 500 });
           }
-
-          console.log(`[Webhook] SUCCESS: Pro subscription activated for customer ${customerId}`);
         } catch (subError) {
           console.error('[Webhook] Error in checkout.session.completed handler:', subError);
           return NextResponse.json({ error: 'Checkout handler error' }, { status: 500 });
@@ -254,7 +209,6 @@ export async function POST(request: NextRequest) {
         break;
       }
 
-      // BACKUP ACTIVATION: Also handle customer.subscription.created in case checkout.session.completed fails
       case 'customer.subscription.created': {
         const subscription = event.data.object as Stripe.Subscription;
 
@@ -330,12 +284,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Invalid expiration date' }, { status: 500 });
           }
 
-          console.log('[Webhook] customer.subscription.created (BACKUP ACTIVATION):', {
-            customerId,
-            subscriptionId,
-            expiresAt: expiresAt.toISOString(),
-          });
-
           const success = await subscriptionService.activateProSubscription(
             customerId,
             subscriptionId,
@@ -344,11 +292,9 @@ export async function POST(request: NextRequest) {
           );
 
           if (!success) {
-            console.error(`[Webhook] BACKUP: FAILED to activate Pro via subscription.created for customer ${customerId}`);
-            return NextResponse.json({ error: 'Failed to activate subscription (backup)' }, { status: 500 });
+            console.error('[Webhook] subscription.created: Failed to activate for customer:', customerId);
+            return NextResponse.json({ error: 'Failed to activate subscription' }, { status: 500 });
           }
-
-          console.log(`[Webhook] BACKUP: Pro subscription activated via subscription.created for customer ${customerId}`);
         } catch (subError) {
           console.error('[Webhook] customer.subscription.created: Error:', subError);
           return NextResponse.json({ error: 'Subscription created handler error' }, { status: 500 });
@@ -395,14 +341,9 @@ export async function POST(request: NextRequest) {
           status = 'active';
         }
 
-        try {
-          const success = await subscriptionService.updateSubscriptionStatus(customerId, status, expiresAt, cancelAtPeriodEnd);
-          if (!success) {
-            console.error(`[Webhook] CRITICAL: customer.subscription.updated failed for customer ${customerId}`);
-            return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 });
-          }
-        } catch (updateError) {
-          console.error('[Webhook] Error updating subscription status:', updateError);
+        const success = await subscriptionService.updateSubscriptionStatus(customerId, status, expiresAt, cancelAtPeriodEnd);
+        if (!success) {
+          console.error('[Webhook] subscription.updated: Failed for customer:', customerId);
           return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 });
         }
         break;
@@ -420,14 +361,9 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        try {
-          const success = await subscriptionService.updateSubscriptionStatus(customerId, 'canceled');
-          if (!success) {
-            console.error(`[Webhook] CRITICAL: customer.subscription.deleted failed for customer ${customerId}`);
-            return NextResponse.json({ error: 'Failed to cancel subscription' }, { status: 500 });
-          }
-        } catch (updateError) {
-          console.error('[Webhook] Error canceling subscription:', updateError);
+        const success = await subscriptionService.updateSubscriptionStatus(customerId, 'canceled');
+        if (!success) {
+          console.error('[Webhook] subscription.deleted: Failed for customer:', customerId);
           return NextResponse.json({ error: 'Failed to cancel subscription' }, { status: 500 });
         }
         break;
@@ -445,14 +381,9 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        try {
-          const success = await subscriptionService.updateSubscriptionStatus(customerId, 'past_due');
-          if (!success) {
-            console.error(`[Webhook] CRITICAL: invoice.payment_failed failed for customer ${customerId}`);
-            return NextResponse.json({ error: 'Failed to update payment status' }, { status: 500 });
-          }
-        } catch (updateError) {
-          console.error('[Webhook] invoice.payment_failed: Error:', updateError);
+        const success = await subscriptionService.updateSubscriptionStatus(customerId, 'past_due');
+        if (!success) {
+          console.error('[Webhook] payment_failed: Failed for customer:', customerId);
           return NextResponse.json({ error: 'Failed to update payment status' }, { status: 500 });
         }
         break;
@@ -515,15 +446,9 @@ export async function POST(request: NextRequest) {
           break;
         }
 
-        try {
-          // Mark subscription as inactive but keep tier as Pro (they can resume)
-          const success = await subscriptionService.updateSubscriptionStatus(customerId, 'inactive');
-          if (!success) {
-            console.error(`[Webhook] CRITICAL: customer.subscription.paused failed for customer ${customerId}`);
-            return NextResponse.json({ error: 'Failed to pause subscription' }, { status: 500 });
-          }
-        } catch (updateError) {
-          console.error('[Webhook] Error pausing subscription:', updateError);
+        const success = await subscriptionService.updateSubscriptionStatus(customerId, 'inactive');
+        if (!success) {
+          console.error('[Webhook] subscription.paused: Failed for customer:', customerId);
           return NextResponse.json({ error: 'Failed to pause subscription' }, { status: 500 });
         }
         break;
@@ -583,14 +508,13 @@ export async function POST(request: NextRequest) {
             break;
           }
 
-          // Reactivate the subscription
           const success = await subscriptionService.updateSubscriptionStatus(customerId, 'active', expiresAt);
           if (!success) {
-            console.error(`[Webhook] CRITICAL: customer.subscription.resumed failed for customer ${customerId}`);
+            console.error('[Webhook] subscription.resumed: Failed for customer:', customerId);
             return NextResponse.json({ error: 'Failed to resume subscription' }, { status: 500 });
           }
-        } catch (updateError) {
-          console.error('[Webhook] customer.subscription.resumed: Error:', updateError);
+        } catch (subError) {
+          console.error('[Webhook] subscription.resumed: Error:', subError);
           return NextResponse.json({ error: 'Failed to resume subscription' }, { status: 500 });
         }
         break;

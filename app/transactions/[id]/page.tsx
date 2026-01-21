@@ -336,28 +336,33 @@ export default function TransactionDetailPage() {
             <h2 className="font-semibold text-slate-900 mb-4">
               {isBuyer ? 'Seller' : 'Buyer'}
             </h2>
-            <div className="flex items-center gap-3">
-              {(isBuyer ? transaction.seller : transaction.buyer)?.picture ? (
-                <Image
-                  src={(isBuyer ? transaction.seller : transaction.buyer)!.picture}
-                  alt={(isBuyer ? transaction.seller : transaction.buyer)!.name}
-                  width={48}
-                  height={48}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
-                  <span className="text-teal-600 font-semibold">
-                    {(isBuyer ? transaction.seller : transaction.buyer)?.name?.charAt(0) || '?'}
-                  </span>
+            {(() => {
+              const person = isBuyer ? transaction.seller : transaction.buyer;
+              return (
+                <div className="flex items-center gap-3">
+                  {person?.picture ? (
+                    <Image
+                      src={person.picture}
+                      alt={person.name || 'User'}
+                      width={48}
+                      height={48}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center">
+                      <span className="text-teal-600 font-semibold">
+                        {person?.name?.charAt(0) || '?'}
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {person?.name}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div>
-                <p className="font-medium text-slate-900">
-                  {(isBuyer ? transaction.seller : transaction.buyer)?.name}
-                </p>
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* Action Buttons */}
