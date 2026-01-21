@@ -5,6 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
 import { getEbayMarketValue, buildSearchKeywords, buildCategoryAspects, type EbayMarketData } from '@/services/ebayPriceService';
 import { getMetalPrices, formatMetalPricesForPrompt } from '@/services/metalPriceService';
+import {
+  detectNumismaticCategory,
+  checkHighValueTriggers,
+  formatNumismaticContextForPrompt,
+  type HighValueAlert
+} from '@/services/numismaticContextService';
 import type { ValuationBreakdown, EbayComparable, FutureValuePrediction } from '@/lib/types';
 
 // App Router config - extend timeout for AI processing
@@ -449,6 +455,13 @@ You must also provide validation feedback:
     const metalPriceContext = formatMetalPricesForPrompt(metalPrices);
     console.log(`[Appraise API] Metal prices fetched: Silver $${metalPrices.silver.toFixed(2)}/oz, Gold $${metalPrices.gold.toFixed(2)}/oz`);
 
+    // Load numismatic context (high-value triggers for coins/currency)
+    // Always load for all appraisals since we don't know item type yet
+    const numismaticContext = await formatNumismaticContextForPrompt('coin');
+    if (numismaticContext) {
+      console.log(`[Appraise API] Numismatic context loaded (${numismaticContext.length} chars)`);
+    }
+
     // Step 1: Get the detailed appraisal data
     const appraisalSystemInstruction = `You are a senior appraiser at RealWorth.ai, trained in the tradition of the world's finest auction houses and the legendary experts from Antiques Roadshow. You bring decades of combined expertise from Christie's, Sotheby's, Heritage Auctions, and specialty dealers.
 
@@ -623,6 +636,38 @@ SILVER:
 - Paul Revere pieces: Museum quality
 - Coin silver (pre-1860s American): Historical premium
 
+=== US PAPER MONEY GUIDE ===
+
+SEAL COLOR IDENTIFICATION (Critical for value!):
+- GOLD/ORANGE Seal: Gold Certificate (1863-1933) - ALWAYS VALUABLE ($100-$3M+)
+- RED Seal: Legal Tender/US Note (1862-1966) - Collectible ($20-$50,000)
+- BLUE Seal: Silver Certificate (1878-1963) - Collectible ($10-$5,000)
+- BROWN Seal: National Bank Note (1863-1935) - Value varies by issuing bank
+- GREEN Seal: Federal Reserve Note (1914+) - Standard unless rare date/serial
+- YELLOW Seal: North Africa Emergency (1942) - Premium ($50-$500)
+
+HIGH DENOMINATION NOTES (EXTREMELY VALUABLE):
+- $10,000 Bill (1928, 1934): $60,000-$500,000+ (Salmon Chase portrait)
+- $5,000 Bill (1928, 1934): $50,000-$250,000+ (James Madison portrait)
+- $1,000 Bill (any): $1,500-$35,000
+- $500 Bill (any): $600-$15,000
+
+LARGE SIZE vs SMALL SIZE:
+- Large Size (pre-1929): 7.4" x 3.1" - ALWAYS collectible
+- Small Size (1929+): 6.1" x 2.6" - Standard unless rare
+
+VALUABLE SERIAL NUMBER PATTERNS:
+- Solid (88888888): $500-$5,000+
+- Ladder (12345678): $100-$2,000
+- Low Serial (00000001-100): $100-$15,000
+- Star Notes (★ symbol): Replacement note premium $5-$500+
+
+PAPER MONEY GRADING (PMG Scale):
+- 65-67+ Gem Uncirculated: 5-100x base value
+- 58-64 Choice AU/Unc: 2-8x base value
+- 40-55 EF/AU: 1.5-4x base value
+- Below 40: Significant discounts
+
 ARTWORK:
 - Hudson River School (1825-1875): $5,000-$500,000+
 - American Impressionism: $1,000-$100,000+
@@ -728,7 +773,7 @@ For each factor, provide:
 - A score (0-10) for that specific factor
 - A brief explanation
 
-${metalPriceContext}${collectionContext}`;
+${metalPriceContext}${numismaticContext}${collectionContext}`;
     const appraisalTextPart = { text: condition
       ? `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}`
       : `Please assess the item's condition from the photos provided.${collectionContext ? '\n\n' + collectionContext : ''}` };
@@ -750,6 +795,30 @@ ${metalPriceContext}${collectionContext}`;
 
     // Validate appraisal to catch face-value errors for collectibles
     appraisalData = validateAppraisal(appraisalData as AppraisalData);
+
+    // Step 1.4: Detect numismatic items and check for high-value triggers
+    let highValueAlert: HighValueAlert | undefined;
+    const numismaticCategory = detectNumismaticCategory(
+      appraisalData.itemName || '',
+      appraisalData.category
+    );
+
+    if (numismaticCategory) {
+      const collectibleDetails = appraisalData.collectibleDetails || {};
+      highValueAlert = checkHighValueTriggers({
+        year: collectibleDetails.year || (appraisalData.era ? parseInt(appraisalData.era) : undefined),
+        mintMark: collectibleDetails.mintMark,
+        denomination: collectibleDetails.denomination,
+        metalColor: collectibleDetails.metalColor,
+        sealColor: collectibleDetails.sealColor,
+        serialNumber: collectibleDetails.serialNumber,
+        description: appraisalData.itemName + ' ' + (appraisalData.description || ''),
+      });
+
+      if (highValueAlert.isHighValue) {
+        console.log(`[Appraise API] High-value ${numismaticCategory} detected! Triggers: ${highValueAlert.triggers.join(', ')}`);
+      }
+    }
 
     // Step 1.5: Enhance valuation with real eBay sold data
     let valuationBreakdown: ValuationBreakdown | undefined;
@@ -1052,6 +1121,8 @@ ${metalPriceContext}${collectionContext}`;
       valuationBreakdown, // How the value was calculated
       ebayComparables, // Actual eBay sold listings used
       futureValuePredictions, // Appreciation forecasts
+      // Numismatic high-value detection
+      highValueAlert: highValueAlert?.isHighValue ? highValueAlert : undefined,
     });
 
   } catch (error) {
