@@ -46,6 +46,60 @@ export interface RarityFactor {
   detail: string;   // 1-2 sentence explanation
 }
 
+// ============================================
+// Antiques Roadshow Experience Types
+// ============================================
+
+/**
+ * Grade-based value tier (Antiques Roadshow style)
+ * Shows value at each condition grade
+ */
+export type GradeValueTier = {
+  grade: string;           // "Good", "VF", "MS-65", "MS-67"
+  valueRange: { low: number; high: number };
+  description?: string;    // "Heavy wear, readable text"
+  isCurrentEstimate?: boolean; // True if this is the estimated grade for user's item
+};
+
+/**
+ * Complete grade value breakdown with narrative
+ */
+export type GradeValueTiers = {
+  grades: GradeValueTier[];
+  currentEstimatedGrade: string;
+  gradingNarrative: string;       // Antiques Roadshow style explanation
+  gradingSystemUsed: string;      // "Sheldon Scale", "CGC 0.5-10", "Descriptive"
+};
+
+/**
+ * Insurance recommendation (retail replacement value)
+ */
+export type InsuranceValue = {
+  recommended: number;
+  methodology: string;     // "Retail replacement, 25% above market high"
+  disclaimer: string;
+};
+
+/**
+ * Photo/info improvement suggestion to increase appraisal accuracy
+ */
+export type AppraisalImprovement = {
+  type: 'photo' | 'info';
+  description: string;     // "Close-up of mint mark area"
+  impact: 'high' | 'medium' | 'low';
+  reason: string;          // "Could confirm Carson City mint mark (+$500-2000)"
+  areaOfInterest?: string; // Where on item to focus
+};
+
+/**
+ * Collection of improvement suggestions with potential value impact
+ */
+export type AppraisalImprovements = {
+  suggestions: AppraisalImprovement[];
+  canImprove: boolean;
+  potentialValueIncrease?: { low: number; high: number };
+};
+
 export interface AppraisalResult {
   id: string;
   image: string; // Primary/result image (backward compatible)
@@ -70,6 +124,9 @@ export interface AppraisalResult {
   rarityScore?: number; // 0-10 scale (e.g., 6.3)
   rarityFactors?: RarityFactor[]; // Factors contributing to rarity score
   futureValuePredictions?: FutureValuePrediction[]; // Future value projections
+  gradeValueTiers?: GradeValueTiers; // Value at each condition grade (Antiques Roadshow style)
+  insuranceValue?: InsuranceValue; // Retail replacement value recommendation
+  appraisalImprovements?: AppraisalImprovements; // Photo/info suggestions to improve accuracy
   timestamp: number;
   isPublic?: boolean; // Whether this treasure is publicly shareable
 }

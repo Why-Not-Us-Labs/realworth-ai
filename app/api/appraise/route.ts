@@ -149,9 +149,82 @@ const responseSchema = {
         faceValue: { type: Type.NUMBER, description: "The face/denomination value of coins, stamps, or currency (e.g., 0.01 for a penny, 1.00 for a dollar bill)." },
         collectiblePremium: { type: Type.STRING, description: "Explanation of why this item commands a premium over face value (rarity, condition, historical significance, errors, etc.)." }
       }
+    },
+    // Antiques Roadshow Experience Fields
+    gradeValueTiers: {
+      type: Type.OBJECT,
+      description: "REQUIRED: Grade-based value breakdown showing what the item would be worth at different condition grades. Like Antiques Roadshow, show the full potential!",
+      properties: {
+        grades: {
+          type: Type.ARRAY,
+          description: "3-6 condition grades from lowest to highest, with value ranges for each",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              grade: { type: Type.STRING, description: "Grade name (e.g., 'Good', 'VF', 'MS-63', 'MS-65', 'MS-67')" },
+              valueRange: {
+                type: Type.OBJECT,
+                properties: {
+                  low: { type: Type.NUMBER },
+                  high: { type: Type.NUMBER }
+                },
+                required: ["low", "high"]
+              },
+              description: { type: Type.STRING, description: "Brief description of this grade level (e.g., 'Heavy wear, readable text')" },
+              isCurrentEstimate: { type: Type.BOOLEAN, description: "True if this is the estimated grade for the user's item" }
+            },
+            required: ["grade", "valueRange"]
+          }
+        },
+        currentEstimatedGrade: { type: Type.STRING, description: "The grade you estimate this item to be (e.g., 'MS-65')" },
+        gradingNarrative: { type: Type.STRING, description: "Antiques Roadshow style explanation of why grades matter. Explain the VALUE JUMPS between grades! E.g., 'Notice how value jumps from $300 at MS-63 to $6,000 at MS-65? MS-65 is the threshold where serious collectors pay serious money.'" },
+        gradingSystemUsed: { type: Type.STRING, description: "The grading system used (e.g., 'Sheldon Scale 1-70', 'CGC 0.5-10', 'Descriptive')" }
+      },
+      required: ["grades", "currentEstimatedGrade", "gradingNarrative", "gradingSystemUsed"]
+    },
+    insuranceValue: {
+      type: Type.OBJECT,
+      description: "REQUIRED: Insurance replacement value recommendation. This should be 20-30% ABOVE the high estimate (retail replacement cost).",
+      properties: {
+        recommended: { type: Type.NUMBER, description: "Recommended insurance value in dollars (20-30% above your high estimate)" },
+        methodology: { type: Type.STRING, description: "Explain the calculation (e.g., 'Retail replacement value: 25% above market high to cover dealer markups and replacement difficulty')" },
+        disclaimer: { type: Type.STRING, description: "Always include: 'For official insurance documentation, consult a certified appraiser.'" }
+      },
+      required: ["recommended", "methodology", "disclaimer"]
+    },
+    appraisalImprovements: {
+      type: Type.OBJECT,
+      description: "REQUIRED: Specific suggestions for photos or information that would improve this appraisal's accuracy.",
+      properties: {
+        suggestions: {
+          type: Type.ARRAY,
+          description: "2-4 specific improvement suggestions, prioritized by potential value impact",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              type: { type: Type.STRING, description: "'photo' or 'info'" },
+              description: { type: Type.STRING, description: "Specific suggestion (e.g., 'Close-up of mint mark area below eagle')" },
+              impact: { type: Type.STRING, description: "'high', 'medium', or 'low' based on potential value impact" },
+              reason: { type: Type.STRING, description: "Why this matters (e.g., 'Could confirm Carson City mint mark, which would increase value 3-5x')" },
+              areaOfInterest: { type: Type.STRING, description: "Optional: specific area to photograph (e.g., 'reverse, bottom center')" }
+            },
+            required: ["type", "description", "impact", "reason"]
+          }
+        },
+        canImprove: { type: Type.BOOLEAN, description: "True if there are meaningful improvements possible" },
+        potentialValueIncrease: {
+          type: Type.OBJECT,
+          description: "Estimated additional value if improvements are provided",
+          properties: {
+            low: { type: Type.NUMBER },
+            high: { type: Type.NUMBER }
+          }
+        }
+      },
+      required: ["suggestions", "canImprove"]
     }
   },
-  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "rarityScore", "rarityFactors"]
+  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "rarityScore", "rarityFactors", "gradeValueTiers", "insuranceValue", "appraisalImprovements"]
 };
 
 // Validation function to catch face-value errors for collectibles
@@ -574,6 +647,48 @@ $800-2,000+. I strongly recommend submitting this coin to PCGS or NGC for profes
 
 THIS SECTION IS REQUIRED. DO NOT SKIP IT.
 
+=== ANTIQUES ROADSHOW PRESENTATION (MANDATORY) ===
+
+You are presenting this item like an expert on Antiques Roadshow. Your job is to HELP PEOPLE DISCOVER VALUE, not lowball them!
+
+1. GRADE VALUE TIERS (gradeValueTiers - REQUIRED for all items):
+   - Show 3-6 condition grades from lowest to highest value
+   - Include the CURRENT ESTIMATED grade for the user's item (mark with isCurrentEstimate: true)
+   - ALWAYS show higher grades so users understand the POTENTIAL
+   - Write a narrative that explains WHY value jumps between grades
+   - Example narrative: "Notice how value jumps from $300 at MS-63 to $6,000 at MS-65? MS-65 is the threshold where serious collectors pay serious money. Professional grading is worth it!"
+
+   Grading Systems to Use:
+   - Coins: Sheldon Scale (Good, VF, EF, AU-58, MS-63, MS-64, MS-65, MS-66, MS-67)
+   - Paper Money: PMG scale (VF-25, EF-40, AU-58, CU-63, CU-65, CU-66, Gem-67)
+   - Comics/Cards: CGC/PSA scale (1-10)
+   - Other items: Descriptive (Poor, Fair, Good, Very Good, Excellent, Mint/Near Mint)
+
+2. INSURANCE VALUE (insuranceValue - REQUIRED):
+   - Calculate as 20-30% ABOVE your high estimate
+   - This is RETAIL REPLACEMENT value (what it would cost to replace at a dealer)
+   - Explain the methodology clearly
+   - Always include disclaimer about professional appraisal for official documentation
+   - Example: If your high estimate is $14,000, insurance value = $17,500 (25% above)
+
+3. APPRAISAL IMPROVEMENTS (appraisalImprovements - REQUIRED):
+   - What specific photos would help refine the appraisal?
+   - Be SPECIFIC: "Close-up of mint mark area (below eagle on reverse)"
+   - Explain VALUE IMPACT: "If this is a CC mint mark, value could be 3-5x higher"
+   - Prioritize by impact: high/medium/low
+   - Include 2-4 actionable suggestions
+   - If photos are already comprehensive, still suggest refinements
+   - Always set canImprove to true unless photos are literally perfect
+   - Estimate potentialValueIncrease when possible
+
+4. BE GENEROUS AND EDUCATIONAL:
+   - Express EXCITEMENT when you see something potentially valuable
+   - Use phrases like "This COULD be significant if..."
+   - "Professional grading would be worth it here because..."
+   - "I notice some promising details that suggest..."
+   - NEVER be dismissive or discouraging
+   - Think like a friend helping them discover treasure!
+
 === COMPREHENSIVE US COIN GUIDE ===
 
 MINT MARKS (location varies by coin type):
@@ -879,6 +994,28 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
 
     // Validate appraisal to catch face-value errors for collectibles
     appraisalData = validateAppraisal(appraisalData as AppraisalData);
+
+    // Ensure insurance value is always present (fallback calculation)
+    if (!appraisalData.insuranceValue) {
+      appraisalData.insuranceValue = {
+        recommended: Math.round(appraisalData.priceRange.high * 1.25),
+        methodology: 'Retail replacement value: 25% above market high to cover dealer markups and replacement difficulty',
+        disclaimer: 'For official insurance documentation, consult a certified appraiser.'
+      };
+    }
+
+    // Ensure appraisal improvements has a default if not provided
+    if (!appraisalData.appraisalImprovements) {
+      appraisalData.appraisalImprovements = {
+        suggestions: [{
+          type: 'photo',
+          description: 'Additional angles or close-up shots',
+          impact: 'medium',
+          reason: 'More photos can help confirm condition and reveal details that affect value'
+        }],
+        canImprove: true
+      };
+    }
 
     // Step 1.4: Detect numismatic items and check for high-value triggers
     let highValueAlert: HighValueAlert | undefined;
@@ -1207,6 +1344,10 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
       futureValuePredictions, // Appreciation forecasts
       // Numismatic high-value detection
       highValueAlert: highValueAlert?.isHighValue ? highValueAlert : undefined,
+      // Antiques Roadshow experience data
+      gradeValueTiers: appraisalData.gradeValueTiers || undefined,
+      insuranceValue: appraisalData.insuranceValue || undefined,
+      appraisalImprovements: appraisalData.appraisalImprovements || undefined,
     });
 
   } catch (error) {

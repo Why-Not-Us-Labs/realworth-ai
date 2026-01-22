@@ -17,6 +17,9 @@ import { AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
 import { CollapsibleText } from './CollapsibleText';
 import { FutureValueChart } from './FutureValueChart';
+import { GradeValueTable } from './GradeValueTable';
+import { InsuranceValueCard } from './InsuranceValueCard';
+import { ImprovementSuggestions } from './ImprovementSuggestions';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -407,6 +410,37 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Grade Value Tiers - Antiques Roadshow Style */}
+            {currentResult.gradeValueTiers && (
+              <div className="mb-4">
+                <GradeValueTable
+                  tiers={currentResult.gradeValueTiers}
+                  currency={currentResult.currency}
+                />
+              </div>
+            )}
+
+            {/* Insurance Recommendation */}
+            {currentResult.insuranceValue && (
+              <div className="mb-4">
+                <InsuranceValueCard
+                  insurance={currentResult.insuranceValue}
+                  currency={currentResult.currency}
+                />
+              </div>
+            )}
+
+            {/* Appraisal Improvement Suggestions */}
+            {currentResult.appraisalImprovements?.canImprove && (
+              <div className="mb-4">
+                <ImprovementSuggestions
+                  improvements={currentResult.appraisalImprovements}
+                  onAddPhotos={() => setShowAddPhotos(true)}
+                  currency={currentResult.currency}
+                />
               </div>
             )}
 

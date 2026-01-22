@@ -114,6 +114,9 @@ class DBService {
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
         futureValuePredictions: record.future_value_predictions || undefined,
+        gradeValueTiers: record.grade_value_tiers || undefined,
+        insuranceValue: record.insurance_value || undefined,
+        appraisalImprovements: record.appraisal_improvements || undefined,
       }));
     } catch (error) {
       console.error('Error in getHistory:', error);
@@ -196,6 +199,17 @@ class DBService {
         insertData.future_value_predictions = appraisal.futureValuePredictions;
       }
 
+      // Add Antiques Roadshow experience fields
+      if (appraisal.gradeValueTiers) {
+        insertData.grade_value_tiers = appraisal.gradeValueTiers;
+      }
+      if (appraisal.insuranceValue) {
+        insertData.insurance_value = appraisal.insuranceValue;
+      }
+      if (appraisal.appraisalImprovements) {
+        insertData.appraisal_improvements = appraisal.appraisalImprovements;
+      }
+
       // Add collection data if provided
       if (collectionData?.collectionId) {
         insertData.collection_id = collectionData.collectionId;
@@ -247,6 +261,9 @@ class DBService {
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
         futureValuePredictions: data.future_value_predictions || undefined,
+        gradeValueTiers: data.grade_value_tiers || undefined,
+        insuranceValue: data.insurance_value || undefined,
+        appraisalImprovements: data.appraisal_improvements || undefined,
       };
     } catch (error) {
       console.error('Error in saveAppraisal:', error);
@@ -524,6 +541,9 @@ class DBService {
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
         futureValuePredictions: record.future_value_predictions || undefined,
+        gradeValueTiers: record.grade_value_tiers || undefined,
+        insuranceValue: record.insurance_value || undefined,
+        appraisalImprovements: record.appraisal_improvements || undefined,
       }));
     } catch (error) {
       console.error('Error in getHistoryByCategory:', error);
@@ -892,6 +912,9 @@ class DBService {
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
         futureValuePredictions: data.future_value_predictions || undefined,
+        gradeValueTiers: data.grade_value_tiers || undefined,
+        insuranceValue: data.insurance_value || undefined,
+        appraisalImprovements: data.appraisal_improvements || undefined,
       };
     } catch (error) {
       console.error('Error in getAppraisal:', error);
@@ -1083,6 +1106,9 @@ class DBService {
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
         futureValuePredictions: record.future_value_predictions || undefined,
+        gradeValueTiers: record.grade_value_tiers || undefined,
+        insuranceValue: record.insurance_value || undefined,
+        appraisalImprovements: record.appraisal_improvements || undefined,
       }));
     } catch (error) {
       console.error('Error in getArchivedHistory:', error);
