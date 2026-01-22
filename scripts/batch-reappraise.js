@@ -251,6 +251,13 @@ PRICE RANGE PHILOSOPHY:
 - A 1907 Gold Certificate should be $2,000-$7,500, NOT $300-$7,500
 - When in doubt, assume BETTER condition, not worse!
 
+MINIMUM VALUES FOR HIGH-VALUE PAPER MONEY (NEVER GO BELOW):
+- 1899 $5 "Indian Chief": MINIMUM $800 low, $2,500+ for decent, $12,000+ for nice
+- 1907 $10 Gold Certificate: MINIMUM $700 low (VF), $1,400+ for AU, $6,000+ for UNC
+- Gold Certificates: ALWAYS assume VF grade unless clearly damaged
+- If note looks clean, assume VF-EF ($1,000-$4,000 for $10 Gold Cert)
+- Express excitement about these collector favorites!
+
 Current item info:
 - Name: ${appraisal.item_name}
 - Category: ${appraisal.category}

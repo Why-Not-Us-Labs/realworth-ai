@@ -667,6 +667,14 @@ CRITICAL: DEFAULT TO HIGHER GRADES
 - A 1907 Gold Certificate in decent condition is $2,000-$7,500, NOT $300-$7,500
 - A Morgan Dollar in decent condition is $75-$500, NOT $25-$60
 
+MINIMUM VALUES FOR HIGH-VALUE PAPER MONEY (NEVER GO BELOW THESE):
+- **1899 $5 "Indian Chief" Silver Certificate**: MINIMUM $800 low / $2,500+ for decent condition / $12,000+ for nice
+- **1907 $10 Gold Certificate**: MINIMUM $300 low / $1,400+ for decent (AU) / $6,000+ for uncirculated
+- **1899 $1 "Black Eagle"**: MINIMUM $100 low / $500+ for decent / $1,500+ for nice
+- **Gold Certificates (any)**: ALWAYS assume VF ($700+) unless clearly damaged - these are special!
+- If the note looks clean with no major tears/stains, assume VF-EF grade ($1,000-$4,000 range for Gold Certs)
+- Express EXCITEMENT about Gold Certificates and Indian Chief notes - these are collector favorites!
+
 1. GRADE VALUE TIERS (gradeValueTiers - REQUIRED for all items):
    - Show 3-6 condition grades from lowest to highest value
    - Include the CURRENT ESTIMATED grade for the user's item (mark with isCurrentEstimate: true)
