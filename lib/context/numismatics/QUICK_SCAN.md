@@ -67,6 +67,9 @@ When grading coins:
 | Indicator | What To Look For | Potential Value |
 |-----------|------------------|-----------------|
 | **Large Size Bill** | Bills bigger than modern (pre-1929) | $100 - $3,300,000 |
+| **1899 $5 "Chief" Note** | Silver Certificate with Native American portrait | $800 - $25,000+ |
+| **1899 $1 "Black Eagle"** | Silver Certificate with eagle spread | $100 - $5,000 |
+| **1899 $2 "Mini-Porthole"** | Silver Certificate with Washington medallion | $200 - $3,000 |
 | **Gold Certificate** | Yellow/gold seal (pre-1933) | $100 - $2,500,000 |
 | **$500 Bill** | McKinley portrait | $700 - $15,000 |
 | **$1000 Bill** | Cleveland portrait | $1,500 - $35,000 |

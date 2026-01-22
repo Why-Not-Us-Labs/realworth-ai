@@ -21,6 +21,22 @@
 | $500 | 1928 | William McKinley | $700 - $15K |
 | $500 | 1934 | William McKinley | $600 - $5K |
 
+## 1899 SILVER CERTIFICATE SERIES - HIGHLY COLLECTIBLE
+
+The 1899 series Silver Certificates are among the most beautiful and sought-after US notes:
+
+| Note | Nickname | Portrait | Est. Value by Grade |
+|------|----------|----------|---------------------|
+| **$5** | "Indian Chief" | Chief Running Antelope | G: $800-1,200 / VF: $2,500-4,000 / XF: $5,000-8,000 / UNC: $12,000-25,000+ |
+| **$2** | "Mini-Porthole" | George Washington medallion | G: $200-350 / VF: $500-900 / XF: $1,200-2,000 / UNC: $3,000-6,000 |
+| **$1** | "Black Eagle" | Eagle with flag | G: $100-175 / VF: $250-400 / XF: $500-900 / UNC: $1,500-4,000 |
+
+**The $5 "Chief" Note is one of the most iconic pieces of US currency!**
+- Features Chief Running Antelope (Tȟatȟáŋka Íŋyaŋke) of the Oncpapa band of Lakota
+- Large size format (7.4" x 3.1") - stopped printing in 1929
+- Blue seal indicates Silver Certificate
+- ALWAYS recommend professional grading (PMG/PCGS) for these notes
+
 ## SEAL COLOR IDENTIFICATION
 
 | Seal Color | Note Type | Era | Value Indicator |
