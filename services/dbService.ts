@@ -113,6 +113,7 @@ class DBService {
         images: record.image_urls || [],
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
+        futureValuePredictions: record.future_value_predictions || undefined,
       }));
     } catch (error) {
       console.error('Error in getHistory:', error);
@@ -190,6 +191,11 @@ class DBService {
         insertData.confidence_factors = appraisal.confidenceFactors;
       }
 
+      // Add future value predictions if provided
+      if (appraisal.futureValuePredictions && appraisal.futureValuePredictions.length > 0) {
+        insertData.future_value_predictions = appraisal.futureValuePredictions;
+      }
+
       // Add collection data if provided
       if (collectionData?.collectionId) {
         insertData.collection_id = collectionData.collectionId;
@@ -240,6 +246,7 @@ class DBService {
         images: data.image_urls || [],
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
+        futureValuePredictions: data.future_value_predictions || undefined,
       };
     } catch (error) {
       console.error('Error in saveAppraisal:', error);
@@ -516,6 +523,7 @@ class DBService {
         images: record.image_urls || [],
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
+        futureValuePredictions: record.future_value_predictions || undefined,
       }));
     } catch (error) {
       console.error('Error in getHistoryByCategory:', error);
@@ -883,6 +891,7 @@ class DBService {
         images: data.image_urls || [],
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
+        futureValuePredictions: data.future_value_predictions || undefined,
       };
     } catch (error) {
       console.error('Error in getAppraisal:', error);
@@ -1073,6 +1082,7 @@ class DBService {
         images: record.image_urls || [],
         timestamp: new Date(record.created_at).getTime(),
         isPublic: record.is_public || false,
+        futureValuePredictions: record.future_value_predictions || undefined,
       }));
     } catch (error) {
       console.error('Error in getArchivedHistory:', error);

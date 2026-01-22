@@ -69,6 +69,7 @@ export interface AppraisalResult {
   careTips?: string[]; // Preservation and care recommendations
   rarityScore?: number; // 0-10 scale (e.g., 6.3)
   rarityFactors?: RarityFactor[]; // Factors contributing to rarity score
+  futureValuePredictions?: FutureValuePrediction[]; // Future value projections
   timestamp: number;
   isPublic?: boolean; // Whether this treasure is publicly shareable
 }
@@ -172,7 +173,7 @@ export type ValuationBreakdown = {
  * Future value prediction (Antiques Roadshow style)
  */
 export type FutureValuePrediction = {
-  years: 10 | 25 | 50 | 100;
+  years: 1 | 5 | 10 | 25;
   probability: number; // 0-100
   multiplierLow: number; // e.g., 1.5 = 1.5x current value
   multiplierHigh: number; // e.g., 3.0 = 3x current value

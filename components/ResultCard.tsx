@@ -16,6 +16,7 @@ import { supabase } from '@/lib/supabase';
 import { AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
 import { CollapsibleText } from './CollapsibleText';
+import { FutureValueChart } from './FutureValueChart';
 
 interface ResultCardProps {
   result: AppraisalResult;
@@ -39,6 +40,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
   const [isVisible, setIsVisible] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [showRarityBreakdown, setShowRarityBreakdown] = useState(false);
+  const [showFutureValue, setShowFutureValue] = useState(false);
 
   const handleSelectProvider = async (provider: AuthProvider) => {
     setIsSignInModalOpen(false);
@@ -371,6 +373,42 @@ export const ResultCard: React.FC<ResultCardProps> = ({ result, onStartNew, isFr
                 </div>
               );
             })()}
+
+            {/* Future Value Projection */}
+            {currentResult.futureValuePredictions && currentResult.futureValuePredictions.length > 0 && (
+              <div className="mb-4 rounded-xl border overflow-hidden bg-indigo-50 border-indigo-200">
+                <button
+                  onClick={() => setShowFutureValue(!showFutureValue)}
+                  className="w-full p-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span className="font-semibold text-indigo-900">Future Value Projection</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-indigo-600 font-medium">
+                        {currentResult.futureValuePredictions[currentResult.futureValuePredictions.length - 1].probability}% confidence at {currentResult.futureValuePredictions[currentResult.futureValuePredictions.length - 1].years}yr
+                      </span>
+                      <svg className={`w-5 h-5 transition-transform ${showFutureValue ? 'rotate-180' : ''} text-indigo-400`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </div>
+                </button>
+
+                {showFutureValue && (
+                  <div className="px-4 pb-4 border-t border-indigo-200 pt-4">
+                    <FutureValueChart
+                      predictions={currentResult.futureValuePredictions}
+                      currentValue={currentResult.priceRange}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Collection Opportunity Banner - Stewart's Smart Suggestion */}
             {currentResult.collectionOpportunity?.isPartOfSet && (

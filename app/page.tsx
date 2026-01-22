@@ -236,6 +236,7 @@ function HomeContent() {
           references: result.appraisalData.references,
           confidenceScore: result.appraisalData.confidenceScore,
           confidenceFactors: result.appraisalData.confidenceFactors,
+          futureValuePredictions: result.appraisalData.futureValuePredictions,
           timestamp: Date.now(),
         };
 

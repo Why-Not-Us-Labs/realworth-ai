@@ -255,7 +255,7 @@ function validateAppraisal(result: AppraisalData): AppraisalData {
 
 /**
  * Generate simple future value predictions based on category and age
- * Returns probability-based appreciation forecasts for 10, 25, 50, 100 years
+ * Returns probability-based appreciation forecasts for 1, 5, 10, 25 years
  */
 function generateFutureValuePredictions(
   category: string,
@@ -288,19 +288,21 @@ function generateFutureValuePredictions(
   const ageBonus = itemAge > 100 ? 0.02 : itemAge > 50 ? 0.01 : 0;
   const adjustedRate = rates.baseRate + ageBonus;
 
-  // Generate predictions for different time horizons
-  const timeframes: Array<10 | 25 | 50 | 100> = [10, 25, 50, 100];
+  // Generate predictions for different time horizons (1, 5, 10, 25 years)
+  const timeframes: Array<1 | 5 | 10 | 25> = [1, 5, 10, 25];
 
   return timeframes.map((years) => {
     // Compound growth with uncertainty
     const baseMultiplier = Math.pow(1 + adjustedRate, years);
-    const lowMultiplier = Math.max(0.5, baseMultiplier * (1 - rates.volatility));
-    const highMultiplier = baseMultiplier * (1 + rates.volatility);
+    // Volatility scales with time - less volatility for shorter periods
+    const timeVolatility = rates.volatility * Math.sqrt(years / 10);
+    const lowMultiplier = Math.max(0.8, baseMultiplier * (1 - timeVolatility));
+    const highMultiplier = baseMultiplier * (1 + timeVolatility);
 
-    // Probability decreases with longer timeframes (more uncertainty)
-    // Also affected by category stability
-    const baseProbability = 75 - (years * 0.3) - (rates.volatility * 20);
-    const probability = Math.round(Math.max(30, Math.min(85, baseProbability)));
+    // Probability is higher for shorter timeframes (more certainty)
+    // 1 year: ~80%, 5 years: ~70%, 10 years: ~60%, 25 years: ~50%
+    const baseProbability = 85 - (years * 1.4) - (rates.volatility * 15);
+    const probability = Math.round(Math.max(40, Math.min(85, baseProbability)));
 
     // Generate reasoning based on category
     const reasonings: Record<string, string> = {
@@ -320,8 +322,8 @@ function generateFutureValuePredictions(
     return {
       years,
       probability,
-      multiplierLow: Math.round(lowMultiplier * 10) / 10,
-      multiplierHigh: Math.round(highMultiplier * 10) / 10,
+      multiplierLow: Math.round(lowMultiplier * 100) / 100,
+      multiplierHigh: Math.round(highMultiplier * 100) / 100,
       reasoning: reasoning.trim(),
     };
   });
