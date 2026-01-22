@@ -43,7 +43,7 @@ Gold Certificates (gold/orange seal) were redeemable for gold coin until 1933. L
 
 | Denomination | Series | Portrait | Est. Value by Grade |
 |--------------|--------|----------|---------------------|
-| **$10** | 1907 | Michael Hillegas | G: $300-500 / VF: $700-1,200 / XF: $1,500-2,500 / UNC: $3,500-7,000 |
+| **$10** | 1907 | Michael Hillegas | G: $300-500 / VF: $700-1,200 / AU-58: $1,400 / MS-63: $2,500 / MS-65: $6,000 / MS-66: $7,500 / MS-67: $14,000+ |
 | **$10** | 1922 | Michael Hillegas | G: $150-300 / VF: $400-700 / XF: $900-1,500 / UNC: $2,000-4,000 |
 | **$20** | 1905 "Technicolor" | George Washington | G: $2,000-4,000 / VF: $8,000-15,000 / XF: $25,000-50,000 / UNC: $75,000+ |
 | **$20** | 1906, 1922 | George Washington | G: $200-400 / VF: $600-1,000 / XF: $1,500-2,500 / UNC: $4,000-8,000 |
