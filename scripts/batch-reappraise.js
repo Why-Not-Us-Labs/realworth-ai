@@ -280,17 +280,20 @@ async function updateAppraisal(appraisalId, appraisalData) {
     appraisalData.priceRange
   );
 
+  // Convert decimal scores (0.85) to integer percentages (85) for DB storage
+  const toIntPercent = (val) => val ? Math.round(val <= 1 ? val * 100 : val) : null;
+
   const updateData = {
     item_name: appraisalData.itemName,
     author: appraisalData.author || null,
     era: appraisalData.era || null,
     category: appraisalData.category,
     description: appraisalData.description || null,
-    price_low: appraisalData.priceRange.low,
-    price_high: appraisalData.priceRange.high,
+    price_low: Math.round(appraisalData.priceRange.low),
+    price_high: Math.round(appraisalData.priceRange.high),
     reasoning: appraisalData.reasoning || null,
-    confidence_score: appraisalData.confidenceScore || null,
-    rarity_score: appraisalData.rarityScore || null,
+    confidence_score: toIntPercent(appraisalData.confidenceScore),
+    rarity_score: toIntPercent(appraisalData.rarityScore),
     rarity_factors: appraisalData.rarityFactors || null,
     future_value_predictions: futureValuePredictions,
     grade_value_tiers: appraisalData.gradeValueTiers || null,
