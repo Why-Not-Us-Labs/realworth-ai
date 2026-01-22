@@ -37,6 +37,24 @@ The 1899 series Silver Certificates are among the most beautiful and sought-afte
 - Blue seal indicates Silver Certificate
 - ALWAYS recommend professional grading (PMG/PCGS) for these notes
 
+## GOLD CERTIFICATES - ALWAYS VALUABLE
+
+Gold Certificates (gold/orange seal) were redeemable for gold coin until 1933. Large Size versions are especially collectible:
+
+| Denomination | Series | Portrait | Est. Value by Grade |
+|--------------|--------|----------|---------------------|
+| **$10** | 1907 | Michael Hillegas | G: $300-500 / VF: $700-1,200 / XF: $1,500-2,500 / UNC: $3,500-7,000 |
+| **$10** | 1922 | Michael Hillegas | G: $150-300 / VF: $400-700 / XF: $900-1,500 / UNC: $2,000-4,000 |
+| **$20** | 1905 "Technicolor" | George Washington | G: $2,000-4,000 / VF: $8,000-15,000 / XF: $25,000-50,000 / UNC: $75,000+ |
+| **$20** | 1906, 1922 | George Washington | G: $200-400 / VF: $600-1,000 / XF: $1,500-2,500 / UNC: $4,000-8,000 |
+| **$50** | 1913 | Ulysses Grant | G: $500-1,000 / VF: $2,000-4,000 / XF: $6,000-12,000 / UNC: $20,000+ |
+| **$100** | 1922 | Thomas Benton | G: $600-1,200 / VF: $2,500-5,000 / XF: $8,000-15,000 / UNC: $25,000+ |
+
+**The 1907 $10 Gold Certificate is the FIRST Small Portrait Hillegas type and highly sought after!**
+- Large size format (7.4" x 3.1")
+- Gold/orange Treasury seal and serial numbers
+- ALWAYS recommend PMG/PCGS grading for Gold Certificates
+
 ## SEAL COLOR IDENTIFICATION
 
 | Seal Color | Note Type | Era | Value Indicator |
