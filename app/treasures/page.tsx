@@ -70,10 +70,7 @@ export default function TreasuresPage() {
     category: appraisal.category,
     era: appraisal.era || null,
     created_at: new Date(appraisal.timestamp).toISOString(),
-    users: {
-      name: user.name,
-      picture: user.picture,
-    },
+    user_id: user.id,
   }));
 
   return (

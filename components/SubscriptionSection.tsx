@@ -3,10 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { CheckIcon, SparklesIcon } from '@/components/icons';
-import { UserSubscription, FREE_APPRAISAL_LIMIT } from '@/services/subscriptionService';
+import { UserSubscription } from '@/services/subscriptionService';
+import { TokenBalance } from '@/services/tokenService';
 
 interface SubscriptionSectionProps {
   subscription: UserSubscription | null;
+  tokenBalance: TokenBalance | null;
   isPro: boolean;
   isLoading: boolean;
   error?: string | null;
@@ -18,6 +20,7 @@ interface SubscriptionSectionProps {
 
 export function SubscriptionSection({
   subscription,
+  tokenBalance,
   isPro,
   isLoading,
   error,
@@ -149,18 +152,16 @@ export function SubscriptionSection({
     );
   }
 
-  // Determine user tier type
+  // Determine user tier type (WNU Platform: access codes not used, all Pro via Stripe or Apple IAP)
   const hasStripeSubscription = subscription?.stripeCustomerId && isPro;
-  const hasAccessCode = subscription?.accessCodeUsed && isPro;
+  const hasAppleIAP = subscription?.source === 'apple_iap' && isPro;
   const isFreeUser = !isPro;
 
   // ═══════════════════════════════════════════════════════════
-  // FREE USER - Show upgrade prompt
+  // FREE USER - Show token balance and upgrade prompt
   // ═══════════════════════════════════════════════════════════
   if (isFreeUser) {
-    const usageCount = subscription?.monthlyAppraisalCount || 0;
-    const limit = FREE_APPRAISAL_LIMIT;
-    const remaining = Math.max(0, limit - usageCount);
+    const tokensRemaining = tokenBalance?.balance || 0;
 
     return (
       <div className="bg-gradient-to-br from-slate-50 to-teal-50 rounded-xl border border-slate-200 p-4 mb-6">
@@ -172,14 +173,13 @@ export function SubscriptionSection({
 
         <div className="mb-4">
           <p className="text-slate-700 text-sm mb-2">
-            <span className="font-semibold">{remaining}</span> of {limit} free appraisals remaining this month
+            <span className="font-semibold">{tokensRemaining}</span> tokens remaining
           </p>
-          <div className="w-full bg-slate-200 rounded-full h-2">
-            <div
-              className="bg-teal-500 h-2 rounded-full transition-all"
-              style={{ width: `${Math.min(100, (usageCount / limit) * 100)}%` }}
-            />
-          </div>
+          {tokensRemaining === 0 && (
+            <p className="text-amber-600 text-xs">
+              You&apos;ve used all your tokens. Upgrade to Pro for more!
+            </p>
+          )}
         </div>
 
         <div className="bg-white rounded-lg p-3 mb-4 border border-teal-200">
@@ -188,7 +188,7 @@ export function SubscriptionSection({
             <div>
               <p className="text-slate-800 font-semibold text-sm">Upgrade to Pro</p>
               <ul className="text-slate-600 text-xs mt-1 space-y-1">
-                <li>• Unlimited appraisals</li>
+                <li>• 100 tokens per month</li>
                 <li>• AI chat with your collection</li>
                 <li>• Priority support</li>
               </ul>
@@ -207,16 +207,16 @@ export function SubscriptionSection({
   }
 
   // ═══════════════════════════════════════════════════════════
-  // ACCESS CODE USER - Show Pro via Access Code
+  // APPLE IAP USER - Show Pro via App Store
   // ═══════════════════════════════════════════════════════════
-  if (hasAccessCode && !hasStripeSubscription) {
+  if (hasAppleIAP && !hasStripeSubscription) {
     return (
       <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
             <span className="flex items-center gap-1.5 bg-purple-100 text-purple-700 px-2.5 py-1 rounded-full text-xs font-semibold">
               <CheckIcon className="w-3.5 h-3.5" />
-              Pro via Access Code
+              Pro via App Store
             </span>
           </h3>
         </div>
@@ -229,17 +229,26 @@ export function SubscriptionSection({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500">Access Code:</span>
-            <span className="text-slate-800 font-medium font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">
-              {subscription.accessCodeUsed}
-            </span>
-          </div>
+          {subscription?.iapExpiresAt && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">Renews:</span>
+              <span className="text-slate-800 font-medium">
+                {formatDate(subscription.iapExpiresAt)}
+              </span>
+            </div>
+          )}
+
+          {tokenBalance && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-500">Tokens:</span>
+              <span className="text-slate-800 font-medium">{tokenBalance.balance}</span>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
           <p className="text-purple-800 text-xs">
-            You have Pro access via an access code. Enjoy unlimited appraisals and all Pro features!
+            Your subscription is managed through the App Store. To make changes, open Settings → Your Name → Subscriptions on your device.
           </p>
         </div>
 
@@ -263,7 +272,7 @@ export function SubscriptionSection({
     return null;
   }
 
-  const statusInfo = getStatusDisplay(subscription.subscriptionStatus, subscription.cancelAtPeriodEnd);
+  const statusInfo = getStatusDisplay(subscription.status, subscription.cancelAtPeriodEnd);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
@@ -288,21 +297,21 @@ export function SubscriptionSection({
 
         <div className="flex items-center gap-2">
           <span className="text-slate-500">
-            {subscription.subscriptionStatus === 'canceled'
+            {subscription.status === 'canceled'
               ? 'Access until:'
               : subscription.cancelAtPeriodEnd
                 ? 'Pro ends:'
                 : 'Renews:'}
           </span>
           <span className="text-slate-800 font-medium">
-            {formatDate(subscription.subscriptionExpiresAt)}
+            {formatDate(subscription.currentPeriodEnd)}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="text-slate-500">Plan:</span>
           <span className="text-slate-800 font-medium">
-            {isAnnualSubscription(subscription.subscriptionExpiresAt)
+            {isAnnualSubscription(subscription.currentPeriodEnd)
               ? 'Annual'
               : 'Monthly'}
           </span>
@@ -310,7 +319,7 @@ export function SubscriptionSection({
       </div>
 
       {/* Past due warning */}
-      {subscription.subscriptionStatus === 'past_due' && (
+      {subscription.status === 'past_due' && (
         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-800 text-xs">
             Your payment is past due. Please update your payment method to continue enjoying Pro features.
@@ -319,7 +328,7 @@ export function SubscriptionSection({
       )}
 
       {/* Canceled info */}
-      {subscription.subscriptionStatus === 'canceled' && (
+      {subscription.status === 'canceled' && (
         <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
           <p className="text-slate-600 text-xs">
             Your subscription has been canceled. You&apos;ll retain Pro access until the expiration date above.
@@ -328,10 +337,10 @@ export function SubscriptionSection({
       )}
 
       {/* Scheduled cancellation info */}
-      {subscription.subscriptionStatus === 'active' && subscription.cancelAtPeriodEnd && (
+      {subscription.status === 'active' && subscription.cancelAtPeriodEnd && (
         <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-800 text-xs">
-            Your subscription is scheduled to end on <strong>{formatDate(subscription.subscriptionExpiresAt)}</strong>.
+            Your subscription is scheduled to end on <strong>{formatDate(subscription.currentPeriodEnd)}</strong>.
             You&apos;ll retain Pro access until then. Click &quot;Reactivate&quot; below to continue your subscription.
           </p>
         </div>
@@ -349,7 +358,7 @@ export function SubscriptionSection({
         </button>
 
         {/* Cancel button - only for active subscriptions NOT scheduled for cancellation */}
-        {subscription.subscriptionStatus === 'active' && !subscription.cancelAtPeriodEnd && (
+        {subscription.status === 'active' && !subscription.cancelAtPeriodEnd && (
           <button
             onClick={() => setShowCancelModal(true)}
             className="w-full bg-white hover:bg-red-50 border border-red-200 text-red-600 font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
@@ -359,7 +368,7 @@ export function SubscriptionSection({
         )}
 
         {/* Reactivate button - only when active but scheduled for cancellation */}
-        {subscription.subscriptionStatus === 'active' && subscription.cancelAtPeriodEnd && (
+        {subscription.status === 'active' && subscription.cancelAtPeriodEnd && (
           <button
             onClick={() => setShowReactivateModal(true)}
             className="w-full bg-teal-500 hover:bg-teal-600 text-white font-medium py-2.5 px-4 rounded-lg transition-colors text-sm"
@@ -392,7 +401,7 @@ export function SubscriptionSection({
             </h3>
             <p className="text-slate-600 text-sm mb-4">
               Are you sure you want to cancel? You&apos;ll keep Pro access until{' '}
-              <strong>{formatDate(subscription.subscriptionExpiresAt)}</strong>, then your account will revert to the free plan.
+              <strong>{formatDate(subscription.currentPeriodEnd)}</strong>, then your account will revert to the free plan.
             </p>
 
             {cancelError && (
@@ -436,7 +445,7 @@ export function SubscriptionSection({
             </h3>
             <p className="text-slate-600 text-sm mb-4">
               Your subscription will resume and automatically renew on{' '}
-              <strong>{formatDate(subscription.subscriptionExpiresAt)}</strong>. You&apos;ll continue enjoying Pro features without interruption.
+              <strong>{formatDate(subscription.currentPeriodEnd)}</strong>. You&apos;ll continue enjoying Pro features without interruption.
             </p>
 
             {reactivateError && (

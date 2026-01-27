@@ -73,7 +73,7 @@ class ListingService {
 
       // Verify user owns the appraisal
       const { data: appraisal, error: appraisalError } = await authClient
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('id, user_id, price_low, price_high')
         .eq('id', data.appraisalId)
         .single();
@@ -139,11 +139,11 @@ class ListingService {
         .from('listings')
         .select(`
           *,
-          appraisals (
+          rw_appraisals (
             id,
             item_name,
-            image_url,
             ai_image_url,
+            input_images,
             category,
             era,
             price_low,
@@ -211,11 +211,11 @@ class ListingService {
         .from('listings')
         .select(`
           *,
-          appraisals (
+          rw_appraisals (
             id,
             item_name,
-            image_url,
             ai_image_url,
+            input_images,
             category,
             era,
             price_low,
@@ -382,11 +382,11 @@ class ListingService {
         .select(`
           listings (
             *,
-            appraisals (
+            rw_appraisals (
               id,
               item_name,
-              image_url,
               ai_image_url,
+              input_images,
               category,
               era,
               price_low,
@@ -466,12 +466,15 @@ class ListingService {
   private mapListingWithJoins(row: Record<string, unknown>): Listing {
     const listing = this.mapListing(row);
 
-    const appraisalData = row.appraisals as Record<string, unknown> | null;
+    // WNU Platform uses rw_appraisals table
+    const appraisalData = row.rw_appraisals as Record<string, unknown> | null;
     if (appraisalData) {
+      // Map WNU Platform columns: ai_image_url and input_images
+      const inputImages = appraisalData.input_images as string[] | null;
       listing.appraisal = {
         id: appraisalData.id as string,
         itemName: appraisalData.item_name as string,
-        imageUrl: appraisalData.image_url as string,
+        imageUrl: (appraisalData.ai_image_url as string) || (inputImages && inputImages[0]) || '',
         aiImageUrl: appraisalData.ai_image_url as string | null,
         category: appraisalData.category as string,
         era: appraisalData.era as string,

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { subscriptionService, UserSubscription } from '@/services/subscriptionService';
+import { getTokenBalance, TokenBalance } from '@/services/tokenService';
 import { supabase } from '@/lib/supabase';
 
 export function useSubscription(userId: string | null, userEmail?: string | null) {
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -14,6 +16,7 @@ export function useSubscription(userId: string | null, userEmail?: string | null
   const loadSubscription = useCallback(async () => {
     if (!userId) {
       setSubscription(null);
+      setTokenBalance(null);
       setIsLoading(false);
       return;
     }
@@ -21,14 +24,21 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     try {
       setIsLoading(true);
       setError(null);
-      const data = await subscriptionService.getUserSubscription(userId);
-      setSubscription(data);
+
+      // Load subscription and token balance in parallel
+      const [subData, balanceData] = await Promise.all([
+        subscriptionService.getUserSubscription(userId),
+        getTokenBalance(userId),
+      ]);
+
+      setSubscription(subData);
+      setTokenBalance(balanceData);
 
       // Log if subscription status changed (for debugging)
-      if (prevStatusRef.current !== null && prevStatusRef.current !== data?.subscriptionStatus) {
-        console.log(`[Subscription] Status changed: ${prevStatusRef.current} → ${data?.subscriptionStatus}`);
+      if (prevStatusRef.current !== null && prevStatusRef.current !== subData?.status) {
+        console.log(`[Subscription] Status changed: ${prevStatusRef.current} → ${subData?.status}`);
       }
-      prevStatusRef.current = data?.subscriptionStatus || null;
+      prevStatusRef.current = subData?.status || null;
     } catch (err) {
       console.error('Error loading subscription:', err);
       setError('Failed to load subscription');
@@ -43,8 +53,8 @@ export function useSubscription(userId: string | null, userEmail?: string | null
   }, [loadSubscription]);
 
   // ==========================================================================
-  // LAYER 1: Supabase Realtime Subscription
-  // Listen for changes to the user's record in real-time
+  // LAYER 1: Supabase Realtime Subscription (WNU Platform)
+  // Listen for changes to the subscriptions table in real-time
   // ==========================================================================
   useEffect(() => {
     if (!userId) return;
@@ -58,17 +68,35 @@ export function useSubscription(userId: string | null, userEmail?: string | null
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'users',
-          filter: `id=eq.${userId}`,
+          table: 'subscriptions',
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const newData = payload.new as Record<string, unknown>;
           console.log('[Subscription] Realtime update received:', {
-            subscription_tier: newData.subscription_tier,
-            subscription_status: newData.subscription_status,
+            tier_id: newData.tier_id,
+            status: newData.status,
           });
 
-          // Refresh subscription data when user record changes
+          // Refresh subscription data when subscription record changes
+          loadSubscription();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'token_balances',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const newData = payload.new as Record<string, unknown>;
+          console.log('[Subscription] Token balance update received:', {
+            balance: newData.balance,
+          });
+
+          // Refresh to get updated token balance
           loadSubscription();
         }
       )
@@ -135,10 +163,11 @@ export function useSubscription(userId: string | null, userEmail?: string | null
       try {
         const data = await subscriptionService.getUserSubscription(userId);
 
-        if (data?.subscriptionStatus === 'active' && data?.subscriptionTier === 'pro') {
+        const isPaidTier = data?.tierId === 'pro' || data?.tierId === 'unlimited';
+        if (data?.status === 'active' && isPaidTier) {
           console.log('[Subscription] Verified active!');
           setSubscription(data);
-          prevStatusRef.current = data.subscriptionStatus;
+          prevStatusRef.current = data.status;
           setIsVerifying(false);
           return true;
         }
@@ -161,14 +190,15 @@ export function useSubscription(userId: string | null, userEmail?: string | null
   }, [userId, loadSubscription]);
 
   const checkCanAppraise = useCallback(async () => {
-    if (!userId) return { canCreate: false, remaining: 0, isPro: false };
+    if (!userId) return { canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 };
     return subscriptionService.canCreateAppraisal(userId);
   }, [userId]);
 
+  // Deprecated: incrementUsage no longer needed with token system
   const incrementUsage = useCallback(async () => {
-    if (!userId) return { count: 0, limitReached: false };
-    return subscriptionService.incrementAppraisalCount(userId);
-  }, [userId]);
+    console.warn('incrementUsage: Deprecated in WNU Platform (token system)');
+    return { count: 0, limitReached: false };
+  }, []);
 
   const openPortal = useCallback(async () => {
     if (!userId) return;
@@ -242,21 +272,20 @@ export function useSubscription(userId: string | null, userEmail?: string | null
     }
   }, [userId, loadSubscription]);
 
-  // Check if Pro (including super admin and Apple IAP)
+  // Check if Pro (including super admin and Apple IAP) - WNU Platform schema
   const isPro = userEmail
     ? subscriptionService.isProByEmail(userEmail, subscription)
-    : subscriptionService.isProByEmail('', subscription); // Use the service method for consistent logic
+    : subscriptionService.isProByEmail('', subscription);
 
   return {
     subscription,
+    tokenBalance,
     isLoading,
     isVerifying,
     error,
     isPro,
     isSuperAdmin: userEmail ? subscriptionService.isSuperAdmin(userEmail) : false,
-    usageCount: subscription?.monthlyAppraisalCount || 0,
-    credits: subscription?.appraisalCredits || 0,
-    resetAt: subscription?.appraisalCountResetAt || null,
+    usageCount: tokenBalance?.balance || 0, // Now returns token balance
     checkCanAppraise,
     incrementUsage,
     openPortal,

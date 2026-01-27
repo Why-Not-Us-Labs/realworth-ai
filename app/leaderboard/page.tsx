@@ -26,17 +26,13 @@ interface LeaderboardEntry {
 }
 
 async function getTopByTotalValue(): Promise<LeaderboardEntry[]> {
-  const { data } = await supabase
-    .from('appraisals')
-    .select(`
-      user_id,
-      price_low,
-      price_high,
-      users:user_id (name, picture)
-    `)
+  // Fetch public appraisals (without user join - WNU Platform uses different user schema)
+  const { data, error } = await supabase
+    .from('rw_appraisals')
+    .select('user_id, price_low, price_high')
     .eq('is_public', true);
 
-  if (!data) return [];
+  if (error || !data) return [];
 
   // Aggregate by user
   const userTotals = data.reduce((acc, item) => {
@@ -46,8 +42,8 @@ async function getTopByTotalValue(): Promise<LeaderboardEntry[]> {
     if (!acc[userId]) {
       acc[userId] = {
         user_id: userId,
-        user_name: (item.users as any)?.name || 'Anonymous',
-        user_picture: (item.users as any)?.picture || '',
+        user_name: 'Collector',
+        user_picture: '',
         value: 0,
         count: 0,
       };
@@ -63,46 +59,28 @@ async function getTopByTotalValue(): Promise<LeaderboardEntry[]> {
 }
 
 async function getTopSingleFind(): Promise<LeaderboardEntry[]> {
-  const { data } = await supabase
-    .from('appraisals')
-    .select(`
-      user_id,
-      item_name,
-      price_low,
-      price_high,
-      users:user_id (name, picture)
-    `)
+  // Fetch public appraisals (without user join - WNU Platform uses different user schema)
+  const { data, error } = await supabase
+    .from('rw_appraisals')
+    .select('user_id, item_name, price_low, price_high')
     .eq('is_public', true)
     .order('price_high', { ascending: false })
     .limit(10);
 
-  if (!data) return [];
+  if (error || !data) return [];
 
   return data.map(item => ({
     user_id: item.user_id,
-    user_name: (item.users as any)?.name || 'Anonymous',
-    user_picture: (item.users as any)?.picture || '',
+    user_name: 'Collector',
+    user_picture: '',
     value: (item.price_low + item.price_high) / 2,
   }));
 }
 
 async function getTopStreaks(): Promise<{ user_id: string; name: string; picture: string; streak: number }[]> {
-  const { data } = await supabase
-    .from('users')
-    .select('id, name, picture, longest_streak')
-    .order('longest_streak', { ascending: false })
-    .limit(10);
-
-  if (!data) return [];
-
-  return data
-    .filter(u => u.longest_streak > 0)
-    .map(u => ({
-      user_id: u.id,
-      name: u.name || 'Anonymous',
-      picture: u.picture || '',
-      streak: u.longest_streak,
-    }));
+  // Streak data requires users table which has different schema in WNU Platform
+  // Returning empty for now until user schema is unified
+  return [];
 }
 
 function formatCurrency(amount: number) {

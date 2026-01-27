@@ -75,19 +75,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's existing Stripe customer ID from database
-    const { data: user, error: userError } = await supabaseAdmin
-      .from('users')
+    // Get user's existing Stripe customer ID from subscriptions table (WNU Platform)
+    const { data: subscription, error: subError } = await supabaseAdmin
+      .from('subscriptions')
       .select('stripe_customer_id')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
 
-    if (userError) {
-      console.error('Error fetching user:', userError);
+    if (subError) {
+      console.error('Error fetching subscription:', subError);
       // Continue anyway - we'll create a new customer
     }
 
-    let customerId = user?.stripe_customer_id;
+    let customerId = subscription?.stripe_customer_id;
     const stripe = getStripe();
 
     // Create Stripe customer if doesn't exist
@@ -102,11 +102,11 @@ export async function POST(request: NextRequest) {
       });
       customerId = customer.id;
 
-      // Save customer ID to user
+      // Save customer ID to subscriptions table (WNU Platform)
       const { error: updateError } = await supabaseAdmin
-        .from('users')
+        .from('subscriptions')
         .update({ stripe_customer_id: customerId })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (updateError) {
         console.error('Error saving customer ID:', updateError);
@@ -132,11 +132,11 @@ export async function POST(request: NextRequest) {
           });
           customerId = customer.id;
 
-          // Save new customer ID to user
+          // Save new customer ID to subscriptions table (WNU Platform)
           const { error: updateError } = await supabaseAdmin
-            .from('users')
+            .from('subscriptions')
             .update({ stripe_customer_id: customerId })
-            .eq('id', userId);
+            .eq('user_id', userId);
 
           if (updateError) {
             console.error('Error saving new customer ID:', updateError);

@@ -1,63 +1,60 @@
-'use client';
 
-import React, { useContext, useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
+import { Metadata } from 'next';
 import Link from 'next/link';
 import { LogoIcon, CompassIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
 import { DiscoverFeed } from '@/components/DiscoverFeed';
-import { AuthContext } from '@/components/contexts/AuthContext';
-import { SkeletonGrid } from '@/components/SkeletonCard';
-import { WeeklyLeaderboard } from '@/components/WeeklyLeaderboard';
 
-interface Treasure {
-  id: string;
-  item_name: string;
-  image_url: string;
-  price_low: number;
-  price_high: number;
-  currency: string;
-  category: string;
-  era: string | null;
-  created_at: string;
-  visibility?: 'public' | 'friends';
-  users: {
-    name: string;
-    picture: string;
-  } | null;
+export const metadata: Metadata = {
+  title: 'Discover Treasures | RealWorth.ai',
+  description: 'See what treasures others are finding! Get inspired and discover hidden value in your own items.',
+  openGraph: {
+    title: 'Discover Treasures | RealWorth.ai',
+    description: 'See what treasures others are finding!',
+  },
+};
+
+// Revalidate every 60 seconds for fresh content
+export const revalidate = 60;
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+async function getPublicTreasures() {
+  // Fetch public appraisals (without user join - WNU Platform uses different user schema)
+  const { data, error } = await supabase
+    .from('rw_appraisals')
+    .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id')
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error fetching public treasures:', error);
+    return [];
+  }
+
+  // Map WNU Platform columns to DiscoverFeed expected format
+  return (data || []).map(row => ({
+    id: row.id,
+    item_name: row.item_name,
+    image_url: row.ai_image_url || (row.input_images && row.input_images[0]) || '',
+    price_low: row.price_low,
+    price_high: row.price_high,
+    currency: row.currency,
+    category: row.category,
+    era: row.era,
+    created_at: row.created_at,
+    user_id: row.user_id,
+  }));
 }
 
-export default function DiscoverPage() {
-  const { user, isAuthLoading } = useContext(AuthContext);
-  const [treasures, setTreasures] = useState<Treasure[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchTreasures() {
-      setIsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        if (user?.id) {
-          params.set('userId', user.id);
-        }
-
-        const response = await fetch(`/api/discover?${params.toString()}`);
-        const data = await response.json();
-
-        if (data.treasures) {
-          setTreasures(data.treasures);
-        }
-      } catch (error) {
-        console.error('Error fetching treasures:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    // Wait for auth to finish loading before fetching
-    if (!isAuthLoading) {
-      fetchTreasures();
-    }
-  }, [user?.id, isAuthLoading]);
+export default async function DiscoverPage() {
+  const treasures = await getPublicTreasures();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -97,41 +94,24 @@ export default function DiscoverPage() {
         </div>
       </header>
 
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-6 sm:py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-4">
-            <div className="flex justify-center mb-3">
-              <CompassIcon className="w-12 h-12 sm:w-10 sm:h-10 text-white/80" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold mb-2">
+      {/* Hero - Compact on tablet */}
+      <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white py-8 sm:py-6 md:py-4 px-4">
+        <div className="max-w-4xl mx-auto text-center md:flex md:items-center md:justify-center md:gap-3">
+          <CompassIcon className="w-12 h-12 sm:w-8 sm:h-8 md:w-6 md:h-6 text-white/80 mx-auto md:mx-0 mb-2 md:mb-0" />
+          <div className="md:text-left">
+            <h1 className="text-3xl sm:text-2xl md:text-xl font-bold mb-1 md:mb-0">
               Discover Treasures
             </h1>
-            <p className="text-white/90 text-sm sm:text-base max-w-2xl mx-auto">
-              See what amazing finds others are uncovering
+            <p className="text-white/90 text-sm md:text-xs md:hidden">
+              See what amazing finds others are uncovering.
             </p>
-          </div>
-
-          {/* Weekly Leaderboard */}
-          <div className="mt-4">
-            <WeeklyLeaderboard />
           </div>
         </div>
       </div>
 
       {/* Feed */}
       <main className="max-w-6xl mx-auto px-4 py-6 sm:p-6 md:p-8">
-        {isLoading || isAuthLoading ? (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="h-4 w-32 bg-slate-200 rounded animate-pulse" />
-              <div className="h-9 w-20 bg-slate-200 rounded-lg animate-pulse" />
-            </div>
-            <SkeletonGrid count={6} variant="card" />
-          </div>
-        ) : (
-          <DiscoverFeed treasures={treasures} showVisibility={!!user} />
-        )}
+        <DiscoverFeed treasures={treasures} />
       </main>
 
       <Footer />

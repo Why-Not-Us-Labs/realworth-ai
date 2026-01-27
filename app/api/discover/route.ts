@@ -38,11 +38,8 @@ export async function GET(request: NextRequest) {
     // If no userId, return only public items (no social state)
     if (!userId) {
       const { data, error } = await supabase
-        .from('appraisals')
-        .select(`
-          *,
-          users:user_id (name, picture)
-        `)
+        .from('rw_appraisals')
+        .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id, is_public')
         .eq('is_public', true)
         .order('created_at', { ascending: false })
         .limit(targetCount * FETCH_MULTIPLIER);
@@ -55,6 +52,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         treasures: cappedData.map(t => ({
           ...t,
+          image_url: t.ai_image_url || (t.input_images && t.input_images[0]) || '',
           visibility: 'public',
           isLiked: false,
           isSaved: false,
@@ -79,11 +77,8 @@ export async function GET(request: NextRequest) {
     // Query: public items OR friends' items (all of them, not just public)
     // Fetch extra items to ensure variety after per-user filtering
     let query = supabase
-      .from('appraisals')
-      .select(`
-        *,
-        users:user_id (name, picture)
-      `)
+      .from('rw_appraisals')
+      .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id, is_public')
       .order('created_at', { ascending: false })
       .limit(targetCount * FETCH_MULTIPLIER);
 
@@ -119,6 +114,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...treasure,
+        image_url: treasure.ai_image_url || (treasure.input_images && treasure.input_images[0]) || '',
         // Visibility: 'public' = anyone can see, 'friends' = visible because you're friends
         visibility: isPublic ? 'public' : (isFriend ? 'friends' : 'public'),
         isLiked: likedIds.includes(treasure.id),

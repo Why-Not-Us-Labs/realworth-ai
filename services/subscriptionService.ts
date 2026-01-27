@@ -1,11 +1,9 @@
 import { supabase, getSupabaseAdmin } from '@/lib/supabase';
-import { FREE_APPRAISAL_LIMIT } from '@/lib/constants';
+import { getTokenBalance } from './tokenService';
 
-export type SubscriptionTier = 'free' | 'pro';
+export type SubscriptionTier = 'free' | 'pro' | 'unlimited';
 export type SubscriptionStatus = 'inactive' | 'active' | 'past_due' | 'canceled';
-
-// Re-export for convenience
-export { FREE_APPRAISAL_LIMIT };
+export type SubscriptionSource = 'stripe' | 'apple_iap';
 
 // Super admin emails - always have Pro features
 const SUPER_ADMIN_EMAILS = [
@@ -13,25 +11,25 @@ const SUPER_ADMIN_EMAILS = [
   'ann.mcnamara01@icloud.com',
 ];
 
-export type SubscriptionSource = 'stripe' | 'apple_iap';
-
+/**
+ * WNU Platform subscription interface
+ * Uses separate subscriptions table instead of fields on users table
+ */
 export interface UserSubscription {
-  subscriptionTier: SubscriptionTier;
-  subscriptionSource: SubscriptionSource;
+  id: string;
+  userId: string;
+  tierId: SubscriptionTier;
+  status: SubscriptionStatus;
+  source: SubscriptionSource;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
-  subscriptionStatus: SubscriptionStatus;
-  subscriptionExpiresAt: string | null;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
-  monthlyAppraisalCount: number;
-  appraisalCountResetAt: string | null;
-  accessCodeUsed: string | null;
-  // IAP-specific fields
+  // Apple IAP fields (stored in subscriptions table)
   iapProductId: string | null;
   iapOriginalTransactionId: string | null;
   iapExpiresAt: string | null;
-  // Pay-as-you-go credits
-  appraisalCredits: number;
 }
 
 class SubscriptionService {
@@ -43,29 +41,14 @@ class SubscriptionService {
   }
 
   /**
-   * Get user's subscription data
+   * Get user's subscription data from WNU Platform subscriptions table
    */
   async getUserSubscription(userId: string): Promise<UserSubscription | null> {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select(`
-          subscription_tier,
-          subscription_source,
-          stripe_customer_id,
-          stripe_subscription_id,
-          subscription_status,
-          subscription_expires_at,
-          cancel_at_period_end,
-          monthly_appraisal_count,
-          appraisal_count_reset_at,
-          access_code_used,
-          iap_product_id,
-          iap_original_transaction_id,
-          iap_expires_at,
-          appraisal_credits
-        `)
-        .eq('id', userId)
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userId)
         .single();
 
       if (error || !data) {
@@ -73,21 +56,23 @@ class SubscriptionService {
         return null;
       }
 
+      // Infer source from data: if iap_product_id exists, it's Apple IAP, otherwise Stripe
+      const inferredSource: SubscriptionSource = data.iap_product_id ? 'apple_iap' : 'stripe';
+
       return {
-        subscriptionTier: (data.subscription_tier as SubscriptionTier) || 'free',
-        subscriptionSource: (data.subscription_source as SubscriptionSource) || 'stripe',
+        id: data.id,
+        userId: data.user_id,
+        tierId: (data.tier_id as SubscriptionTier) || 'free',
+        status: (data.status as SubscriptionStatus) || 'active',
+        source: inferredSource,
         stripeCustomerId: data.stripe_customer_id,
         stripeSubscriptionId: data.stripe_subscription_id,
-        subscriptionStatus: (data.subscription_status as SubscriptionStatus) || 'inactive',
-        subscriptionExpiresAt: data.subscription_expires_at,
+        currentPeriodStart: data.current_period_start,
+        currentPeriodEnd: data.current_period_end,
         cancelAtPeriodEnd: data.cancel_at_period_end || false,
-        monthlyAppraisalCount: data.monthly_appraisal_count || 0,
-        appraisalCountResetAt: data.appraisal_count_reset_at,
-        accessCodeUsed: data.access_code_used || null,
         iapProductId: data.iap_product_id || null,
         iapOriginalTransactionId: data.iap_original_transaction_id || null,
         iapExpiresAt: data.iap_expires_at || null,
-        appraisalCredits: data.appraisal_credits || 0,
       };
     } catch (error) {
       console.error('Error in getUserSubscription:', error);
@@ -96,38 +81,28 @@ class SubscriptionService {
   }
 
   /**
-   * Check if user is Pro (by userId)
+   * Check if user is Pro or Unlimited (by userId)
    * Supports both Stripe and Apple IAP subscriptions
    */
   async isPro(userId: string): Promise<boolean> {
-    // Check subscription
     const subscription = await this.getUserSubscription(userId);
 
     if (subscription) {
+      const isPaidTier = subscription.tierId === 'pro' || subscription.tierId === 'unlimited';
+
       // Check Stripe subscription
-      if (
-        subscription.subscriptionSource === 'stripe' &&
-        subscription.subscriptionTier === 'pro' &&
-        subscription.subscriptionStatus === 'active'
-      ) {
+      if (subscription.source === 'stripe' && isPaidTier && subscription.status === 'active') {
         return true;
       }
 
       // Check Apple IAP subscription
-      if (
-        subscription.subscriptionSource === 'apple_iap' &&
-        subscription.subscriptionTier === 'pro' &&
-        subscription.iapExpiresAt
-      ) {
-        const expiresAt = new Date(subscription.iapExpiresAt);
-        if (expiresAt > new Date()) {
-          return true;
+      if (subscription.source === 'apple_iap' && isPaidTier) {
+        if (subscription.status === 'active') return true;
+        // Fallback: check expiration date directly
+        if (subscription.iapExpiresAt) {
+          const expiresAt = new Date(subscription.iapExpiresAt);
+          if (expiresAt > new Date()) return true;
         }
-      }
-
-      // Check if Pro via access code (no expiration for access codes)
-      if (subscription.subscriptionTier === 'pro' && subscription.accessCodeUsed) {
-        return true;
       }
     }
 
@@ -146,21 +121,24 @@ class SubscriptionService {
   }
 
   /**
-   * Check if user is Pro (by email - faster for UI)
+   * Check if user is Pro or Unlimited (by email - faster for UI)
    * Supports both Stripe and Apple IAP subscriptions
    */
   isProByEmail(email: string, subscription: UserSubscription | null): boolean {
     if (this.isSuperAdmin(email)) return true;
-    if (!subscription || subscription.subscriptionTier !== 'pro') return false;
+    if (!subscription) return false;
+
+    const isPaidTier = subscription.tierId === 'pro' || subscription.tierId === 'unlimited';
+    if (!isPaidTier) return false;
 
     // Stripe subscription - check status
-    if (subscription.subscriptionSource === 'stripe' && subscription.subscriptionStatus === 'active') {
+    if (subscription.source === 'stripe' && subscription.status === 'active') {
       return true;
     }
 
-    // Apple IAP subscription - check status (set by verify-purchase) or expiration
-    if (subscription.subscriptionSource === 'apple_iap') {
-      if (subscription.subscriptionStatus === 'active') return true;
+    // Apple IAP subscription - check status or expiration
+    if (subscription.source === 'apple_iap') {
+      if (subscription.status === 'active') return true;
       // Fallback: check expiration date directly
       if (subscription.iapExpiresAt) {
         const expiresAt = new Date(subscription.iapExpiresAt);
@@ -168,21 +146,18 @@ class SubscriptionService {
       }
     }
 
-    // Access code grants - no expiration
-    if (subscription.accessCodeUsed) return true;
-
     return false;
   }
 
   /**
-   * Update user's Stripe customer ID
+   * Update user's Stripe customer ID in subscriptions table
    */
   async updateStripeCustomerId(userId: string, customerId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('users')
+        .from('subscriptions')
         .update({ stripe_customer_id: customerId })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (error) {
         console.error('Error updating Stripe customer ID:', error);
@@ -216,39 +191,39 @@ class SubscriptionService {
 
       const supabaseAdmin = getSupabaseAdmin();
 
-      // First try to find user by stripe_customer_id
-      let { data: existingUser, error: fetchError } = await supabaseAdmin
-        .from('users')
-        .select('id, email, subscription_tier')
+      // First try to find subscription by stripe_customer_id
+      let { data: existingSubscription, error: fetchError } = await supabaseAdmin
+        .from('subscriptions')
+        .select('id, user_id, tier_id')
         .eq('stripe_customer_id', stripeCustomerId)
         .single();
 
       // Fallback: try lookup by userId from checkout metadata
-      if ((fetchError || !existingUser) && fallbackUserId) {
+      if ((fetchError || !existingSubscription) && fallbackUserId) {
         console.log('[SubscriptionService] Primary lookup failed, trying fallback by userId:', fallbackUserId);
 
-        const { data: userById, error: userByIdError } = await supabaseAdmin
-          .from('users')
-          .select('id, email, subscription_tier')
-          .eq('id', fallbackUserId)
+        const { data: subById, error: subByIdError } = await supabaseAdmin
+          .from('subscriptions')
+          .select('id, user_id, tier_id')
+          .eq('user_id', fallbackUserId)
           .single();
 
-        if (userById && !userByIdError) {
-          console.log('[SubscriptionService] Found user by fallbackUserId, updating stripe_customer_id');
+        if (subById && !subByIdError) {
+          console.log('[SubscriptionService] Found subscription by fallbackUserId, updating stripe_customer_id');
 
           // Update stripe_customer_id for future lookups
           await supabaseAdmin
-            .from('users')
+            .from('subscriptions')
             .update({ stripe_customer_id: stripeCustomerId })
-            .eq('id', fallbackUserId);
+            .eq('user_id', fallbackUserId);
 
-          existingUser = userById;
+          existingSubscription = subById;
           fetchError = null;
         }
       }
 
-      if (fetchError || !existingUser) {
-        console.error('[SubscriptionService] User not found by stripe_customer_id or fallbackUserId:', {
+      if (fetchError || !existingSubscription) {
+        console.error('[SubscriptionService] Subscription not found by stripe_customer_id or fallbackUserId:', {
           stripeCustomerId,
           fallbackUserId,
           error: fetchError,
@@ -256,22 +231,24 @@ class SubscriptionService {
         return false;
       }
 
-      console.log('[SubscriptionService] Found user:', {
-        id: existingUser.id,
-        email: existingUser.email,
-        currentTier: existingUser.subscription_tier,
+      console.log('[SubscriptionService] Found subscription:', {
+        id: existingSubscription.id,
+        userId: existingSubscription.user_id,
+        currentTier: existingSubscription.tier_id,
       });
 
       const { data, error } = await supabaseAdmin
-        .from('users')
+        .from('subscriptions')
         .update({
-          subscription_tier: 'pro',
+          tier_id: 'pro',
           stripe_subscription_id: subscriptionId,
-          subscription_status: 'active',
-          subscription_expires_at: expiresAt.toISOString(),
-          cancel_at_period_end: false, // Reset on new/renewed subscription
+          status: 'active',
+          current_period_start: new Date().toISOString(),
+          current_period_end: expiresAt.toISOString(),
+          cancel_at_period_end: false,
+          updated_at: new Date().toISOString(),
         })
-        .eq('stripe_customer_id', stripeCustomerId)
+        .eq('id', existingSubscription.id)
         .select();
 
       if (error) {
@@ -288,6 +265,51 @@ class SubscriptionService {
   }
 
   /**
+   * Activate Apple IAP subscription
+   * Used by verify-purchase endpoint
+   */
+  async activateIAPSubscription(
+    userId: string,
+    productId: string,
+    originalTransactionId: string,
+    expiresAt: Date
+  ): Promise<boolean> {
+    try {
+      console.log('[SubscriptionService] activateIAPSubscription called:', {
+        userId,
+        productId,
+        originalTransactionId,
+        expiresAt: expiresAt.toISOString(),
+      });
+
+      const supabaseAdmin = getSupabaseAdmin();
+
+      const { error } = await supabaseAdmin
+        .from('subscriptions')
+        .update({
+          tier_id: 'pro',
+          status: 'active',
+          iap_product_id: productId,
+          iap_original_transaction_id: originalTransactionId,
+          iap_expires_at: expiresAt.toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('[SubscriptionService] Error activating IAP subscription:', error);
+        return false;
+      }
+
+      console.log('[SubscriptionService] IAP subscription activated for user:', userId);
+      return true;
+    } catch (error) {
+      console.error('[SubscriptionService] Error in activateIAPSubscription:', error);
+      return false;
+    }
+  }
+
+  /**
    * Update subscription status
    * Uses admin client to bypass RLS (called from webhook)
    */
@@ -299,28 +321,28 @@ class SubscriptionService {
   ): Promise<boolean> {
     try {
       const updateData: Record<string, unknown> = {
-        subscription_status: status,
+        status: status,
+        updated_at: new Date().toISOString(),
       };
 
       if (expiresAt) {
-        updateData.subscription_expires_at = expiresAt.toISOString();
+        updateData.current_period_end = expiresAt.toISOString();
       }
 
-      // Track cancellation schedule
       if (cancelAtPeriodEnd !== undefined) {
         updateData.cancel_at_period_end = cancelAtPeriodEnd;
       }
 
-      // If canceled or past_due, downgrade tier
+      // If canceled, downgrade tier
       if (status === 'canceled') {
-        updateData.subscription_tier = 'free';
+        updateData.tier_id = 'free';
         updateData.stripe_subscription_id = null;
         updateData.cancel_at_period_end = false;
       }
 
       const supabaseAdmin = getSupabaseAdmin();
       const { error } = await supabaseAdmin
-        .from('users')
+        .from('subscriptions')
         .update(updateData)
         .eq('stripe_customer_id', stripeCustomerId);
 
@@ -336,267 +358,59 @@ class SubscriptionService {
   }
 
   /**
-   * Increment monthly appraisal count for free tier tracking
-   * Uses admin client to bypass RLS - ensures count is always updated
+   * Check if user can create an appraisal (token-based)
+   * In WNU Platform, this checks token balance instead of monthly counts
    */
-  async incrementAppraisalCount(userId: string): Promise<{ count: number; limitReached: boolean }> {
+  async canCreateAppraisal(userId: string): Promise<{ canCreate: boolean; remaining: number; isPro: boolean; tokenBalance: number }> {
     try {
-      const supabaseAdmin = getSupabaseAdmin();
-
-      // Check if Pro or super admin (no counting needed)
+      // Check if user is Pro (Pro/Unlimited users can still run out of tokens)
       const isPro = await this.isPro(userId);
-      if (isPro) {
-        return { count: 0, limitReached: false };
+
+      // Get token balance
+      const tokenBalance = await getTokenBalance(userId);
+
+      if (!tokenBalance) {
+        console.error('[SubscriptionService] Failed to fetch token balance for user:', userId);
+        return { canCreate: false, remaining: 0, isPro, tokenBalance: 0 };
       }
 
-      // Get current state - month reset already handled by canCreateAppraisal()
-      // but we call ensureMonthReset() for safety in case called independently
-      const { currentCount } = await this.ensureMonthReset(userId);
-
-      // Increment count
-      const newCount = currentCount + 1;
-      const limitReached = newCount >= FREE_APPRAISAL_LIMIT;
-
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({ monthly_appraisal_count: newCount })
-        .eq('id', userId);
-
-      if (updateError) {
-        console.error('[SubscriptionService] CRITICAL: Failed to increment appraisal count:', updateError);
-        return { count: currentCount, limitReached: currentCount >= FREE_APPRAISAL_LIMIT };
-      }
-
-      console.log('[SubscriptionService] Incremented appraisal count:', { userId, newCount, limitReached, limit: FREE_APPRAISAL_LIMIT });
-      return { count: newCount, limitReached };
-    } catch (error) {
-      console.error('[SubscriptionService] Error in incrementAppraisalCount:', error);
-      return { count: 0, limitReached: false };
-    }
-  }
-
-  /**
-   * Check if user can create an appraisal
-   * Uses admin client for reliable reads
-   * Now includes pay-as-you-go credits check
-   */
-  async canCreateAppraisal(userId: string): Promise<{
-    canCreate: boolean;
-    remaining: number;
-    isPro: boolean;
-    currentCount: number;
-    credits: number;
-    useCredit: boolean;
-  }> {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-
-      const { data: user, error } = await supabaseAdmin
-        .from('users')
-        .select('email, monthly_appraisal_count, appraisal_count_reset_at, subscription_tier, subscription_status, appraisal_credits')
-        .eq('id', userId)
-        .single();
-
-      if (error || !user) {
-        console.error('[SubscriptionService] Failed to fetch user for canCreateAppraisal:', error);
-        return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
-      }
-
-      const credits = user.appraisal_credits || 0;
-
-      // Super admin or Pro users have unlimited
-      if (this.isSuperAdmin(user.email) || (user.subscription_tier === 'pro' && user.subscription_status === 'active')) {
-        return { canCreate: true, remaining: Infinity, isPro: true, currentCount: user.monthly_appraisal_count || 0, credits, useCredit: false };
-      }
-
-      // Ensure month is properly reset (uses single source of truth)
-      const { currentCount } = await this.ensureMonthReset(userId);
-
-      const freeRemaining = Math.max(0, FREE_APPRAISAL_LIMIT - currentCount);
-      const hasFreeAppraisals = currentCount < FREE_APPRAISAL_LIMIT;
-      const hasCredits = credits > 0;
-
-      // Can create if: has free appraisals remaining OR has credits
-      const canCreate = hasFreeAppraisals || hasCredits;
-      // Will use credit only if no free appraisals left but has credits
-      const useCredit = !hasFreeAppraisals && hasCredits;
+      const balance = tokenBalance.balance;
+      const canCreate = balance > 0;
 
       console.log('[SubscriptionService] canCreateAppraisal check:', {
         userId,
-        currentCount,
-        limit: FREE_APPRAISAL_LIMIT,
-        freeRemaining,
-        credits,
+        tokenBalance: balance,
         canCreate,
-        useCredit,
+        isPro
       });
 
       return {
         canCreate,
-        remaining: freeRemaining,
-        isPro: false,
-        currentCount,
-        credits,
-        useCredit,
+        remaining: balance,
+        isPro,
+        tokenBalance: balance,
       };
     } catch (error) {
       console.error('[SubscriptionService] Error in canCreateAppraisal:', error);
-      return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+      return { canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 };
     }
   }
 
   /**
-   * Consume one appraisal credit (for pay-as-you-go)
-   * Returns true if credit was consumed, false if no credits available
-   */
-  async consumeCredit(userId: string): Promise<{ consumed: boolean; remaining: number }> {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-
-      // Get current credits
-      const { data: user, error: fetchError } = await supabaseAdmin
-        .from('users')
-        .select('appraisal_credits')
-        .eq('id', userId)
-        .single();
-
-      if (fetchError || !user) {
-        console.error('[SubscriptionService] Failed to fetch credits:', fetchError);
-        return { consumed: false, remaining: 0 };
-      }
-
-      const currentCredits = user.appraisal_credits || 0;
-
-      if (currentCredits <= 0) {
-        console.log('[SubscriptionService] No credits to consume for user:', userId);
-        return { consumed: false, remaining: 0 };
-      }
-
-      // Decrement credit
-      const newCredits = currentCredits - 1;
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({ appraisal_credits: newCredits })
-        .eq('id', userId);
-
-      if (updateError) {
-        console.error('[SubscriptionService] Failed to consume credit:', updateError);
-        return { consumed: false, remaining: currentCredits };
-      }
-
-      console.log('[SubscriptionService] Credit consumed:', { userId, newCredits });
-      return { consumed: true, remaining: newCredits };
-    } catch (error) {
-      console.error('[SubscriptionService] Error in consumeCredit:', error);
-      return { consumed: false, remaining: 0 };
-    }
-  }
-
-  /**
-   * Get user's current credit balance
-   */
-  async getCreditBalance(userId: string): Promise<number> {
-    try {
-      const supabaseAdmin = getSupabaseAdmin();
-      const { data, error } = await supabaseAdmin
-        .from('users')
-        .select('appraisal_credits')
-        .eq('id', userId)
-        .single();
-
-      if (error || !data) return 0;
-      return data.appraisal_credits || 0;
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Ensure month reset is properly handled (Single Source of Truth)
-   * This method checks if a new month has started and resets the counter if needed.
-   * ALWAYS persists to database to avoid inconsistencies.
-   */
-  private async ensureMonthReset(userId: string): Promise<{
-    currentCount: number;
-    resetAt: Date;
-  }> {
-    const supabaseAdmin = getSupabaseAdmin();
-
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('monthly_appraisal_count, appraisal_count_reset_at')
-      .eq('id', userId)
-      .single();
-
-    if (error || !user) {
-      console.error('[SubscriptionService] ensureMonthReset - failed to fetch user:', error);
-      // Return safe defaults
-      const nextMonth = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 1));
-      return { currentCount: 0, resetAt: nextMonth };
-    }
-
-    const now = new Date();
-    const resetAt = user.appraisal_count_reset_at
-      ? new Date(user.appraisal_count_reset_at)
-      : null;
-
-    // Check if reset needed (different month or never set)
-    // Use UTC to avoid timezone issues
-    const needsReset = !resetAt ||
-      now.getUTCMonth() !== resetAt.getUTCMonth() ||
-      now.getUTCFullYear() !== resetAt.getUTCFullYear();
-
-    if (needsReset) {
-      // Reset and persist to DB
-      const firstOfNextMonth = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth() + 1,
-        1
-      ));
-
-      console.log('[SubscriptionService] Month reset triggered:', {
-        userId,
-        oldResetAt: resetAt?.toISOString() || 'null',
-        newResetAt: firstOfNextMonth.toISOString(),
-        oldCount: user.monthly_appraisal_count || 0,
-      });
-
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({
-          monthly_appraisal_count: 0,
-          appraisal_count_reset_at: firstOfNextMonth.toISOString()
-        })
-        .eq('id', userId);
-
-      if (updateError) {
-        console.error('[SubscriptionService] Failed to persist month reset:', updateError);
-      }
-
-      return { currentCount: 0, resetAt: firstOfNextMonth };
-    }
-
-    return {
-      currentCount: user.monthly_appraisal_count || 0,
-      resetAt: resetAt!
-    };
-  }
-
-  /**
-   * Get user by Stripe customer ID
+   * Get user by Stripe customer ID from subscriptions table
    */
   async getUserByStripeCustomerId(customerId: string): Promise<string | null> {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('id')
+        .from('subscriptions')
+        .select('user_id')
         .eq('stripe_customer_id', customerId)
         .single();
 
       if (error || !data) {
         return null;
       }
-      return data.id;
+      return data.user_id;
     } catch (error) {
       console.error('Error in getUserByStripeCustomerId:', error);
       return null;

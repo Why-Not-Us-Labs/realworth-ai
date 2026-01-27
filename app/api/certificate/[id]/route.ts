@@ -57,11 +57,8 @@ export async function GET(
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const { data: appraisal, error: appraisalError } = await supabase
-    .from('appraisals')
-    .select(`
-      *,
-      users:user_id (id, name, email, picture)
-    `)
+    .from('rw_appraisals')
+    .select('*')
     .eq('id', appraisalId)
     .single();
 
@@ -98,10 +95,11 @@ export async function GET(
 
     // Pre-fetch image and convert to base64 (react-pdf can't reliably fetch external URLs in serverless)
     let imageDataUrl: string | undefined;
-    if (appraisal.image_url) {
+    const imageUrl = appraisal.ai_image_url || (appraisal.input_images && appraisal.input_images[0]);
+    if (imageUrl) {
       try {
-        console.log('[Certificate API] Fetching image:', appraisal.image_url);
-        const imageResponse = await fetch(appraisal.image_url);
+        console.log('[Certificate API] Fetching image:', imageUrl);
+        const imageResponse = await fetch(imageUrl);
         if (imageResponse.ok) {
           const imageBuffer = await imageResponse.arrayBuffer();
           const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
@@ -128,7 +126,7 @@ export async function GET(
         priceLow: appraisal.price_low,
         priceHigh: appraisal.price_high,
         currency: appraisal.currency || 'USD',
-        reasoning: appraisal.reasoning,
+        reasoning: appraisal.ai_reasoning,
         imageUrl: imageDataUrl, // Use pre-fetched base64 image
         confidenceScore: appraisal.confidence_score || 75,
         confidenceFactors: confidenceFactors,

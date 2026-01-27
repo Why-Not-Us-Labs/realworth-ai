@@ -1,17 +1,9 @@
 
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
-import { getEbayMarketValue, buildSearchKeywords, buildCategoryAspects, type EbayMarketData } from '@/services/ebayPriceService';
-import { getMetalPrices, formatMetalPricesForPrompt } from '@/services/metalPriceService';
-import {
-  detectNumismaticCategory,
-  checkHighValueTriggers,
-  formatNumismaticContextForPrompt,
-  type HighValueAlert
-} from '@/services/numismaticContextService';
-import type { ValuationBreakdown, EbayComparable, FutureValuePrediction } from '@/lib/types';
+import { FutureValuePrediction } from '@/lib/types';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -120,23 +112,6 @@ const responseSchema = {
       description: "3-5 specific preservation and care recommendations for this type of item. Include storage, handling, cleaning, and environmental considerations. Be practical and actionable.",
       items: { type: Type.STRING }
     },
-    rarityScore: {
-      type: Type.NUMBER,
-      description: "Rarity score from 0.0 to 10.0 (one decimal place). Consider: production/mintage numbers, survival rate, condition rarity, key dates/varieties, historical significance, collector demand. 9.0-10.0 = extremely rare (< 100 known), 7.0-8.9 = very rare (< 1,000 known), 5.0-6.9 = moderately rare, 3.0-4.9 = somewhat uncommon, 0.0-2.9 = common."
-    },
-    rarityFactors: {
-      type: Type.ARRAY,
-      description: "2-4 factors explaining the rarity score with individual scores",
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          factor: { type: Type.STRING, description: "Short label like 'Low Mintage', 'Key Date', 'Condition Rarity', 'Limited Production', 'High Demand'" },
-          score: { type: Type.NUMBER, description: "This factor's contribution to rarity (0-10)" },
-          detail: { type: Type.STRING, description: "1-2 sentence explanation of why this affects rarity" }
-        },
-        required: ["factor", "score", "detail"]
-      }
-    },
     collectibleDetails: {
       type: Type.OBJECT,
       description: "Additional details for collectible items like coins, stamps, and currency. Required for Coin, Stamp, and Currency categories.",
@@ -224,7 +199,7 @@ const responseSchema = {
       required: ["suggestions", "canImprove"]
     }
   },
-  required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "rarityScore", "rarityFactors", "gradeValueTiers", "insuranceValue", "appraisalImprovements"]
+required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "gradeValueTiers", "insuranceValue", "appraisalImprovements"]
 };
 
 // Validation function to catch face-value errors for collectibles
@@ -237,8 +212,6 @@ interface AppraisalData {
   confidenceFactors: Array<{ factor: string; impact: string; detail: string }>;
   validationNotes?: string;
   careTips?: string[];
-  rarityScore?: number;
-  rarityFactors?: Array<{ factor: string; score: number; detail: string }>;
   collectibleDetails?: {
     mintMark?: string;
     gradeEstimate?: string;
@@ -267,33 +240,6 @@ function validateAppraisal(result: AppraisalData): AppraisalData {
   // Check if item is old enough to likely have collectible value
   const eraYear = parseInt(result.era?.replace(/\D/g, '') || '0');
   const isVintage = eraYear > 0 && eraYear < 1980;
-
-  // Apply minimum floor values for vintage coins to prevent $0 valuations
-  if (categoryLower.includes('coin') && isVintage) {
-    // Minimum floors based on age - older coins have higher collector value
-    let minimumLow = 0.25; // Default minimum for any vintage coin
-    let minimumHigh = 1.00;
-
-    if (eraYear < 1900) {
-      minimumLow = 5.00;
-      minimumHigh = 25.00;
-    } else if (eraYear < 1940) {
-      minimumLow = 1.00;
-      minimumHigh = 5.00;
-    } else if (eraYear < 1965) {
-      minimumLow = 0.50;
-      minimumHigh = 2.00;
-    }
-
-    // Apply floors
-    if (result.priceRange.low < minimumLow) {
-      console.log(`[Appraisal Validation] Applying minimum floor: $${result.priceRange.low} -> $${minimumLow} for ${result.itemName}`);
-      result.priceRange.low = minimumLow;
-    }
-    if (result.priceRange.high < minimumHigh) {
-      result.priceRange.high = Math.max(minimumHigh, result.priceRange.low * 4);
-    }
-  }
 
   if (indicator && isVintage) {
     // Old item valued at face value = likely error, add warning
@@ -452,32 +398,30 @@ export async function POST(req: NextRequest) {
       userId = user?.id || null;
     }
 
-    // SERVER-SIDE LIMIT ENFORCEMENT - Cannot be bypassed
-    let willUseCredit = false;
+    // SERVER-SIDE TOKEN ENFORCEMENT - Cannot be bypassed (WNU Platform)
+    let tokenTransactionId: string | undefined;
     if (userId) {
-      // Import dynamically to avoid issues with server-side rendering
-      const { subscriptionService, FREE_APPRAISAL_LIMIT } = await import('@/services/subscriptionService');
+      const { consumeTokens } = await import('@/services/tokenService');
 
-      const { canCreate, remaining, isPro, currentCount, credits, useCredit } = await subscriptionService.canCreateAppraisal(userId);
+      // Consume token BEFORE processing
+      const tokenResult = await consumeTokens(userId, 'appraisal');
 
-      if (!canCreate) {
-        console.log('[Appraise API] FREE LIMIT REACHED:', { userId, currentCount, limit: FREE_APPRAISAL_LIMIT, credits });
+      if (!tokenResult.success) {
+        console.log('[Appraise API] INSUFFICIENT TOKENS:', { userId, error: tokenResult.error, balance: tokenResult.balance });
         return NextResponse.json(
           {
-            error: 'Monthly appraisal limit reached',
-            code: 'LIMIT_REACHED',
-            message: `You've used all ${FREE_APPRAISAL_LIMIT} free appraisals this month. Upgrade to Pro for unlimited appraisals or buy a single appraisal for $1.99!`,
-            currentCount,
-            limit: FREE_APPRAISAL_LIMIT,
-            credits,
+            error: 'insufficient_tokens',
+            code: 'INSUFFICIENT_TOKENS',
+            message: 'You don\'t have enough tokens. Get more tokens to continue appraising!',
+            balance: tokenResult.balance || 0,
             requiresUpgrade: true
           },
-          { status: 403 }
+          { status: 402 }
         );
       }
 
-      willUseCredit = useCredit;
-      console.log('[Appraise API] Limit check passed:', { userId, currentCount, remaining, isPro, credits, willUseCredit });
+      tokenTransactionId = tokenResult.transactionId;
+      console.log('[Appraise API] Token consumed:', { userId, transactionId: tokenTransactionId, newBalance: tokenResult.newBalance });
     }
 
     // Fetch collection details if collectionId is provided
@@ -524,18 +468,6 @@ You must also provide validation feedback:
         },
       };
     }));
-
-    // Fetch current precious metal prices for accurate coin/jewelry valuations
-    const metalPrices = await getMetalPrices();
-    const metalPriceContext = formatMetalPricesForPrompt(metalPrices);
-    console.log(`[Appraise API] Metal prices fetched: Silver $${metalPrices.silver.toFixed(2)}/oz, Gold $${metalPrices.gold.toFixed(2)}/oz`);
-
-    // Load numismatic context (high-value triggers for coins/currency)
-    // Always load for all appraisals since we don't know item type yet
-    const numismaticContext = await formatNumismaticContextForPrompt('coin');
-    if (numismaticContext) {
-      console.log(`[Appraise API] Numismatic context loaded (${numismaticContext.length} chars)`);
-    }
 
     // Step 1: Get the detailed appraisal data
     const appraisalSystemInstruction = `You are a senior appraiser at RealWorth.ai, trained in the tradition of the world's finest auction houses and the legendary experts from Antiques Roadshow. You bring decades of combined expertise from Christie's, Sotheby's, Heritage Auctions, and specialty dealers.
@@ -860,38 +792,6 @@ SILVER:
 - Paul Revere pieces: Museum quality
 - Coin silver (pre-1860s American): Historical premium
 
-=== US PAPER MONEY GUIDE ===
-
-SEAL COLOR IDENTIFICATION (Critical for value!):
-- GOLD/ORANGE Seal: Gold Certificate (1863-1933) - ALWAYS VALUABLE ($100-$3M+)
-- RED Seal: Legal Tender/US Note (1862-1966) - Collectible ($20-$50,000)
-- BLUE Seal: Silver Certificate (1878-1963) - Collectible ($10-$5,000)
-- BROWN Seal: National Bank Note (1863-1935) - Value varies by issuing bank
-- GREEN Seal: Federal Reserve Note (1914+) - Standard unless rare date/serial
-- YELLOW Seal: North Africa Emergency (1942) - Premium ($50-$500)
-
-HIGH DENOMINATION NOTES (EXTREMELY VALUABLE):
-- $10,000 Bill (1928, 1934): $60,000-$500,000+ (Salmon Chase portrait)
-- $5,000 Bill (1928, 1934): $50,000-$250,000+ (James Madison portrait)
-- $1,000 Bill (any): $1,500-$35,000
-- $500 Bill (any): $600-$15,000
-
-LARGE SIZE vs SMALL SIZE:
-- Large Size (pre-1929): 7.4" x 3.1" - ALWAYS collectible
-- Small Size (1929+): 6.1" x 2.6" - Standard unless rare
-
-VALUABLE SERIAL NUMBER PATTERNS:
-- Solid (88888888): $500-$5,000+
-- Ladder (12345678): $100-$2,000
-- Low Serial (00000001-100): $100-$15,000
-- Star Notes (★ symbol): Replacement note premium $5-$500+
-
-PAPER MONEY GRADING (PMG Scale):
-- 65-67+ Gem Uncirculated: 5-100x base value
-- 58-64 Choice AU/Unc: 2-8x base value
-- 40-55 EF/AU: 1.5-4x base value
-- Below 40: Significant discounts
-
 ARTWORK:
 - Hudson River School (1825-1875): $5,000-$500,000+
 - American Impressionism: $1,000-$100,000+
@@ -973,31 +873,7 @@ REFERENCE REQUIREMENTS:
 3. Include at least one auction house or price guide for credibility
 4. If exact matches aren't found, cite comparable items and explain the comparison
 
-Users will click these links to verify your valuation, so accuracy is critical!
-
-RARITY SCORING (0-10 scale with one decimal place):
-Score the item's rarity and provide 2-4 factors explaining the score.
-
-RARITY SCALE:
-- 9.0-10.0: Extremely rare (< 100 known, museum quality, one-of-a-kind)
-- 7.0-8.9: Very rare (< 1,000 known, highly sought after, key dates)
-- 5.0-6.9: Moderately rare (limited production, growing collector interest)
-- 3.0-4.9: Somewhat uncommon (below average availability)
-- 0.0-2.9: Common (mass-produced, readily available)
-
-RARITY FACTORS TO CONSIDER:
-1. Production/Mintage: How many were originally made?
-2. Survival Rate: How many still exist in any condition?
-3. Condition Rarity: How rare is THIS specific grade/condition?
-4. Key Date/Variety: Is this a special issue, error, or variant?
-5. Collector Demand: Current market interest and desirability
-
-For each factor, provide:
-- A short label (e.g., "Low Mintage", "High Survival Rate")
-- A score (0-10) for that specific factor
-- A brief explanation
-
-${metalPriceContext}${numismaticContext}${collectionContext}`;
+Users will click these links to verify your valuation, so accuracy is critical!${collectionContext}`;
     const appraisalTextPart = { text: condition
       ? `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}`
       : `Please assess the item's condition from the photos provided.${collectionContext ? '\n\n' + collectionContext : ''}` };
@@ -1020,7 +896,7 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
     // Validate appraisal to catch face-value errors for collectibles
     appraisalData = validateAppraisal(appraisalData as AppraisalData);
 
-    // Ensure insurance value is always present (fallback calculation)
+// Ensure insurance value is always present (fallback calculation)
     if (!appraisalData.insuranceValue) {
       appraisalData.insuranceValue = {
         recommended: Math.round(appraisalData.priceRange.high * 1.25),
@@ -1042,200 +918,92 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
       };
     }
 
-    // Step 1.4: Detect numismatic items and check for high-value triggers
-    let highValueAlert: HighValueAlert | undefined;
-    const numismaticCategory = detectNumismaticCategory(
-      appraisalData.itemName || '',
-      appraisalData.category
+    // Generate future value predictions
+    const futureValuePredictions = generateFutureValuePredictions(
+      appraisalData.category,
+      appraisalData.era,
+      (appraisalData.priceRange.low + appraisalData.priceRange.high) / 2
     );
 
-    if (numismaticCategory) {
-      const collectibleDetails = appraisalData.collectibleDetails || {};
-      highValueAlert = checkHighValueTriggers({
-        year: collectibleDetails.year || (appraisalData.era ? parseInt(appraisalData.era) : undefined),
-        mintMark: collectibleDetails.mintMark,
-        denomination: collectibleDetails.denomination,
-        metalColor: collectibleDetails.metalColor,
-        sealColor: collectibleDetails.sealColor,
-        serialNumber: collectibleDetails.serialNumber,
-        description: appraisalData.itemName + ' ' + (appraisalData.description || ''),
-      });
+    // Step 2: Regenerate the image
+    const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
+    const imageResponse = await ai.models.generateContent({
+      model: 'gemini-3-pro-image-preview',
+      contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
+      config: {
+        responseModalities: [Modality.IMAGE],
+      },
+    });
 
-      if (highValueAlert.isHighValue) {
-        console.log(`[Appraise API] High-value ${numismaticCategory} detected! Triggers: ${highValueAlert.triggers.join(', ')}`);
+    let imageBuffer: Buffer | null = null;
+    let imageMimeType: string | null = null;
+
+    if (imageResponse.candidates?.[0]?.content?.parts) {
+      for (const part of imageResponse.candidates[0].content.parts) {
+        if (part.inlineData?.data && part.inlineData?.mimeType) {
+          imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+          imageMimeType = part.inlineData.mimeType;
+          break;
+        }
       }
     }
 
-    // Step 1.5: Enhance valuation with real eBay sold data
-    let valuationBreakdown: ValuationBreakdown | undefined;
-    let ebayComparables: EbayComparable[] | undefined;
-    let futureValuePredictions: FutureValuePrediction[] | undefined;
-
-    try {
-      // Build search keywords from Gemini's identification
-      const searchKeywords = buildSearchKeywords({
-        itemName: appraisalData.itemName,
-        category: appraisalData.category,
-        era: appraisalData.era,
-        author: appraisalData.author,
-        collectibleDetails: appraisalData.collectibleDetails,
-      });
-
-      // Build category-specific aspects for better search
-      const aspects = buildCategoryAspects(
-        appraisalData.category,
-        appraisalData.collectibleDetails
-      );
-
-      console.log(`[Appraise API] Searching eBay for: "${searchKeywords}"`);
-
-      // Fetch real market data from eBay
-      const ebayData = await getEbayMarketValue({
-        keywords: searchKeywords,
-        aspects: aspects.length > 0 ? aspects : undefined,
-      });
-
-      if (ebayData && ebayData.sampleSize >= 5) {
-        // We have sufficient eBay data - use it!
-        console.log(`[Appraise API] eBay data found: ${ebayData.sampleSize} results, avg $${ebayData.average.toFixed(2)}`);
-
-        // Store original Gemini prices for comparison
-        const geminiPrices = { ...appraisalData.priceRange };
-
-        // Calculate condition modifier from Gemini's assessment
-        // Default to 0.85 (Excellent) if no specific condition issues noted
-        let conditionModifier = 0.85;
-        let conditionNote = '';
-
-        if (appraisalData.collectibleDetails?.gradeEstimate) {
-          const grade = appraisalData.collectibleDetails.gradeEstimate.toUpperCase();
-          if (grade.includes('MS-6') || grade.includes('MINT')) {
-            conditionModifier = 1.0;
-            conditionNote = 'Mint/Near Mint condition';
-          } else if (grade.includes('MS-') || grade.includes('AU-') || grade.includes('EXCELLENT')) {
-            conditionModifier = 0.90;
-            conditionNote = 'Excellent condition';
-          } else if (grade.includes('VF-') || grade.includes('EF-') || grade.includes('VERY GOOD')) {
-            conditionModifier = 0.75;
-            conditionNote = 'Very Good condition';
-          } else if (grade.includes('F-') || grade.includes('GOOD')) {
-            conditionModifier = 0.60;
-            conditionNote = 'Good condition';
-          } else if (grade.includes('VG-') || grade.includes('FAIR')) {
-            conditionModifier = 0.45;
-            conditionNote = 'Fair condition';
-          } else if (grade.includes('G-') || grade.includes('POOR')) {
-            conditionModifier = 0.25;
-            conditionNote = 'Poor condition';
-          }
-        }
-
-        // Use eBay median as base (more reliable than average for outliers)
-        const baseMarketValue = ebayData.median > 0 ? ebayData.median : ebayData.average;
-
-        // Apply condition modifier to get adjusted value
-        const adjustedValue = baseMarketValue * conditionModifier;
-
-        // Use eBay's range, adjusted for condition
-        // Low = eBay low * condition, High = eBay high * condition
-        const newPriceLow = Math.round(ebayData.low * conditionModifier);
-        const newPriceHigh = Math.round(ebayData.high * conditionModifier);
-
-        // Only override Gemini's prices if eBay data seems reliable
-        // (sufficient sample size and prices are in reasonable range)
-        if (ebayData.confidence >= 0.2 && newPriceHigh > 0) {
-          // Update the price range with real market data
-          appraisalData.priceRange = {
-            low: Math.max(newPriceLow, 1), // Ensure at least $1
-            high: Math.max(newPriceHigh, newPriceLow + 1),
-          };
-
-          // Boost confidence if we have good eBay data
-          const ebayConfidenceBoost = Math.round(ebayData.confidence * 20); // Up to +20 from eBay
-          appraisalData.confidenceScore = Math.min(100,
-            (appraisalData.confidenceScore || 50) + ebayConfidenceBoost
-          );
-
-          // Add eBay data source to confidence factors
-          if (!appraisalData.confidenceFactors) {
-            appraisalData.confidenceFactors = [];
-          }
-          appraisalData.confidenceFactors.unshift({
-            factor: 'Real Market Data',
-            impact: 'positive',
-            detail: `Based on ${ebayData.sampleSize} recent eBay sold listings (avg: $${ebayData.average.toFixed(2)})`,
-          });
-
-          console.log(`[Appraise API] Updated prices: $${appraisalData.priceRange.low}-$${appraisalData.priceRange.high} (was $${geminiPrices.low}-$${geminiPrices.high})`);
-        }
-
-        // Build valuation breakdown for transparency
-        valuationBreakdown = {
-          baseMarketValue: Math.round(baseMarketValue),
-          source: 'ebay',
-          conditionModifier,
-          conditionNote: conditionNote || undefined,
-          sampleSize: ebayData.sampleSize,
-          comparablesUsed: Math.min(ebayData.comparables.length, 5),
-          ebayData,
-        };
-
-        // Store top comparables for reference
-        ebayComparables = ebayData.comparables.slice(0, 5);
-
-        // Update references to include actual eBay comparables
-        if (ebayComparables.length > 0 && appraisalData.references) {
-          // Add eBay sold listings reference at the top
-          const ebayReference = {
-            title: `eBay Sold Listings (${ebayData.sampleSize} recent sales)`,
-            url: `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(searchKeywords)}&LH_Complete=1&LH_Sold=1`,
-          };
-          appraisalData.references = [ebayReference, ...appraisalData.references.slice(0, 3)];
-        }
-
-      } else {
-        // Insufficient eBay data - keep Gemini's estimate
-        console.log(`[Appraise API] Insufficient eBay data (${ebayData?.sampleSize || 0} results) - using Gemini estimate`);
-
-        valuationBreakdown = {
-          baseMarketValue: Math.round((appraisalData.priceRange.low + appraisalData.priceRange.high) / 2),
-          source: 'gemini',
-          conditionModifier: 1.0,
-          sampleSize: 0,
-          comparablesUsed: 0,
-        };
-      }
-
-      // Generate simple future value predictions
-      futureValuePredictions = generateFutureValuePredictions(
-        appraisalData.category,
-        appraisalData.era,
-        (appraisalData.priceRange.low + appraisalData.priceRange.high) / 2
-      );
-
-    } catch (ebayError) {
-      console.error('[Appraise API] eBay lookup failed (non-blocking):', ebayError);
-      // Continue with Gemini's estimate - eBay is enhancement only
-      valuationBreakdown = {
-        baseMarketValue: Math.round((appraisalData.priceRange.low + appraisalData.priceRange.high) / 2),
-        source: 'gemini',
-        conditionModifier: 1.0,
-        sampleSize: 0,
-        comparablesUsed: 0,
-      };
-    }
-
-    // Step 2: Use the original uploaded image (no AI regeneration)
-    // We use the first uploaded image as the display image
-    // All original images are preserved in imageUrls array
-    const imageDataUrl = imageUrls[0];
-    const imagePath = imagePaths[0];
-
-    if (!appraisalData) {
+    if (!appraisalData || !imageBuffer || !imageMimeType) {
       throw new Error("AI response was incomplete.");
     }
 
-    // Step 3: Update user streak if authenticated
+    // Step 3: Upload regenerated image to storage (or use first uploaded image)
+    let imageDataUrl: string;
+    let imagePath: string | undefined;
+
+    try {
+      const timestamp = Date.now();
+      const randomStr = Math.random().toString(36).substring(7);
+      const fileExt = imageMimeType.split('/')[1] || 'png';
+      const fileName = `result-${timestamp}-${randomStr}.${fileExt}`;
+
+      const filePath = userId
+        ? `${userId}/results/${fileName}`
+        : `public/results/${fileName}`;
+
+      // Upload regenerated image with 10s timeout
+      const uploadPromise = supabase.storage
+        .from('appraisal-images')
+        .upload(filePath, imageBuffer, {
+          contentType: imageMimeType,
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Storage upload timeout')), 10000)
+      );
+
+      const { error: uploadError } = await Promise.race([
+        uploadPromise,
+        timeoutPromise
+      ]) as { data: unknown; error: { message: string } | null };
+
+      if (uploadError) {
+        throw new Error('Storage unavailable');
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('appraisal-images')
+        .getPublicUrl(filePath);
+
+      imageDataUrl = publicUrl;
+      imagePath = filePath;
+      console.log('✅ Result image uploaded to storage');
+
+    } catch (storageError) {
+      // Fallback: use first uploaded image URL
+      console.warn('Using original upload as fallback');
+      imageDataUrl = imageUrls[0];
+      imagePath = imagePaths[0];
+    }
+
+    // Step 4: Update user streak if authenticated
     let streakInfo = null;
     if (userId) {
       try {
@@ -1313,23 +1081,8 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
         // Don't fail the appraisal if streak update fails
       }
 
-      // SERVER-SIDE INCREMENT / CREDIT CONSUMPTION
-      try {
-        const { subscriptionService } = await import('@/services/subscriptionService');
-
-        if (willUseCredit) {
-          // Consume a paid credit instead of incrementing free count
-          const creditResult = await subscriptionService.consumeCredit(userId);
-          console.log('[Appraise API] Consumed credit:', creditResult);
-        } else {
-          // Increment free appraisal count
-          const incrementResult = await subscriptionService.incrementAppraisalCount(userId);
-          console.log('[Appraise API] Incremented appraisal count:', incrementResult);
-        }
-      } catch (incrementError) {
-        console.error('[Appraise API] Failed to update count/credit (non-blocking):', incrementError);
-        // Don't fail the appraisal - the check at the start is the gatekeeper
-      }
+      // Token was already consumed at the start - no increment needed in WNU Platform
+      // The tokenTransactionId can be stored with the appraisal record for auditing
 
       // Send push notification for completed appraisal (non-blocking)
       try {
@@ -1363,13 +1116,8 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
         seriesIdentifier: appraisalData.seriesIdentifier || ''
       } : undefined,
       streakInfo, // Streak data for gamification
-      // v2 Hybrid Valuation Engine data
-      valuationBreakdown, // How the value was calculated
-      ebayComparables, // Actual eBay sold listings used
+      // v2 Antiques Roadshow experience data
       futureValuePredictions, // Appreciation forecasts
-      // Numismatic high-value detection
-      highValueAlert: highValueAlert?.isHighValue ? highValueAlert : undefined,
-      // Antiques Roadshow experience data
       gradeValueTiers: appraisalData.gradeValueTiers || undefined,
       insuranceValue: appraisalData.insuranceValue || undefined,
       appraisalImprovements: appraisalData.appraisalImprovements || undefined,
@@ -1380,6 +1128,26 @@ ${metalPriceContext}${numismaticContext}${collectionContext}`;
     const errorStack = error instanceof Error ? error.stack : '';
     console.error('Error in appraisal API route:', errorMessage);
     console.error('Stack trace:', errorStack);
+
+    // Refund token if appraisal failed after consumption (WNU Platform)
+    // Note: We need to track if token was consumed - this is handled by checking userId
+    // In production, you might want to pass tokenTransactionId to error handling
+    // For now, we'll attempt a refund for authenticated users on AI errors
+    try {
+      const authHeader = req.headers.get('authorization');
+      const authToken = authHeader?.replace('Bearer ', '');
+      if (authToken) {
+        const supabase = createAuthenticatedClient(authToken);
+        const { data: { user } } = await supabase.auth.getUser(authToken);
+        if (user?.id) {
+          const { grantTokens } = await import('@/services/tokenService');
+          await grantTokens(user.id, 1, 'refund', 'Appraisal failed - automatic refund');
+          console.log('[Appraise API] Token refunded due to error');
+        }
+      }
+    } catch (refundError) {
+      console.error('[Appraise API] Failed to refund token:', refundError);
+    }
 
     // Return more specific error for debugging
     return NextResponse.json({

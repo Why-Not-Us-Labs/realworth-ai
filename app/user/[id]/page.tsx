@@ -18,29 +18,30 @@ interface UserPageProps {
 
 // Fetch user and their public treasures
 async function getUserWithTreasures(id: string) {
-  // Get user info
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('id, name, picture, username')
-    .eq('id', id)
-    .single();
-
-  if (userError || !user) return null;
-
-  // Get user's public appraisals
+  // Get user's public appraisals first (this is the core data)
   const { data: treasures, error: treasuresError } = await supabase
-    .from('appraisals')
-    .select('*')
+    .from('rw_appraisals')
+    .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id')
     .eq('user_id', id)
     .eq('is_public', true)
     .order('created_at', { ascending: false });
 
-  if (treasuresError) {
-    console.error('Error fetching treasures:', treasuresError);
-    return { user, treasures: [] };
+  if (treasuresError || !treasures || treasures.length === 0) {
+    // No public treasures found for this user
+    return null;
   }
 
-  return { user, treasures: treasures || [] };
+  // Map WNU Platform columns to expected format
+  const mappedTreasures = treasures.map(t => ({
+    ...t,
+    image_url: t.ai_image_url || (t.input_images && t.input_images[0]) || '',
+  }));
+
+  // Return with anonymous user info (user table has different schema in WNU Platform)
+  return {
+    user: { id, name: 'Collector', picture: '', username: null },
+    treasures: mappedTreasures
+  };
 }
 
 // Generate metadata

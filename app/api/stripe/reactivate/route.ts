@@ -17,30 +17,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's subscription info using admin client (bypasses RLS)
+    // Get user's subscription info from subscriptions table (WNU Platform)
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: user, error: fetchError } = await supabaseAdmin
-      .from('users')
+    const { data: subscription, error: fetchError } = await supabaseAdmin
+      .from('subscriptions')
       .select('stripe_subscription_id, cancel_at_period_end')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .single();
 
-    if (fetchError || !user) {
-      console.error('[Reactivate] Failed to fetch user:', fetchError);
+    if (fetchError || !subscription) {
+      console.error('[Reactivate] Failed to fetch subscription:', fetchError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Subscription not found' },
         { status: 404 }
       );
     }
 
-    if (!user.stripe_subscription_id) {
+    if (!subscription.stripe_subscription_id) {
       return NextResponse.json(
         { error: 'No subscription found' },
         { status: 404 }
       );
     }
 
-    if (!user.cancel_at_period_end) {
+    if (!subscription.cancel_at_period_end) {
       return NextResponse.json(
         { error: 'Subscription is not scheduled for cancellation' },
         { status: 400 }
@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Reactivate] Reactivating subscription for user:', userId);
-    console.log('[Reactivate] Stripe subscription ID:', user.stripe_subscription_id);
+    console.log('[Reactivate] Stripe subscription ID:', subscription.stripe_subscription_id);
 
     const stripe = getStripe();
 
     // First, check current Stripe state to handle edge cases
-    const currentSubscription = await stripe.subscriptions.retrieve(user.stripe_subscription_id);
+    const currentSubscription = await stripe.subscriptions.retrieve(subscription.stripe_subscription_id);
     // Cast to access raw response data
     const currentSubData = currentSubscription as unknown as { cancel_at_period_end: boolean; current_period_end: number };
 
@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
       console.log('[Reactivate] Subscription already active in Stripe, syncing DB');
 
       const { error: syncError } = await supabaseAdmin
-        .from('users')
+        .from('subscriptions')
         .update({ cancel_at_period_end: false })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (syncError) {
         console.error('[Reactivate] Failed to sync DB:', syncError);
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // Reactivate by removing the cancel_at_period_end flag
     const reactivatedSubscription = await stripe.subscriptions.update(
-      user.stripe_subscription_id,
+      subscription.stripe_subscription_id,
       { cancel_at_period_end: false }
     );
     // Cast to access raw response data
@@ -99,11 +99,11 @@ export async function POST(request: NextRequest) {
       renewsAt,
     });
 
-    // Update our database to reflect the reactivation
+    // Update subscriptions table to reflect the reactivation (WNU Platform)
     const { error: updateError } = await supabaseAdmin
-      .from('users')
+      .from('subscriptions')
       .update({ cancel_at_period_end: false })
-      .eq('id', userId);
+      .eq('user_id', userId);
 
     if (updateError) {
       console.error('[Reactivate] Failed to update cancel_at_period_end in database:', updateError);

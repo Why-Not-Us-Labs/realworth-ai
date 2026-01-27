@@ -35,7 +35,7 @@ export const getSupabaseAdmin = () => {
   });
 };
 
-// Database types (matches schema.sql)
+// Database types (matches WNU Platform schema)
 export interface Database {
   public: {
     Tables: {
@@ -45,6 +45,7 @@ export interface Database {
           email: string;
           name: string | null;
           picture: string | null;
+          username: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -53,11 +54,13 @@ export interface Database {
           email: string;
           name?: string | null;
           picture?: string | null;
+          username?: string | null;
         };
         Update: {
           email?: string;
           name?: string | null;
           picture?: string | null;
+          username?: string | null;
         };
       };
       appraisals: {

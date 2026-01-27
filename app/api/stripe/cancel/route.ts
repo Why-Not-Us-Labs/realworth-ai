@@ -20,30 +20,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's subscription info using admin client (bypasses RLS)
+    // Get user's subscription info from subscriptions table (WNU Platform)
     const supabaseAdmin = getSupabaseAdmin();
-    const { data: user, error: fetchError } = await supabaseAdmin
-      .from('users')
-      .select('stripe_subscription_id, subscription_status')
-      .eq('id', userId)
+    const { data: subscription, error: fetchError } = await supabaseAdmin
+      .from('subscriptions')
+      .select('stripe_subscription_id, status')
+      .eq('user_id', userId)
       .single();
 
-    if (fetchError || !user) {
-      console.error('[Cancel] Failed to fetch user:', fetchError);
+    if (fetchError || !subscription) {
+      console.error('[Cancel] Failed to fetch subscription:', fetchError);
       return NextResponse.json(
-        { error: 'User not found' },
+        { error: 'Subscription not found' },
         { status: 404 }
       );
     }
 
-    if (!user.stripe_subscription_id) {
+    if (!subscription.stripe_subscription_id) {
       return NextResponse.json(
         { error: 'No active subscription found' },
         { status: 404 }
       );
     }
 
-    const stripeSubscriptionId = user.stripe_subscription_id;
+    const stripeSubscriptionId = subscription.stripe_subscription_id;
 
     console.log('[Cancel] Canceling subscription for user:', userId);
     console.log('[Cancel] Stripe subscription ID:', stripeSubscriptionId);
@@ -60,9 +60,9 @@ export async function POST(request: NextRequest) {
       console.log('[Cancel] Subscription already scheduled for cancellation in Stripe, syncing DB');
 
       const { error: syncError } = await supabaseAdmin
-        .from('users')
+        .from('subscriptions')
         .update({ cancel_at_period_end: true })
-        .eq('id', userId);
+        .eq('user_id', userId);
 
       if (syncError) {
         console.error('[Cancel] Failed to sync DB:', syncError);
@@ -97,11 +97,11 @@ export async function POST(request: NextRequest) {
       currentPeriodEnd: cancelAt,
     });
 
-    // Update our database to reflect the cancellation
+    // Update subscriptions table to reflect the cancellation (WNU Platform)
     const { error: updateError } = await supabaseAdmin
-      .from('users')
+      .from('subscriptions')
       .update({ cancel_at_period_end: true })
-      .eq('id', userId);
+      .eq('user_id', userId);
 
     if (updateError) {
       console.error('[Cancel] Failed to update cancel_at_period_end in database:', updateError);

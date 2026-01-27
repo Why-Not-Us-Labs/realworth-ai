@@ -16,7 +16,6 @@ import { SparklesIcon } from '@/components/icons';
 import { Footer } from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { AuthContext } from '@/components/contexts/AuthContext';
-import { BentoHeader } from '@/components/BentoHeader';
 import { AppraisalContext } from '@/components/contexts/AppraisalContext';
 import { SignInModal } from '@/components/SignInModal';
 import { dbService } from '@/services/dbService';
@@ -26,10 +25,8 @@ import UsageMeter from '@/components/UsageMeter';
 import { SurveyModal } from '@/components/SurveyModal';
 import { useSurvey } from '@/hooks/useSurvey';
 import { QueueStatus } from '@/components/QueueStatus';
-import { FREE_APPRAISAL_LIMIT } from '@/lib/constants';
 import { AuthProvider } from '@/services/authService';
 import { trackLogin } from '@/lib/analytics';
-import { toast } from 'sonner';
 
 type View = 'HOME' | 'FORM' | 'LOADING' | 'CELEBRATION' | 'RESULT';
 
@@ -56,7 +53,7 @@ function HomeContent() {
   const [celebrationCurrency, setCelebrationCurrency] = useState<string>('USD');
   const { getAppraisal, isLoading, error } = useAppraisal();
   const { user, isAuthLoading, signInWithProvider } = useContext(AuthContext);
-  const { isPro, isVerifying, usageCount, credits, resetAt, checkCanAppraise, refresh: refreshSubscription, verifySubscriptionActive } = useSubscription(user?.id || null, user?.email);
+  const { isPro, isVerifying, usageCount, checkCanAppraise, refresh: refreshSubscription, verifySubscriptionActive } = useSubscription(user?.id || null, user?.email);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeFeature, setUpgradeFeature] = useState<string | undefined>();
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
@@ -113,7 +110,7 @@ function HomeContent() {
   // IMPORTANT: Must wait for auth to load before processing, otherwise userId is null
   const [pendingSubscriptionSuccess, setPendingSubscriptionSuccess] = useState(false);
 
-  // Step 1: Detect subscription/purchase success and store it (runs once on mount)
+  // Step 1: Detect subscription success and store it (runs once on mount)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('subscription') === 'success') {
@@ -122,18 +119,7 @@ function HomeContent() {
       // Clear URL params immediately to prevent re-triggering on refresh
       window.history.replaceState({}, '', window.location.pathname);
     }
-    // Handle one-time purchase success (pay-per-appraisal)
-    if (params.get('purchase') === 'success') {
-      console.log('[Purchase] One-time payment success detected');
-      toast.success('Payment successful! You have 1 appraisal credit ready to use.', {
-        duration: 5000,
-      });
-      // Refresh subscription to get updated credits
-      refreshSubscription();
-      // Clear URL params
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [refreshSubscription]);
+  }, []);
 
   // Step 2: Process subscription success after auth is ready
   useEffect(() => {
@@ -170,12 +156,11 @@ function HomeContent() {
   // Check for ?capture=true to auto-open capture form
   useEffect(() => {
     if (searchParams?.get('capture') === 'true') {
-      // Clear URL params first
+      setView('FORM');
+      // Clear URL params
       window.history.replaceState({}, '', window.location.pathname);
-      // Use handleStartAppraisal to check limits before showing form
-      handleStartAppraisal();
     }
-  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Show upgrade modal with specific feature
   const promptUpgrade = (feature?: string) => {
@@ -183,26 +168,8 @@ function HomeContent() {
     setShowUpgradeModal(true);
   };
 
-  // Check limits BEFORE showing the form - called when clicking "Start Appraisal"
-  const handleStartAppraisal = async () => {
-    if (!user) {
-      setIsSignInModalOpen(true);
-      return;
-    }
-
-    // Check if user can create appraisal
-    const { canCreate } = await checkCanAppraise();
-    if (!canCreate) {
-      promptUpgrade('Unlimited Appraisals');
-      return;
-    }
-
-    // User can appraise - show the form
-    setView('FORM');
-  };
-
   const handleAppraisalRequest = async (request: AppraisalRequest) => {
-    // Double-check limit (in case user was sitting on form for a while)
+    // Check if user can create appraisal (for logged-in users)
     if (user) {
       const { canCreate } = await checkCanAppraise();
       if (!canCreate) {
@@ -278,20 +245,10 @@ function HomeContent() {
     }
   };
 
-  const handleStartNew = async () => {
+  const handleStartNew = () => {
     setCurrentResult(null);
     setCelebrationStreakInfo(null);
     setTriviaPointsEarned(0);
-
-    // Check limits before showing form
-    if (user) {
-      const { canCreate } = await checkCanAppraise();
-      if (!canCreate) {
-        promptUpgrade('Unlimited Appraisals');
-        setView('HOME');
-        return;
-      }
-    }
     setView('FORM');
   };
 
@@ -361,7 +318,7 @@ function HomeContent() {
       case 'HOME':
       default:
         return (
-          <div className="text-center py-6 md:py-8">
+          <div className="text-center p-6 sm:p-6 md:p-8">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-4 text-slate-900 px-2">
                 Turn Clutter into <span className="gradient-text">Cash</span>!
@@ -372,7 +329,13 @@ function HomeContent() {
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
               <Button
-                onClick={handleStartAppraisal}
+                onClick={() => {
+                  if (!user) {
+                    setIsSignInModalOpen(true);
+                  } else {
+                    setView('FORM');
+                  }
+                }}
                 size="xl"
                 className="w-full sm:w-auto"
               >
@@ -380,6 +343,19 @@ function HomeContent() {
                 {user ? 'Start Appraisal' : 'Sign in to Start'}
               </Button>
             </div>
+            {/* Mobile upgrade button - visible only on mobile where header button is hidden */}
+            {user && !isPro && (
+              <Button
+                onClick={() => promptUpgrade()}
+                variant="premium"
+                className="sm:hidden mt-6"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Upgrade to Pro - $19.99/mo
+              </Button>
+            )}
           </div>
         );
     }
@@ -388,11 +364,6 @@ function HomeContent() {
   return (
     <>
       <Header onUpgradeClick={() => promptUpgrade()} />
-      <BentoHeader
-        onStartAppraisal={handleStartAppraisal}
-        onUpgrade={() => promptUpgrade()}
-        onSignIn={() => setIsSignInModalOpen(true)}
-      />
       <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           {renderView()}
@@ -402,18 +373,19 @@ function HomeContent() {
         {user && !isPro && (
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
             <UsageMeter
-              used={usageCount}
-              limit={FREE_APPRAISAL_LIMIT}
-              credits={credits}
-              resetAt={resetAt}
+              remaining={usageCount}
               isPro={isPro}
               onUpgrade={() => promptUpgrade()}
             />
           </div>
         )}
 
-        {/* HomeFeed - Discover Feed */}
-        <HomeFeed isLoggedIn={!!user} />
+        {/* HomeFeed - Discover & My Treasures tabs */}
+        <HomeFeed
+          userHistory={history}
+          isLoggedIn={!!user}
+          onSelectItem={handleSelectHistoryItem}
+        />
       </main>
       <Footer />
 
