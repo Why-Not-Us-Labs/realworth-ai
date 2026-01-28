@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type, Modality } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
@@ -925,83 +925,11 @@ Users will click these links to verify your valuation, so accuracy is critical!$
       (appraisalData.priceRange.low + appraisalData.priceRange.high) / 2
     );
 
-    // Step 2: Regenerate the image
-    const imageRegenTextPart = { text: "Regenerate this image exactly as it is, without any changes." };
-    const imageResponse = await ai.models.generateContent({
-      model: 'gemini-3-pro-image-preview',
-      contents: { role: 'user', parts: [...imageParts, imageRegenTextPart] },
-      config: {
-        responseModalities: [Modality.IMAGE],
-      },
-    });
-
-    let imageBuffer: Buffer | null = null;
-    let imageMimeType: string | null = null;
-
-    if (imageResponse.candidates?.[0]?.content?.parts) {
-      for (const part of imageResponse.candidates[0].content.parts) {
-        if (part.inlineData?.data && part.inlineData?.mimeType) {
-          imageBuffer = Buffer.from(part.inlineData.data, 'base64');
-          imageMimeType = part.inlineData.mimeType;
-          break;
-        }
-      }
-    }
-
-    if (!appraisalData || !imageBuffer || !imageMimeType) {
-      throw new Error("AI response was incomplete.");
-    }
-
-    // Step 3: Upload regenerated image to storage (or use first uploaded image)
-    let imageDataUrl: string;
-    let imagePath: string | undefined;
-
-    try {
-      const timestamp = Date.now();
-      const randomStr = Math.random().toString(36).substring(7);
-      const fileExt = imageMimeType.split('/')[1] || 'png';
-      const fileName = `result-${timestamp}-${randomStr}.${fileExt}`;
-
-      const filePath = userId
-        ? `${userId}/results/${fileName}`
-        : `public/results/${fileName}`;
-
-      // Upload regenerated image with 10s timeout
-      const uploadPromise = supabase.storage
-        .from('appraisal-images')
-        .upload(filePath, imageBuffer, {
-          contentType: imageMimeType,
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Storage upload timeout')), 10000)
-      );
-
-      const { error: uploadError } = await Promise.race([
-        uploadPromise,
-        timeoutPromise
-      ]) as { data: unknown; error: { message: string } | null };
-
-      if (uploadError) {
-        throw new Error('Storage unavailable');
-      }
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('appraisal-images')
-        .getPublicUrl(filePath);
-
-      imageDataUrl = publicUrl;
-      imagePath = filePath;
-      console.log('✅ Result image uploaded to storage');
-
-    } catch (storageError) {
-      // Fallback: use first uploaded image URL
-      console.warn('Using original upload as fallback');
-      imageDataUrl = imageUrls[0];
-      imagePath = imagePaths[0];
-    }
+    // Use the first uploaded image directly (skip AI image regeneration to avoid timeout)
+    // The image regeneration step was taking 30-60+ seconds and causing 504 timeouts
+    // when combined with the appraisal analysis (which also takes 30-60+ seconds)
+    const imageDataUrl = imageUrls[0];
+    const imagePath = imagePaths?.[0];
 
     // Step 4: Update user streak if authenticated
     let streakInfo = null;
