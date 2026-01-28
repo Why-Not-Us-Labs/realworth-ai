@@ -18,17 +18,21 @@ export const metadata: Metadata = {
 // Revalidate every 60 seconds for fresh content
 export const revalidate = 60;
 
-// Initialize Supabase client
-const supabase = createClient(
+// Initialize Supabase admin client (server-side only, bypasses RLS for public feed)
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
 async function getPublicTreasures() {
-  // Fetch public appraisals (without user join - WNU Platform uses different user schema)
-  const { data, error } = await supabase
+  // Fetch public appraisals with user avatar data (using admin client to bypass RLS)
+  const { data, error } = await supabaseAdmin
     .from('rw_appraisals')
-    .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id')
+    .select(`
+      id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id,
+      users:user_id (avatar_url, display_name, username)
+    `)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
     .limit(50);
@@ -39,18 +43,23 @@ async function getPublicTreasures() {
   }
 
   // Map WNU Platform columns to DiscoverFeed expected format
-  return (data || []).map(row => ({
-    id: row.id,
-    item_name: row.item_name,
-    image_url: row.ai_image_url || (row.input_images && row.input_images[0]) || '',
-    price_low: row.price_low,
-    price_high: row.price_high,
-    currency: row.currency,
-    category: row.category,
-    era: row.era,
-    created_at: row.created_at,
-    user_id: row.user_id,
-  }));
+  return (data || []).map(row => {
+    const userData = row.users as { avatar_url?: string; display_name?: string; username?: string } | null;
+    return {
+      id: row.id,
+      item_name: row.item_name,
+      image_url: row.ai_image_url || (row.input_images && row.input_images[0]) || '',
+      price_low: row.price_low,
+      price_high: row.price_high,
+      currency: row.currency,
+      category: row.category,
+      era: row.era,
+      created_at: row.created_at,
+      user_id: row.user_id,
+      user_avatar: userData?.avatar_url || null,
+      user_name: userData?.display_name || userData?.username || null,
+    };
+  });
 }
 
 export default async function DiscoverPage() {

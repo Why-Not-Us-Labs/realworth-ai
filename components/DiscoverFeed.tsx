@@ -16,6 +16,8 @@ interface Treasure {
   era: string | null;
   created_at: string;
   user_id: string;
+  user_avatar?: string | null;
+  user_name?: string | null;
 }
 
 interface DiscoverFeedProps {
@@ -160,6 +162,8 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
                   <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-sm">
                     {isOwnTreasure && user?.picture ? (
                       <img src={user.picture} alt="" className="w-full h-full object-cover" />
+                    ) : treasure.user_avatar ? (
+                      <img src={treasure.user_avatar} alt={treasure.user_name || ''} className="w-full h-full object-cover" />
                     ) : (
                       <DefaultAvatar className="w-full h-full" />
                     )}
@@ -228,6 +232,8 @@ export function DiscoverFeed({ treasures }: DiscoverFeedProps) {
                 <div className="absolute bottom-1.5 left-1.5 w-6 h-6 rounded-full border-2 border-white overflow-hidden shadow-sm">
                   {isOwnTreasure && user?.picture ? (
                     <img src={user.picture} alt="" className="w-full h-full object-cover" />
+                  ) : treasure.user_avatar ? (
+                    <img src={treasure.user_avatar} alt={treasure.user_name || ''} className="w-full h-full object-cover" />
                   ) : (
                     <DefaultAvatar className="w-full h-full" />
                   )}

@@ -4,7 +4,6 @@ import React, { useState, useEffect, useContext } from 'react';
 import Link from 'next/link';
 import { AppraisalResult } from '@/lib/types';
 import { GemIcon, CompassIcon } from '@/components/icons';
-import { supabase } from '@/lib/supabase';
 import { AuthContext } from '@/components/contexts/AuthContext';
 
 interface HomeFeedProps {
@@ -27,6 +26,8 @@ interface PublicTreasure {
   era: string | null;
   created_at: string;
   user_id: string;
+  user_avatar?: string | null;
+  user_name?: string | null;
 }
 
 function formatCurrency(amount: number, currency: string = 'USD') {
@@ -81,34 +82,34 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
   const [publicTreasures, setPublicTreasures] = useState<PublicTreasure[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch public treasures
+  // Fetch public treasures via API (uses admin client to get avatar data)
   useEffect(() => {
     async function fetchPublicTreasures() {
       setIsLoading(true);
 
-      // Fetch public appraisals (WNU Platform schema)
-      const { data, error } = await supabase
-        .from('rw_appraisals')
-        .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id')
-        .eq('is_public', true)
-        .order('created_at', { ascending: false })
-        .limit(30);
-
-      if (!error && data) {
-        // Map to expected format
-        const mapped = data.map(row => ({
-          id: row.id,
-          item_name: row.item_name,
-          image_url: row.ai_image_url || (row.input_images && row.input_images[0]) || '',
-          price_low: row.price_low,
-          price_high: row.price_high,
-          currency: row.currency,
-          category: row.category,
-          era: row.era,
-          created_at: row.created_at,
-          user_id: row.user_id,
-        }));
-        setPublicTreasures(mapped as PublicTreasure[]);
+      try {
+        const response = await fetch('/api/discover');
+        if (response.ok) {
+          const { treasures } = await response.json();
+          // Map API response to expected format
+          const mapped = (treasures || []).slice(0, 30).map((t: Record<string, unknown>) => ({
+            id: t.id as string,
+            item_name: t.item_name as string,
+            image_url: t.image_url as string,
+            price_low: t.price_low as number,
+            price_high: t.price_high as number,
+            currency: t.currency as string,
+            category: t.category as string,
+            era: t.era as string | null,
+            created_at: t.created_at as string,
+            user_id: t.user_id as string,
+            user_avatar: t.user_avatar as string | null,
+            user_name: t.user_name as string | null,
+          }));
+          setPublicTreasures(mapped);
+        }
+      } catch (error) {
+        console.error('Error fetching public treasures:', error);
       }
       setIsLoading(false);
     }
@@ -271,6 +272,8 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
                       <div className="absolute bottom-1 left-1 w-5 h-5 rounded-full border-2 border-white overflow-hidden shadow-sm">
                         {isOwnTreasure && user?.picture ? (
                           <img src={user.picture} alt="" className="w-full h-full object-cover" />
+                        ) : treasure.user_avatar ? (
+                          <img src={treasure.user_avatar} alt={treasure.user_name || ''} className="w-full h-full object-cover" />
                         ) : (
                           <DefaultAvatar className="w-full h-full" />
                         )}
@@ -338,6 +341,8 @@ export function HomeFeed({ userHistory, isLoggedIn, onSelectItem }: HomeFeedProp
                       <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                         {isOwnTreasure && user?.picture ? (
                           <img src={user.picture} alt="" className="w-full h-full object-cover" />
+                        ) : treasure.user_avatar ? (
+                          <img src={treasure.user_avatar} alt={treasure.user_name || ''} className="w-full h-full object-cover" />
                         ) : (
                           <DefaultAvatar className="w-full h-full" />
                         )}
