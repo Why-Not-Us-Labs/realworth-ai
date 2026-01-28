@@ -1,6 +1,39 @@
 import { AppraisalResult } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Map a database record to AppraisalResult type
+ * Uses WNU Platform schema columns
+ */
+function mapRecordToAppraisal(record: any): AppraisalResult {
+  return {
+    id: record.id,
+    itemName: record.item_name,
+    author: record.author || '',
+    era: record.era || '',
+    category: record.category,
+    description: record.description || '',
+    priceRange: {
+      low: Number(record.price_low || 0),
+      high: Number(record.price_high || 0),
+    },
+    currency: record.currency || 'USD',
+    reasoning: record.ai_reasoning || '',
+    references: record.ai_references || [],
+    image: record.ai_image_url || '',
+    images: record.input_images || [],
+    timestamp: new Date(record.created_at).getTime(),
+    isPublic: record.is_public || false,
+    confidenceScore: record.confidence_score != null ? Number(record.confidence_score) : undefined,
+    confidenceFactors: record.confidence_factors || [],
+    // v2 Antiques Roadshow experience fields
+    futureValuePredictions: record.future_value_predictions || undefined,
+    gradeValueTiers: record.grade_value_tiers || undefined,
+    insuranceValue: record.insurance_value || undefined,
+    appraisalImprovements: record.appraisal_improvements || undefined,
+  };
+}
+
 class DBService {
   /**
    * Upload an image to Supabase Storage
@@ -77,8 +110,17 @@ class DBService {
    */
   public async getHistory(userId: string, includeArchived: boolean = false): Promise<AppraisalResult[]> {
     try {
+      // Debug: Check session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[getHistory] Session check:', {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+        passedUserId: userId,
+        match: session?.user?.id === userId
+      });
+
       let query = supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId);
 
@@ -89,35 +131,14 @@ class DBService {
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
+      console.log('[getHistory] Query result:', { count: data?.length, error: error?.message });
+
       if (error) {
-        console.error('Error fetching appraisal history:', error);
+        console.error('[getHistory] Error:', error.message, error.details, error.hint);
         throw error;
       }
 
-      // Map database records to AppraisalResult type
-      return (data || []).map((record) => ({
-        id: record.id,
-        itemName: record.item_name,
-        author: record.author || '',
-        era: record.era || '',
-        category: record.category,
-        description: record.description || '',
-        priceRange: {
-          low: Number(record.price_low),
-          high: Number(record.price_high),
-        },
-        currency: record.currency,
-        reasoning: record.reasoning || '',
-        references: record.references || [],
-        image: record.image_url || '',
-        images: record.image_urls || [],
-        timestamp: new Date(record.created_at).getTime(),
-        isPublic: record.is_public || false,
-        futureValuePredictions: record.future_value_predictions || undefined,
-        gradeValueTiers: record.grade_value_tiers || undefined,
-        insuranceValue: record.insurance_value || undefined,
-        appraisalImprovements: record.appraisal_improvements || undefined,
-      }));
+return (data || []).map(mapRecordToAppraisal);
     } catch (error) {
       console.error('Error in getHistory:', error);
       return [];
@@ -139,6 +160,15 @@ class DBService {
     }
   ): Promise<AppraisalResult | null> {
     try {
+      // Debug: Check if user is authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[saveAppraisal] Session check:', {
+        hasSession: !!session,
+        sessionUserId: session?.user?.id,
+        passedUserId: userId,
+        match: session?.user?.id === userId
+      });
+
       // Generate UUID for the appraisal
       const appraisalId = crypto.randomUUID();
 
@@ -154,7 +184,22 @@ class DBService {
         }
       }
 
-      // Prepare insert data with proper null handling
+      // Build input_images array (required by WNU Platform schema)
+      const inputImages = appraisal.images && appraisal.images.length > 0
+        ? appraisal.images
+        : (imageUrl ? [imageUrl] : []);
+
+      // Convert price to cents for WNU Platform schema
+      const valueLowCents = Math.round(appraisal.priceRange.low * 100);
+      const valueHighCents = Math.round(appraisal.priceRange.high * 100);
+
+      // Convert confidence from 0-100 scale to 0-1 decimal for WNU Platform
+      // WNU Platform uses NUMERIC(3,2) which stores 0.00-9.99, so we use 0.00-1.00
+      const confidenceDecimal = appraisal.confidenceScore != null
+        ? Math.min(appraisal.confidenceScore / 100, 1.00)
+        : null;
+
+      // Prepare insert data - WNU Platform schema columns only
       const insertData: any = {
         id: appraisalId,
         user_id: userId,
@@ -163,33 +208,23 @@ class DBService {
         era: appraisal.era || null,
         category: appraisal.category,
         description: appraisal.description || null,
+        // WNU Platform columns (matching actual schema)
         price_low: appraisal.priceRange.low,
         price_high: appraisal.priceRange.high,
         currency: appraisal.currency || 'USD',
-        reasoning: appraisal.reasoning || null,
-        image_url: imageUrl || null,
+        confidence_score: appraisal.confidenceScore || null,
+        ai_reasoning: appraisal.reasoning || null,
+        ai_references: appraisal.references || [],
+        ai_image_url: imageUrl || null,
+        input_images: inputImages,
       };
-
-      // Add optional fields only if they exist (to avoid schema errors)
-      if (appraisal.references && appraisal.references.length > 0) {
-        insertData.references = appraisal.references;
-      }
-      
-      if (appraisal.images && appraisal.images.length > 0) {
-        insertData.image_urls = appraisal.images;
-      } else if (imageUrl) {
-        insertData.image_urls = [imageUrl];
-      }
 
       // Set default is_public if not provided
       if (appraisal.isPublic !== undefined) {
         insertData.is_public = appraisal.isPublic;
       }
 
-      // Add confidence score if provided
-      if (appraisal.confidenceScore !== undefined) {
-        insertData.confidence_score = appraisal.confidenceScore;
-      }
+      // Add confidence factors if provided
       if (appraisal.confidenceFactors && appraisal.confidenceFactors.length > 0) {
         insertData.confidence_factors = appraisal.confidenceFactors;
       }
@@ -224,16 +259,20 @@ class DBService {
         }
       }
 
+      console.log('[saveAppraisal] Inserting data:', JSON.stringify(insertData, null, 2));
+
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .insert([insertData])
         .select()
         .single();
 
       if (error) {
-        console.error('Error saving appraisal:', error);
+        console.error('[saveAppraisal] Error:', error.message, error.details, error.hint);
         throw error;
       }
+
+      console.log('[saveAppraisal] Success! Saved appraisal:', data?.id);
 
       if (!data) {
         return null;
@@ -252,12 +291,12 @@ class DBService {
           high: Number(data.price_high),
         },
         currency: data.currency,
-        reasoning: data.reasoning || '',
-        references: data.references || [],
+        reasoning: data.ai_reasoning || '',
+        references: data.ai_references || [],
         confidenceScore: data.confidence_score || undefined,
         confidenceFactors: data.confidence_factors || undefined,
-        image: data.image_url || '',
-        images: data.image_urls || [],
+        image: data.ai_image_url || '',
+        images: data.input_images || [],
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
         futureValuePredictions: data.future_value_predictions || undefined,
@@ -394,7 +433,7 @@ class DBService {
   public async togglePublic(userId: string, appraisalId: string, isPublic: boolean): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ is_public: isPublic })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -420,7 +459,7 @@ class DBService {
       let imagePath: string | null = null;
       if (deleteImage) {
         const { data: appraisal } = await supabase
-          .from('appraisals')
+          .from('rw_appraisals')
           .select('image_url')
           .eq('id', appraisalId)
           .eq('user_id', userId)
@@ -437,7 +476,7 @@ class DBService {
 
       // Delete the appraisal record
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .delete()
         .eq('id', appraisalId)
         .eq('user_id', userId); // Ensure user can only delete their own appraisals
@@ -478,7 +517,7 @@ class DBService {
   public async getCategories(userId: string): Promise<{ category: string; count: number }[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('category')
         .eq('user_id', userId);
 
@@ -510,7 +549,7 @@ class DBService {
   public async getHistoryByCategory(userId: string, category: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId)
         .eq('category', category)
@@ -521,30 +560,7 @@ class DBService {
         throw error;
       }
 
-      // Map database records to AppraisalResult type
-      return (data || []).map((record) => ({
-        id: record.id,
-        itemName: record.item_name,
-        author: record.author || '',
-        era: record.era || '',
-        category: record.category,
-        description: record.description || '',
-        priceRange: {
-          low: Number(record.price_low),
-          high: Number(record.price_high),
-        },
-        currency: record.currency,
-        reasoning: record.reasoning || '',
-        references: record.references || [],
-        image: record.image_url || '',
-        images: record.image_urls || [],
-        timestamp: new Date(record.created_at).getTime(),
-        isPublic: record.is_public || false,
-        futureValuePredictions: record.future_value_predictions || undefined,
-        gradeValueTiers: record.grade_value_tiers || undefined,
-        insuranceValue: record.insurance_value || undefined,
-        appraisalImprovements: record.appraisal_improvements || undefined,
-      }));
+return (data || []).map(mapRecordToAppraisal);
     } catch (error) {
       console.error('Error in getHistoryByCategory:', error);
       return [];
@@ -710,11 +726,20 @@ class DBService {
         return [];
       }
 
-      return (data || []).map(item => ({
-        id: item.id,
-        requester: item.requester as any,
-        created_at: item.created_at
-      }));
+      // Map WNU Platform column names to expected interface
+      return (data || []).map(item => {
+        const req = item.requester as any;
+        return {
+          id: item.id,
+          requester: {
+            id: req.id,
+            name: req.name || '',
+            picture: req.picture || '',
+            username: req.username,
+          },
+          created_at: item.created_at
+        };
+      });
     } catch (error) {
       console.error('Error in getPendingRequests:', error);
       return [];
@@ -745,11 +770,17 @@ class DBService {
         return [];
       }
 
-      // Extract the friend (the other person in the relationship)
+      // Extract the friend (the other person in the relationship) and map column names
       return (data || []).map(item => {
         const requester = item.requester as any;
         const addressee = item.addressee as any;
-        return requester.id === userId ? addressee : requester;
+        const friend = requester.id === userId ? addressee : requester;
+        return {
+          id: friend.id,
+          name: friend.name || '',
+          picture: friend.picture || '',
+          username: friend.username,
+        };
       });
     } catch (error) {
       console.error('Error in getFriends:', error);
@@ -789,7 +820,13 @@ class DBService {
         return [];
       }
 
-      return data || [];
+      // Map WNU Platform column names to expected interface
+      return (data || []).map(u => ({
+        id: u.id,
+        name: u.name || '',
+        picture: u.picture || '',
+        username: u.username,
+      }));
     } catch (error) {
       console.error('Error in searchUsers:', error);
       return [];
@@ -821,11 +858,20 @@ class DBService {
         return [];
       }
 
-      return (data || []).map(item => ({
-        id: item.id,
-        addressee: item.addressee as any,
-        created_at: item.created_at
-      }));
+      // Map WNU Platform column names to expected interface
+      return (data || []).map(item => {
+        const addr = item.addressee as any;
+        return {
+          id: item.id,
+          addressee: {
+            id: addr.id,
+            name: addr.name || '',
+            picture: addr.picture || '',
+            username: addr.username,
+          },
+          created_at: item.created_at
+        };
+      });
     } catch (error) {
       console.error('Error in getSentRequests:', error);
       return [];
@@ -880,7 +926,7 @@ class DBService {
   public async getAppraisal(userId: string, appraisalId: string): Promise<AppraisalResult | null> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('id', appraisalId)
         .eq('user_id', userId)
@@ -893,29 +939,7 @@ class DBService {
 
       if (!data) return null;
 
-      return {
-        id: data.id,
-        itemName: data.item_name,
-        author: data.author || '',
-        era: data.era || '',
-        category: data.category,
-        description: data.description || '',
-        priceRange: {
-          low: Number(data.price_low),
-          high: Number(data.price_high),
-        },
-        currency: data.currency,
-        reasoning: data.reasoning || '',
-        references: data.references || [],
-        image: data.image_url || '',
-        images: data.image_urls || [],
-        timestamp: new Date(data.created_at).getTime(),
-        isPublic: data.is_public || false,
-        futureValuePredictions: data.future_value_predictions || undefined,
-        gradeValueTiers: data.grade_value_tiers || undefined,
-        insuranceValue: data.insurance_value || undefined,
-        appraisalImprovements: data.appraisal_improvements || undefined,
-      };
+      return mapRecordToAppraisal(data);
     } catch (error) {
       console.error('Error in getAppraisal:', error);
       return null;
@@ -933,8 +957,8 @@ class DBService {
     try {
       // Get current appraisal
       const { data: appraisal, error: fetchError } = await supabase
-        .from('appraisals')
-        .select('image_urls, image_count')
+        .from('rw_appraisals')
+        .select('input_images')
         .eq('id', appraisalId)
         .eq('user_id', userId)
         .single();
@@ -945,15 +969,14 @@ class DBService {
       }
 
       // Combine existing and new image URLs
-      const existingUrls = appraisal.image_urls || [];
+      const existingUrls = appraisal.input_images || [];
       const updatedUrls = [...existingUrls, ...newImageUrls];
 
       // Update the appraisal
       const { error: updateError } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({
-          image_urls: updatedUrls,
-          image_count: updatedUrls.length,
+          input_images: updatedUrls,
         })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1004,12 +1027,12 @@ class DBService {
         updatePayload.price_high = updatedData.priceRange.high;
       }
       if (updatedData.currency) updatePayload.currency = updatedData.currency;
-      if (updatedData.reasoning) updatePayload.reasoning = updatedData.reasoning;
-      if (updatedData.references) updatePayload.references = updatedData.references;
-      if (updatedData.image) updatePayload.image_url = updatedData.image;
+      if (updatedData.reasoning) updatePayload.ai_reasoning = updatedData.reasoning;
+      if (updatedData.references) updatePayload.ai_references = updatedData.references;
+      if (updatedData.image) updatePayload.ai_image_url = updatedData.image;
 
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update(updatePayload)
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1032,7 +1055,7 @@ class DBService {
   public async archiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ archived_at: new Date().toISOString() })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1054,7 +1077,7 @@ class DBService {
   public async unarchiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ archived_at: null })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1076,7 +1099,7 @@ class DBService {
   public async getArchivedHistory(userId: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId)
         .not('archived_at', 'is', null)
@@ -1087,29 +1110,7 @@ class DBService {
         throw error;
       }
 
-      return (data || []).map((record) => ({
-        id: record.id,
-        itemName: record.item_name,
-        author: record.author || '',
-        era: record.era || '',
-        category: record.category,
-        description: record.description || '',
-        priceRange: {
-          low: Number(record.price_low),
-          high: Number(record.price_high),
-        },
-        currency: record.currency,
-        reasoning: record.reasoning || '',
-        references: record.references || [],
-        image: record.image_url || '',
-        images: record.image_urls || [],
-        timestamp: new Date(record.created_at).getTime(),
-        isPublic: record.is_public || false,
-        futureValuePredictions: record.future_value_predictions || undefined,
-        gradeValueTiers: record.grade_value_tiers || undefined,
-        insuranceValue: record.insurance_value || undefined,
-        appraisalImprovements: record.appraisal_improvements || undefined,
-      }));
+return (data || []).map(mapRecordToAppraisal);
     } catch (error) {
       console.error('Error in getArchivedHistory:', error);
       return [];

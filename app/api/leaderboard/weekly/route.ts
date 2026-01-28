@@ -11,14 +11,13 @@ export async function GET() {
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
 
-    // Query users with their weekly appraisal stats
+    // Query users with their weekly appraisal stats (WNU Platform schema)
     const { data, error } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select(`
         user_id,
         price_low,
-        price_high,
-        users:user_id (id, name, picture, username)
+        price_high
       `)
       .gte('created_at', startOfWeek.toISOString())
       .eq('is_public', true);
@@ -37,17 +36,13 @@ export async function GET() {
 
     for (const item of data || []) {
       const userId = item.user_id;
-      // Supabase returns the relation as an object for foreign key joins
-      const user = item.users as unknown as { id: string; name: string; picture: string; username?: string } | null;
-
-      if (!user) continue;
 
       if (!userStats[userId]) {
         userStats[userId] = {
           userId,
-          name: user.name || 'Anonymous',
-          picture: user.picture || '',
-          username: user.username,
+          name: 'Collector',
+          picture: '',
+          username: undefined,
           totalValue: 0,
           findsCount: 0,
         };

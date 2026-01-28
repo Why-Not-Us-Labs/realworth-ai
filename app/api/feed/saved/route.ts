@@ -37,25 +37,24 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor');
     const limit = 20;
 
-    // Get user's saves with full appraisal data
+    // Get user's saves with full appraisal data (WNU Platform schema)
     let query = supabase
       .from('saves')
       .select(`
         id,
         created_at,
-        appraisals:appraisal_id (
+        rw_appraisals:appraisal_id (
           id,
           item_name,
-          image_url,
+          ai_image_url,
+          input_images,
           price_low,
           price_high,
           currency,
           category,
           era,
           created_at,
-          like_count,
-          user_id,
-          users:user_id (name, picture)
+          user_id
         )
       `)
       .eq('user_id', user.id)
@@ -82,13 +81,26 @@ export async function GET(request: NextRequest) {
 
     // Transform to match Treasure interface and mark as saved
     const treasures = saves
-      .filter(s => s.appraisals !== null)
-      .map(s => ({
-        ...s.appraisals,
-        isLiked: false, // We could fetch this too but keeping it simple for now
-        isSaved: true, // They're all saved since this is the saved feed
-        savedAt: s.created_at,
-      }));
+      .filter(s => s.rw_appraisals !== null)
+      .map(s => {
+        const appraisal = s.rw_appraisals as any;
+        return {
+          id: appraisal.id,
+          item_name: appraisal.item_name,
+          image_url: appraisal.ai_image_url || (appraisal.input_images && appraisal.input_images[0]) || '',
+          price_low: appraisal.price_low,
+          price_high: appraisal.price_high,
+          currency: appraisal.currency,
+          category: appraisal.category,
+          era: appraisal.era,
+          created_at: appraisal.created_at,
+          user_id: appraisal.user_id,
+          like_count: 0,
+          isLiked: false,
+          isSaved: true,
+          savedAt: s.created_at,
+        };
+      });
 
     return NextResponse.json({
       treasures,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { FREE_APPRAISAL_LIMIT } from '@/lib/constants';
 
 // Super admin emails - always have Pro features
 const SUPER_ADMIN_EMAILS = [
@@ -8,6 +7,10 @@ const SUPER_ADMIN_EMAILS = [
   'ann.mcnamara01@icloud.com',
 ];
 
+/**
+ * WNU Platform version: Check if user can create an appraisal
+ * Uses subscriptions + token_balances tables instead of users table fields
+ */
 export async function GET(request: NextRequest) {
   try {
     // Get auth token from header
@@ -36,95 +39,60 @@ export async function GET(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Get user data
+    // Get user email
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
-      .select('email, monthly_appraisal_count, appraisal_count_reset_at, subscription_tier, subscription_status, appraisal_credits')
+      .select('email')
       .eq('id', authUser.id)
       .single();
 
     if (userError || !user) {
       console.error('[CanCreate] Failed to fetch user:', userError);
-      return NextResponse.json({ canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false });
+      return NextResponse.json({ canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 });
     }
 
-    const credits = user.appraisal_credits || 0;
+    // Get subscription from WNU Platform subscriptions table
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('tier_id, status, iap_product_id, iap_expires_at')
+      .eq('user_id', authUser.id)
+      .single();
 
-    // Super admin or Pro users have unlimited
-    if (SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase()) ||
-        (user.subscription_tier === 'pro' && user.subscription_status === 'active')) {
-      return NextResponse.json({
-        canCreate: true,
-        remaining: Infinity,
-        isPro: true,
-        currentCount: user.monthly_appraisal_count || 0,
-        credits,
-        useCredit: false
-      });
-    }
+    // Get token balance from WNU Platform token_balances table
+    const { data: tokenData } = await supabaseAdmin
+      .from('token_balances')
+      .select('balance')
+      .eq('user_id', authUser.id)
+      .single();
 
-    // Check if month reset is needed
-    const now = new Date();
-    const resetAt = user.appraisal_count_reset_at ? new Date(user.appraisal_count_reset_at) : null;
+    const tokenBalance = tokenData?.balance || 0;
 
-    // Reset only if: no reset date set OR we've passed the reset date
-    const needsReset = !resetAt || now >= resetAt;
+    // Check if Pro (super admin, Stripe Pro, or Apple IAP)
+    const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase());
+    const isStripePro = subscription?.tier_id === 'pro' && subscription?.status === 'active';
+    const isIAPPro = subscription?.iap_product_id && subscription?.iap_expires_at &&
+      new Date(subscription.iap_expires_at) > new Date();
+    const isPro = isSuperAdmin || isStripePro || isIAPPro;
 
-    let currentCount = user.monthly_appraisal_count || 0;
-
-    if (needsReset) {
-      // Reset count and set next reset date (first of next month)
-      const firstOfNextMonth = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth() + 1,
-        1
-      ));
-
-      console.log('[CanCreate] Month reset triggered:', {
-        userId: authUser.id,
-        oldResetAt: resetAt?.toISOString() || 'null',
-        newResetAt: firstOfNextMonth.toISOString(),
-        oldCount: currentCount,
-      });
-
-      await supabaseAdmin
-        .from('users')
-        .update({
-          monthly_appraisal_count: 0,
-          appraisal_count_reset_at: firstOfNextMonth.toISOString()
-        })
-        .eq('id', authUser.id);
-
-      currentCount = 0;
-    }
-
-    const freeRemaining = Math.max(0, FREE_APPRAISAL_LIMIT - currentCount);
-    const hasFreeAppraisals = currentCount < FREE_APPRAISAL_LIMIT;
-    const hasCredits = credits > 0;
-
-    const canCreate = hasFreeAppraisals || hasCredits;
-    const useCredit = !hasFreeAppraisals && hasCredits;
+    // In WNU Platform, Pro users still need tokens to create appraisals
+    // But they get monthly token grants automatically
+    const canCreate = tokenBalance > 0;
 
     console.log('[CanCreate] Check result:', {
       userId: authUser.id,
-      currentCount,
-      limit: FREE_APPRAISAL_LIMIT,
-      freeRemaining,
-      credits,
+      tokenBalance,
+      isPro,
       canCreate,
-      useCredit,
     });
 
     return NextResponse.json({
       canCreate,
-      remaining: freeRemaining,
-      isPro: false,
-      currentCount,
-      credits,
-      useCredit,
+      remaining: tokenBalance,
+      isPro,
+      tokenBalance,
     });
   } catch (error) {
     console.error('[CanCreate] Error:', error);
-    return NextResponse.json({ canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false });
+    return NextResponse.json({ canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 });
   }
 }

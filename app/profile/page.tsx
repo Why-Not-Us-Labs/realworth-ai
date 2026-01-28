@@ -57,6 +57,7 @@ export default function ProfilePage() {
   // Subscription state
   const {
     subscription,
+    tokenBalance,
     isPro,
     isLoading: isSubscriptionLoading,
     error: subscriptionError,
@@ -327,6 +328,7 @@ export default function ProfilePage() {
         {/* Subscription Management */}
         <SubscriptionSection
           subscription={subscription}
+          tokenBalance={tokenBalance}
           isPro={isPro}
           isLoading={isSubscriptionLoading}
           error={subscriptionError}

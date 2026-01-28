@@ -18,30 +18,22 @@ export async function GET(request: NextRequest) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Fetch public appraisals with user data
+  // Fetch public appraisals (WNU Platform schema)
   const { data: appraisals, error } = await supabaseAdmin
-    .from('appraisals')
+    .from('rw_appraisals')
     .select(`
       id,
       item_name,
-      image_url,
-      image_urls,
+      ai_image_url,
+      input_images,
       price_low,
       price_high,
       currency,
       category,
       era,
       created_at,
-      rarity_score,
-      like_count,
-      comment_count,
       description,
-      user_id,
-      users:user_id (
-        id,
-        name,
-        picture
-      )
+      user_id
     `)
     .eq('is_public', true)
     .order('created_at', { ascending: false })
@@ -82,28 +74,25 @@ export async function GET(request: NextRequest) {
 
   // Transform to FeedPostData format
   const posts = (appraisals || []).map(appraisal => {
-    // users is an object when using foreign key relation (not an array)
-    const user = appraisal.users as unknown as { id: string; name: string; picture: string | null } | null;
-
     return {
       id: appraisal.id,
       item_name: appraisal.item_name,
-      image_url: appraisal.image_url,
-      image_urls: appraisal.image_urls,
+      image_url: appraisal.ai_image_url || (appraisal.input_images && appraisal.input_images[0]) || '',
+      image_urls: appraisal.input_images || [],
       price_low: appraisal.price_low,
       price_high: appraisal.price_high,
       currency: appraisal.currency || 'USD',
       category: appraisal.category,
       era: appraisal.era,
       created_at: appraisal.created_at,
-      rarity_score: appraisal.rarity_score,
-      like_count: appraisal.like_count || 0,
-      comment_count: appraisal.comment_count || 0,
+      rarity_score: null,
+      like_count: 0,
+      comment_count: 0,
       description: appraisal.description,
       user: {
-        id: user?.id || appraisal.user_id,
-        name: user?.name || 'Anonymous',
-        picture: user?.picture || null,
+        id: appraisal.user_id,
+        name: 'Collector',
+        picture: null,
       },
       isLiked: userLikes.has(appraisal.id),
       isSaved: userSaves.has(appraisal.id),

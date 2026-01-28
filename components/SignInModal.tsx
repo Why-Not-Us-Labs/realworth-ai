@@ -5,7 +5,7 @@ import { XIcon, GoogleIcon, AppleIcon, EmailIcon, SpinnerIcon } from './icons';
 import { AuthProvider, authService } from '@/services/authService';
 import { isCapacitorApp } from '@/lib/utils';
 
-type AuthStep = 'providers' | 'email_input' | 'otp_input';
+type AuthStep = 'providers' | 'email_input' | 'email_sent';
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -21,11 +21,9 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   const [isNativeApp, setIsNativeApp] = useState(false);
   const [step, setStep] = useState<AuthStep>('providers');
   const [email, setEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
-  const otpInputRef = useRef<HTMLInputElement>(null);
 
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {
@@ -40,7 +38,6 @@ export const SignInModal: React.FC<SignInModalProps> = ({
   const handleClose = useCallback(() => {
     setStep('providers');
     setEmail('');
-    setOtpCode('');
     setError(null);
     setIsLoading(false);
     onClose();
@@ -67,61 +64,36 @@ export const SignInModal: React.FC<SignInModalProps> = ({
     if (step === 'email_input' && emailInputRef.current) {
       emailInputRef.current.focus();
     }
-    if (step === 'otp_input' && otpInputRef.current) {
-      otpInputRef.current.focus();
-    }
   }, [step]);
 
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleSendMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
 
     setIsLoading(true);
     setError(null);
 
-    const result = await authService.sendOtp(email.trim());
+    const result = await authService.sendMagicLink(email.trim());
 
     setIsLoading(false);
 
     if (result.error) {
       setError(result.error);
     } else if (result.success) {
-      setStep('otp_input');
+      setStep('email_sent');
     }
   };
 
-  const handleVerifyCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otpCode.trim()) return;
-
+  const handleResendMagicLink = async () => {
     setIsLoading(true);
     setError(null);
 
-    const result = await authService.verifyOtp(email.trim(), otpCode.trim());
+    const result = await authService.sendMagicLink(email.trim());
 
     setIsLoading(false);
 
     if (result.error) {
       setError(result.error);
-    } else if (result.user) {
-      handleClose();
-      // Auth state change will be picked up by AuthContext
-    }
-  };
-
-  const handleResendCode = async () => {
-    setIsLoading(true);
-    setError(null);
-    setOtpCode('');
-
-    const result = await authService.sendOtp(email.trim());
-
-    setIsLoading(false);
-
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setError(null);
     }
   };
 
@@ -215,11 +187,11 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                 Sign in with email
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                We&apos;ll send you a verification code
+                We&apos;ll send you a magic link to sign in
               </p>
             </div>
 
-            <form onSubmit={handleSendCode}>
+            <form onSubmit={handleSendMagicLink}>
               <input
                 ref={emailInputRef}
                 type="email"
@@ -243,76 +215,63 @@ export const SignInModal: React.FC<SignInModalProps> = ({
                 {isLoading ? (
                   <SpinnerIcon className="w-5 h-5 animate-spin" />
                 ) : (
-                  <span className="font-medium">Send Code</span>
+                  <span className="font-medium">Send Magic Link</span>
                 )}
               </button>
             </form>
           </>
         )}
 
-        {/* OTP Verification Step */}
-        {step === 'otp_input' && (
+        {/* Email Sent Confirmation */}
+        {step === 'email_sent' && (
           <>
-            {/* Back button & Header */}
-            <div className="mb-6">
-              <button
-                onClick={() => {
-                  setStep('email_input');
-                  setError(null);
-                  setOtpCode('');
-                }}
-                className="text-sm text-teal-600 hover:text-teal-700 font-medium mb-3"
-              >
-                &larr; Back
-              </button>
+            {/* Header with email icon */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <EmailIcon className="w-8 h-8 text-teal-600" />
+              </div>
               <h2 className="text-xl font-bold text-slate-800">
-                Enter verification code
+                Check your email
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                We sent an 8-digit code to <span className="font-medium text-slate-700">{email}</span>
+              <p className="text-sm text-slate-500 mt-2">
+                We sent a magic link to
+              </p>
+              <p className="text-sm font-medium text-slate-700 mt-1">
+                {email}
               </p>
             </div>
 
-            <form onSubmit={handleVerifyCode}>
-              <input
-                ref={otpInputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={8}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="12345678"
-                className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent text-slate-800 placeholder:text-slate-400 text-center text-2xl tracking-[0.5em] font-mono"
-                disabled={isLoading}
-                autoComplete="one-time-code"
-              />
+            <div className="bg-slate-50 rounded-xl p-4 mb-4">
+              <p className="text-sm text-slate-600 text-center">
+                Click the link in the email to sign in automatically. The link will expire in 1 hour.
+              </p>
+            </div>
 
-              {error && (
-                <p className="text-red-500 text-sm mt-3">{error}</p>
+            {error && (
+              <p className="text-red-500 text-sm text-center mb-3">{error}</p>
+            )}
+
+            <button
+              onClick={handleResendMagicLink}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-teal-600 hover:bg-teal-50 rounded-xl transition-colors touch-manipulation disabled:opacity-50"
+            >
+              {isLoading ? (
+                <SpinnerIcon className="w-5 h-5 animate-spin" />
+              ) : (
+                <span className="font-medium">Resend magic link</span>
               )}
+            </button>
 
-              <button
-                type="submit"
-                disabled={isLoading || otpCode.length !== 8}
-                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3.5 bg-teal-500 text-white rounded-xl hover:bg-teal-600 active:bg-teal-700 transition-colors touch-manipulation min-h-[48px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <SpinnerIcon className="w-5 h-5 animate-spin" />
-                ) : (
-                  <span className="font-medium">Verify</span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleResendCode}
-                disabled={isLoading}
-                className="w-full mt-3 text-sm text-teal-600 hover:text-teal-700 font-medium disabled:opacity-50"
-              >
-                Didn&apos;t receive the code? Resend
-              </button>
-            </form>
+            <button
+              onClick={() => {
+                setStep('email_input');
+                setError(null);
+              }}
+              className="w-full mt-2 text-sm text-slate-500 hover:text-slate-700 font-medium"
+            >
+              Use a different email
+            </button>
 
             <p className="text-xs text-slate-400 text-center mt-4">
               Check your spam folder if you don&apos;t see the email

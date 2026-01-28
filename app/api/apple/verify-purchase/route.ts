@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 import * as jwt from 'jsonwebtoken';
+import { grantTokens } from '@/services/tokenService';
 
 // App Store Connect API configuration
 const APP_STORE_ISSUER_ID = process.env.APP_STORE_ISSUER_ID;
@@ -15,6 +16,25 @@ const PRODUCT_TIERS: Record<string, 'pro'> = {
   'ai.realworth.pro.monthly': 'pro',
   'ai.realworth.pro.annual': 'pro',
 };
+
+// Tier to monthly tokens mapping (from subscription_tiers table)
+const TIER_MONTHLY_TOKENS: Record<string, number> = {
+  'free': 0,
+  'pro': 100,
+  'unlimited': 500,
+};
+
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
+}
 
 /**
  * Generate JWT for App Store Server API authentication
@@ -81,7 +101,7 @@ function decodeSignedTransaction(signedTransaction: string): {
 
 /**
  * POST /api/apple/verify-purchase
- * Verify an Apple IAP purchase and update user subscription
+ * Verify an Apple IAP purchase and update user subscription (WNU Platform)
  */
 export async function POST(request: NextRequest) {
   console.log('[Apple IAP] Verifying purchase');
@@ -154,23 +174,22 @@ export async function POST(request: NextRequest) {
       expiresAt = new Date(transactionData.expiresDate);
     }
 
-    // Update user subscription in database
-    // Set subscription_status to 'active' so isPro checks work correctly
+    // Update subscription in WNU Platform subscriptions table
     const { error: updateError } = await supabaseAdmin
-      .from('users')
+      .from('subscriptions')
       .update({
-        subscription_tier: tier,
-        subscription_status: 'active',
-        subscription_source: 'apple_iap',
+        tier_id: tier,
+        status: 'active',
+        source: 'apple_iap',
         iap_product_id: transactionData.productId,
         iap_original_transaction_id: transactionData.originalTransactionId,
         iap_expires_at: expiresAt?.toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     if (updateError) {
-      console.error('[Apple IAP] Failed to update user subscription:', updateError);
+      console.error('[Apple IAP] Failed to update subscription:', updateError);
       return NextResponse.json(
         { error: 'Failed to update subscription', details: updateError.message },
         { status: 500 }
@@ -178,6 +197,23 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('[Apple IAP] Subscription activated for user:', user.id);
+
+    // Grant monthly tokens for new IAP subscription (WNU Platform)
+    try {
+      const tokensToGrant = TIER_MONTHLY_TOKENS[tier] || 0;
+      if (tokensToGrant > 0) {
+        const grantResult = await grantTokens(
+          user.id,
+          tokensToGrant,
+          'subscription_grant',
+          `Apple IAP ${tier} subscription - ${tokensToGrant} monthly tokens`
+        );
+        console.log(`[Apple IAP] Granted ${tokensToGrant} tokens to user ${user.id}:`, grantResult);
+      }
+    } catch (tokenError) {
+      console.error('[Apple IAP] Failed to grant subscription tokens (non-blocking):', tokenError);
+      // Don't fail the verification - subscription is already activated
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useContext, useRef } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import Link from 'next/link';
 import { LogoIcon, LockIcon } from '@/components/icons';
 import { AuthContext } from '@/components/contexts/AuthContext';
@@ -9,9 +9,6 @@ import { supabase } from '@/lib/supabase';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import UpgradeModal from '@/components/UpgradeModal';
-import { CollapsibleText } from '@/components/CollapsibleText';
-import { EngagementButtons } from '@/components/EngagementButtons';
-import { CommentSheet } from '@/components/CommentSheet';
 
 interface TreasureData {
   id: string;
@@ -25,19 +22,10 @@ interface TreasureData {
   currency: string;
   reasoning: string;
   image_url: string;
-  images?: string[];
   is_public: boolean;
   user_id: string;
   confidence_score?: number;
   confidence_factors?: Array<{ factor: string; impact: string; detail: string }>;
-  references?: Array<{ title: string; url: string }>;
-  rarity_score?: number;
-  rarity_factors?: Array<{ factor: string; score: number; detail: string }>;
-  users?: {
-    id: string;
-    name: string;
-    picture?: string;
-  };
 }
 
 interface TreasureViewerProps {
@@ -55,23 +43,6 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
   const [authReady, setAuthReady] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [isDownloadingCertificate, setIsDownloadingCertificate] = useState(false);
-
-  // Comments state
-  const [showComments, setShowComments] = useState(false);
-
-  // Engagement state
-  const [likeCount, setLikeCount] = useState(0);
-  const [isLiked, setIsLiked] = useState(false);
-  const [isSaved, setIsSaved] = useState(false);
-  const [commentCount, setCommentCount] = useState(0);
-
-  // Image gallery state
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // Minimum swipe distance (in px)
-  const minSwipeDistance = 50;
 
   // Get subscription status
   const { isPro } = useSubscription(user?.id || null, user?.email);
@@ -143,35 +114,6 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
     fetchTreasure();
   }, [treasureId, accessToken, authReady]);
 
-  // Fetch engagement data when treasure is loaded
-  useEffect(() => {
-    if (!treasure) return;
-    const treasureId = treasure.id;
-
-    async function fetchEngagement() {
-      try {
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        if (accessToken) {
-          headers['Authorization'] = `Bearer ${accessToken}`;
-        }
-
-        // Fetch like/save status
-        const engagementRes = await fetch(`/api/feed/engagement?appraisalId=${treasureId}`, { headers });
-        if (engagementRes.ok) {
-          const data = await engagementRes.json();
-          setLikeCount(data.likeCount || 0);
-          setIsLiked(data.isLiked || false);
-          setIsSaved(data.isSaved || false);
-          setCommentCount(data.commentCount || 0);
-        }
-      } catch (error) {
-        console.error('[TreasureViewer] Error fetching engagement:', error);
-      }
-    }
-
-    fetchEngagement();
-  }, [treasure?.id, accessToken]);
-
   const togglePublic = async () => {
     if (!treasure || !isOwner || isTogglingPublic) return;
 
@@ -179,13 +121,28 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
     const newPublicState = !treasure.is_public;
 
     try {
-      const { error: updateError } = await supabase
-        .from('appraisals')
+      // Debug: Check session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[TreasureViewer] togglePublic session:', {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        treasureUserId: treasure.user_id
+      });
+
+      const { data, error: updateError } = await supabase
+        .from('rw_appraisals')
         .update({ is_public: newPublicState })
-        .eq('id', treasure.id);
+        .eq('id', treasure.id)
+        .eq('user_id', treasure.user_id) // Explicit user_id filter
+        .select()
+        .single();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('[TreasureViewer] Update error:', updateError.message, updateError.details, updateError.hint);
+        throw updateError;
+      }
 
+      console.log('[TreasureViewer] Update success:', data);
       setTreasure({ ...treasure, is_public: newPublicState });
     } catch (e) {
       console.error('[TreasureViewer] Error toggling public:', e);
@@ -236,40 +193,6 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
       alert('Failed to generate certificate. Please try again.');
     } finally {
       setIsDownloadingCertificate(false);
-    }
-  };
-
-  // Image gallery helpers
-  const getAllImages = () => {
-    if (treasure?.images && treasure.images.length > 0) {
-      return treasure.images;
-    }
-    return treasure?.image_url ? [treasure.image_url] : [];
-  };
-
-  const allImages = treasure ? getAllImages() : [];
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && currentImageIndex < allImages.length - 1) {
-      setCurrentImageIndex(prev => prev + 1);
-    }
-    if (isRightSwipe && currentImageIndex > 0) {
-      setCurrentImageIndex(prev => prev - 1);
     }
   };
 
@@ -495,27 +418,14 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Two-column layout on tablet+ */}
           <div className="md:flex">
-            {/* Image Gallery - with swipe support */}
-            {allImages.length > 0 && (
-              <div
-                className="relative aspect-square md:aspect-auto md:w-2/5 md:min-h-[300px] bg-slate-100 flex-shrink-0 overflow-hidden"
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-              >
+            {/* Image - smaller on tablet */}
+            {treasure.image_url && (
+              <div className="relative aspect-square md:aspect-auto md:w-2/5 md:min-h-[300px] bg-slate-100 flex-shrink-0">
                 <img
-                  src={allImages[currentImageIndex]}
+                  src={treasure.image_url}
                   alt={treasure.item_name}
-                  className="w-full h-full object-contain md:object-cover transition-opacity duration-200"
-                  draggable={false}
+                  className="w-full h-full object-contain md:object-cover"
                 />
-
-                {/* Image counter badge */}
-                {allImages.length > 1 && (
-                  <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
-                    {currentImageIndex + 1}/{allImages.length}
-                  </div>
-                )}
               </div>
             )}
 
@@ -667,11 +577,7 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 </svg>
                 About This Item
               </h3>
-              <CollapsibleText
-                text={treasure.description}
-                previewLength={150}
-                className="text-slate-600 leading-relaxed"
-              />
+              <p className="text-slate-600 leading-relaxed">{treasure.description}</p>
             </div>
 
             {/* Valuation Reasoning Card */}
@@ -682,168 +588,68 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
                 </svg>
                 Valuation Reasoning
               </h3>
-              <CollapsibleText
-                text={treasure.reasoning}
-                previewLength={150}
-                className="text-amber-900/80 leading-relaxed"
-              />
+              <p className="text-amber-900/80 leading-relaxed">{treasure.reasoning}</p>
             </div>
 
-            {/* Rarity Score */}
-            {treasure.rarity_score !== undefined && treasure.rarity_score !== null && (
-              <div className={`mb-6 rounded-xl border p-5 ${
-                treasure.rarity_score >= 8.0 ? 'bg-rose-50 border-rose-200' :
-                treasure.rarity_score >= 5.0 ? 'bg-amber-50 border-amber-200' :
-                'bg-slate-50 border-slate-200'
-              }`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className={`text-sm font-bold flex items-center gap-2 ${
-                    treasure.rarity_score >= 8.0 ? 'text-rose-900' :
-                    treasure.rarity_score >= 5.0 ? 'text-amber-900' :
-                    'text-slate-800'
-                  }`}>
-                    <svg className={`w-4 h-4 ${
-                      treasure.rarity_score >= 8.0 ? 'text-rose-500' :
-                      treasure.rarity_score >= 5.0 ? 'text-amber-500' :
-                      'text-slate-500'
-                    }`} fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    Rarity Score
-                  </h3>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-black ${
-                      treasure.rarity_score >= 8.0 ? 'text-rose-700' :
-                      treasure.rarity_score >= 5.0 ? 'text-amber-700' :
-                      'text-slate-700'
-                    }`}>
-                      {treasure.rarity_score.toFixed(1)}
-                    </span>
-                    <span className={`text-sm ${
-                      treasure.rarity_score >= 8.0 ? 'text-rose-500' :
-                      treasure.rarity_score >= 5.0 ? 'text-amber-500' :
-                      'text-slate-500'
-                    }`}>/10</span>
-                  </div>
-                </div>
-
-                {treasure.rarity_factors && treasure.rarity_factors.length > 0 && (
-                  <div className="space-y-3">
-                    {treasure.rarity_factors.map((factor, idx) => (
-                      <div key={idx}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-sm font-medium ${
-                            treasure.rarity_score! >= 8.0 ? 'text-rose-800' :
-                            treasure.rarity_score! >= 5.0 ? 'text-amber-800' :
-                            'text-slate-700'
-                          }`}>{factor.factor}</span>
-                          <span className={`text-sm font-medium ${
-                            treasure.rarity_score! >= 8.0 ? 'text-rose-600' :
-                            treasure.rarity_score! >= 5.0 ? 'text-amber-600' :
-                            'text-slate-600'
-                          }`}>{factor.score.toFixed(1)}</span>
-                        </div>
-                        <div className={`h-2 rounded-full overflow-hidden ${
-                          treasure.rarity_score! >= 8.0 ? 'bg-rose-100' :
-                          treasure.rarity_score! >= 5.0 ? 'bg-amber-100' :
-                          'bg-slate-200'
-                        }`}>
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              treasure.rarity_score! >= 8.0 ? 'bg-rose-500' :
-                              treasure.rarity_score! >= 5.0 ? 'bg-amber-500' :
-                              'bg-slate-500'
-                            }`}
-                            style={{ width: `${factor.score * 10}%` }}
-                          />
-                        </div>
-                        <p className={`text-xs mt-1 ${
-                          treasure.rarity_score! >= 8.0 ? 'text-rose-700' :
-                          treasure.rarity_score! >= 5.0 ? 'text-amber-700' :
-                          'text-slate-600'
-                        }`}>{factor.detail}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Sources & Verification */}
-            {treasure.references && treasure.references.length > 0 && (
-              <div className="mb-6 bg-slate-50 rounded-xl border border-slate-200 p-5">
-                <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-teal-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            {/* Get Expert Opinion Section */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-2">
+                <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Want a Second Opinion?
+              </h3>
+              <p className="text-sm text-slate-500 mb-3">
+                Get a professional appraisal from trusted experts:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <a
+                  href={`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(treasure.item_name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                >
+                  <span className="font-medium">Search eBay</span>
+                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
-                  Sources & Verification
-                </h3>
-                <p className="text-xs text-slate-500 mb-3">
-                  Our AI valuation is based on real market data from these trusted sources:
-                </p>
-                <div className="space-y-2">
-                  {treasure.references.map((ref, index) => (
-                    <a
-                      key={index}
-                      href={ref.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 p-2 rounded-lg bg-white hover:bg-teal-50 border border-slate-200 hover:border-teal-300 text-sm text-slate-700 transition-all group"
-                    >
-                      <svg className="w-4 h-4 text-slate-400 group-hover:text-teal-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
-                      <span className="flex-1 font-medium truncate">{ref.title}</span>
-                      <svg className="w-3 h-3 text-slate-400 group-hover:text-teal-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </a>
-                  ))}
-                </div>
+                </a>
+                <a
+                  href="https://www.valuemystuff.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                >
+                  <span className="font-medium">ValueMyStuff</span>
+                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.ha.com/free-auction-appraisal.s"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                >
+                  <span className="font-medium">Heritage Auctions</span>
+                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+                <a
+                  href="https://www.mearto.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 hover:bg-slate-100 text-sm text-slate-700 transition-colors"
+                >
+                  <span className="font-medium">Mearto</span>
+                  <svg className="w-3 h-3 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
               </div>
-            )}
-
-            {/* Owner Info */}
-            {treasure.users && (
-              <div className="border-t pt-6 flex items-center gap-3">
-                {treasure.users.picture && (
-                  <img
-                    src={treasure.users.picture}
-                    alt={treasure.users.name}
-                    className="w-10 h-10 rounded-full"
-                  />
-                )}
-                <div>
-                  <p className="text-sm text-slate-500">Discovered by</p>
-                  <p className="font-semibold text-slate-900">{treasure.users.name}</p>
-                </div>
-              </div>
-            )}
-
-            {/* Engagement Buttons */}
-            <div className="border-t pt-4 mt-4">
-              <EngagementButtons
-                appraisalId={treasure.id}
-                initialLikeCount={likeCount}
-                initialIsLiked={isLiked}
-                initialIsSaved={isSaved}
-                commentCount={commentCount}
-                onCommentClick={() => setShowComments(true)}
-                onShare={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: treasure.item_name,
-                      text: `Check out this treasure valued at ${formattedAvg}!`,
-                      url: window.location.href,
-                    });
-                  } else {
-                    navigator.clipboard.writeText(window.location.href);
-                  }
-                }}
-                size="md"
-                showLabels
-              />
             </div>
+
           </div>
         </div>
 
@@ -863,14 +669,6 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
       <footer className="text-center p-6 text-slate-500 text-sm">
         <p>&copy; {new Date().getFullYear()} RealWorth.ai. All rights reserved.</p>
       </footer>
-
-      {/* Comment Sheet */}
-      <CommentSheet
-        isOpen={showComments}
-        onClose={() => setShowComments(false)}
-        appraisalId={treasure.id}
-        ownerId={treasure.user_id}
-      />
 
       {/* Upgrade Modal */}
       {user && (

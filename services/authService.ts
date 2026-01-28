@@ -70,62 +70,37 @@ class AuthService {
   }
 
   /**
-   * Send OTP code to email for verification
-   * User receives an 8-digit code (configured in Supabase)
+   * Send magic link to email for passwordless sign-in
+   * User clicks the link in their email to sign in automatically
    */
-  public async sendOtp(email: string): Promise<{ success: boolean; error?: string }> {
+  public async sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
     if (!isSupabaseConfigured) {
       return { success: false, error: 'Supabase not configured' };
     }
 
     try {
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001';
+      const redirectUrl = `${currentOrigin}/auth/callback`;
+
+      console.log('[Auth] Sending magic link to:', email, 'redirectTo:', redirectUrl);
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
+          emailRedirectTo: redirectUrl,
         },
       });
 
       if (error) {
-        console.error('[Auth] Send OTP error:', error);
+        console.error('[Auth] Send magic link error:', error);
         return { success: false, error: error.message };
       }
 
       return { success: true };
     } catch (error) {
-      console.error('[Auth] Send OTP error:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Failed to send code' };
-    }
-  }
-
-  /**
-   * Verify OTP code and sign in
-   */
-  public async verifyOtp(email: string, token: string): Promise<{ user: User | null; error?: string }> {
-    if (!isSupabaseConfigured) {
-      return { user: null, error: 'Supabase not configured' };
-    }
-
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email',
-      });
-
-      if (error) {
-        console.error('[Auth] Verify OTP error:', error);
-        return { user: null, error: error.message };
-      }
-
-      if (data.user) {
-        return { user: this.mapSupabaseUserToUser(data.user) };
-      }
-
-      return { user: null, error: 'Verification failed' };
-    } catch (error) {
-      console.error('[Auth] Verify OTP error:', error);
-      return { user: null, error: error instanceof Error ? error.message : 'Verification failed' };
+      console.error('[Auth] Send magic link error:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Failed to send magic link' };
     }
   }
 
