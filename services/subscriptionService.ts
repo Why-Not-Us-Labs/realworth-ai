@@ -540,11 +540,9 @@ class SubscriptionService {
       ? new Date(user.appraisal_count_reset_at)
       : null;
 
-    // Check if reset needed (different month or never set)
-    // Use UTC to avoid timezone issues
-    const needsReset = !resetAt ||
-      now.getUTCMonth() !== resetAt.getUTCMonth() ||
-      now.getUTCFullYear() !== resetAt.getUTCFullYear();
+    // Check if reset needed: reset date has passed OR never set
+    // resetAt represents "when the next reset should happen" (first of next month)
+    const needsReset = !resetAt || now >= resetAt;
 
     if (needsReset) {
       // Reset and persist to DB

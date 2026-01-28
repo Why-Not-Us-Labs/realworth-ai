@@ -161,8 +161,32 @@ export function useSubscription(userId: string | null, userEmail?: string | null
   }, [userId, loadSubscription]);
 
   const checkCanAppraise = useCallback(async () => {
-    if (!userId) return { canCreate: false, remaining: 0, isPro: false };
-    return subscriptionService.canCreateAppraisal(userId);
+    if (!userId) return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+
+    try {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+      }
+
+      // Call server-side API for reliable check
+      const response = await fetch('/api/appraise/can-create', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[Subscription] checkCanAppraise API error:', response.status);
+        return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('[Subscription] checkCanAppraise error:', error);
+      return { canCreate: false, remaining: 0, isPro: false, currentCount: 0, credits: 0, useCredit: false };
+    }
   }, [userId]);
 
   const incrementUsage = useCallback(async () => {
