@@ -394,6 +394,17 @@ export default function UpgradeModal({
             </span>
           </div>
 
+          {/* Terms and Privacy - Required by App Store */}
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-400 mt-3">
+            <a href="/terms" target="_blank" className="hover:text-teal-600 underline">
+              Terms of Use
+            </a>
+            <span>•</span>
+            <a href="/privacy" target="_blank" className="hover:text-teal-600 underline">
+              Privacy Policy
+            </a>
+          </div>
+
           {/* Restore Purchases - only in native iOS app */}
           {isNativeApp && storeKit.isAvailable && (
             <button

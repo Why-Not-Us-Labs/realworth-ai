@@ -191,7 +191,33 @@ export function useSubscription(userId: string | null, userEmail?: string | null
 
   const checkCanAppraise = useCallback(async () => {
     if (!userId) return { canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 };
-    return subscriptionService.canCreateAppraisal(userId);
+
+    try {
+      // Get current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        return { canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 };
+      }
+
+      // Call server-side API for reliable check (WNU Platform uses /api/appraise/can-create)
+      const response = await fetch('/api/appraise/can-create', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        console.error('[Subscription] checkCanAppraise API error:', response.status);
+        // Fallback to direct service call
+        return subscriptionService.canCreateAppraisal(userId);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('[Subscription] checkCanAppraise error:', error);
+      // Fallback to direct service call
+      return subscriptionService.canCreateAppraisal(userId);
+    }
   }, [userId]);
 
   // Deprecated: incrementUsage no longer needed with token system
