@@ -15,8 +15,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Revalidate every 60 seconds for fresh content
-export const revalidate = 60;
+// Revalidate every 30 seconds for fresh content
+export const revalidate = 30;
 
 // Initialize Supabase admin client (server-side only, bypasses RLS for public feed)
 const supabaseAdmin = createClient(
