@@ -7,7 +7,7 @@ import { FutureValuePrediction } from '@/lib/types';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
