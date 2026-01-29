@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useCallback, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { XIcon, GoogleIcon, AppleIcon, EmailIcon, SpinnerIcon } from './icons';
 import { AuthProvider, authService } from '@/services/authService';
 import { isCapacitorApp } from '@/lib/utils';
@@ -99,7 +100,7 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
       <div
@@ -281,4 +282,6 @@ export const SignInModal: React.FC<SignInModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
