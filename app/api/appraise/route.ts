@@ -665,14 +665,20 @@ export async function POST(req: NextRequest) {
 
     // Get user ID if authenticated
     let userId: string | null = null;
+    let userEmail: string | null = null;
     if (authToken) {
       const { data: { user } } = await supabase.auth.getUser(authToken);
       userId = user?.id || null;
+      userEmail = user?.email || null;
     }
 
     // SERVER-SIDE TOKEN ENFORCEMENT - Cannot be bypassed (WNU Platform)
+    // Super admins skip token consumption
     let tokenTransactionId: string | undefined;
-    if (userId) {
+    const { subscriptionService } = await import('@/services/subscriptionService');
+    const isSuperAdmin = userEmail ? subscriptionService.isSuperAdmin(userEmail) : false;
+
+    if (userId && !isSuperAdmin) {
       const { consumeTokens } = await import('@/services/tokenService');
 
       // Consume token BEFORE processing
@@ -694,6 +700,8 @@ export async function POST(req: NextRequest) {
 
       tokenTransactionId = tokenResult.transactionId;
       console.log('[Appraise API] Token consumed:', { userId, transactionId: tokenTransactionId, newBalance: tokenResult.newBalance });
+    } else if (isSuperAdmin) {
+      console.log('[Appraise API] Super admin bypass - skipping token consumption:', { userId, email: userEmail });
     }
 
     // Fetch collection details if collectionId is provided
