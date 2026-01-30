@@ -9,7 +9,6 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import ProBadge from './ProBadge';
 import PWAInstallButton from './PWAInstallButton';
-import { HelpButton, HelpChatWidget } from './HelpChatWidget';
 
 interface HeaderProps {
   onUpgradeClick?: () => void;
@@ -38,7 +37,6 @@ const isMobileDevice = (): boolean => {
 export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
   const { user } = useContext(AuthContext);
   const { isPro, isVerifying } = useSubscription(user?.id || null, user?.email);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -51,7 +49,6 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
 
   return (
     <>
-      <HelpChatWidget isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
       {/* Hide on mobile - BentoHeader handles mobile view */}
       <header className="hidden sm:block sticky top-0 z-50 p-3 sm:p-4">
         <div className="max-w-5xl mx-auto">
@@ -126,7 +123,6 @@ export const Header: React.FC<HeaderProps> = ({ onUpgradeClick }) => {
                   Go Pro
                 </button>
               )}
-              {user && <HelpButton onClick={() => setIsHelpOpen(true)} />}
               <Auth />
             </div>
           </div>

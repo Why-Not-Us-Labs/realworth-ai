@@ -38,37 +38,6 @@ interface StreakInfo {
   streakBroken: boolean;
 }
 
-// Migration banner component
-function MigrationBanner({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="bg-gradient-to-r from-teal-500 to-emerald-500 text-white px-4 py-3 relative">
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm">
-            <span className="font-semibold">We've upgraded!</span>{' '}
-            <span className="hidden sm:inline">If you experience any issues, please contact </span>
-            <a href="mailto:support@whynotus.ai" className="underline font-medium hover:text-white/90">
-              support@whynotus.ai
-            </a>
-          </p>
-        </div>
-        <button
-          onClick={onDismiss}
-          className="p-1 hover:bg-white/20 rounded-full transition-colors flex-shrink-0"
-          aria-label="Dismiss"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function HomeContent() {
   const searchParams = useSearchParams();
   const [view, setView] = useState<View>('HOME');
@@ -76,20 +45,6 @@ function HomeContent() {
   const [currentResult, setCurrentResult] = useState<AppraisalResult | null>(null);
   const [isFromHistory, setIsFromHistory] = useState(false);
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0 });
-  const [showMigrationBanner, setShowMigrationBanner] = useState(false);
-
-  // Check if migration banner should be shown
-  useEffect(() => {
-    const dismissed = localStorage.getItem('migration-banner-dismissed');
-    if (!dismissed) {
-      setShowMigrationBanner(true);
-    }
-  }, []);
-
-  const dismissMigrationBanner = () => {
-    localStorage.setItem('migration-banner-dismissed', 'true');
-    setShowMigrationBanner(false);
-  };
   // Celebration screen state
   const [celebrationStreakInfo, setCelebrationStreakInfo] = useState<StreakInfo | null>(null);
   const [triviaPointsEarned, setTriviaPointsEarned] = useState(0);
@@ -409,7 +364,6 @@ function HomeContent() {
   return (
     <>
       <Header onUpgradeClick={() => promptUpgrade()} />
-      {showMigrationBanner && <MigrationBanner onDismiss={dismissMigrationBanner} />}
       <main className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
         <div className="w-full bg-white rounded-2xl shadow-lg mb-8 overflow-hidden">
           {renderView()}
