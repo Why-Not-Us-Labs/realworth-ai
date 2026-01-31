@@ -161,53 +161,60 @@ class AuthService {
    * Uses the native Google Sign-In SDK (bypasses WebView restriction),
    * then exchanges the ID token with Supabase via signInWithIdToken().
    */
+  /**
+   * Sign in with Google natively on iOS.
+   * Uses WKScriptMessageHandler bridge to trigger native Google Sign-In SDK,
+   * then exchanges the ID token with Supabase via signInWithIdToken().
+   */
   public async signInWithGoogleNative(): Promise<User | null> {
     if (!isSupabaseConfigured) {
       throw new Error('Supabase not configured');
     }
 
-    try {
-      const { SocialLogin } = await import('@capgo/capacitor-social-login');
-
-      await SocialLogin.initialize({
-        google: {
-          iOSClientId: '811570590708-5vkm4h9mtofqoi6e38rflim0vk8t5um5.apps.googleusercontent.com',
-          iOSServerClientId: '811570590708-flberffl49r3oufn7qebb16ht06rm548.apps.googleusercontent.com',
-          mode: 'online',
-        },
-      });
-
-      const res = await SocialLogin.login({
-        provider: 'google',
-        options: {
-          scopes: ['email', 'profile'],
-        },
-      });
-
-      const googleResult = res.result as { idToken?: string | null };
-      if (!googleResult.idToken) {
-        throw new Error('No ID token returned from Google Sign-In');
-      }
-
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: googleResult.idToken,
-      });
-
-      if (error) {
-        console.error('[Auth] Google native sign-in error:', error);
-        throw error;
-      }
-
-      if (data.user) {
-        return this.mapSupabaseUserToUser(data.user);
-      }
-
-      return null;
-    } catch (error) {
-      console.error('[Auth] Google native sign-in error:', error);
-      throw error;
+    const webkit = (window as { webkit?: { messageHandlers?: { googleSignIn?: { postMessage: (msg: unknown) => void } } } }).webkit;
+    if (!webkit?.messageHandlers?.googleSignIn) {
+      throw new Error('Native Google Sign-In not available');
     }
+
+    return new Promise((resolve, reject) => {
+      const onSuccess = async (event: Event) => {
+        cleanup();
+        const { idToken } = (event as CustomEvent).detail;
+        try {
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: 'google',
+            token: idToken,
+          });
+          if (error) {
+            console.error('[Auth] Google native sign-in error:', error);
+            reject(error);
+            return;
+          }
+          resolve(data.user ? this.mapSupabaseUserToUser(data.user) : null);
+        } catch (err) {
+          console.error('[Auth] Google native sign-in error:', err);
+          reject(err);
+        }
+      };
+
+      const onError = (event: Event) => {
+        cleanup();
+        const msg = (event as CustomEvent).detail?.error || 'Google sign-in failed';
+        console.error('[Auth] Google native sign-in error:', msg);
+        reject(new Error(msg));
+      };
+
+      const cleanup = () => {
+        window.removeEventListener('googleSignInComplete', onSuccess);
+        window.removeEventListener('googleSignInError', onError);
+      };
+
+      window.addEventListener('googleSignInComplete', onSuccess);
+      window.addEventListener('googleSignInError', onError);
+
+      // Trigger native Google Sign-In via WKScriptMessageHandler
+      webkit.messageHandlers!.googleSignIn!.postMessage({});
+    });
   }
 
   /**
