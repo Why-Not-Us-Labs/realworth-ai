@@ -56,6 +56,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>GIDClientID</key>
+	<string>811570590708-5vkm4h9mtofqoi6e38rflim0vk8t5um5.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>811570590708-flberffl49r3oufn7qebb16ht06rm548.apps.googleusercontent.com</string>
 	<key>NSCameraUsageDescription</key>
 	<string>RealWorth needs camera access to take photos of items for appraisal</string>
 	<key>NSPhotoLibraryUsageDescription</key>

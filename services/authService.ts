@@ -172,6 +172,7 @@ class AuthService {
     }
 
     const webkit = (window as { webkit?: { messageHandlers?: { googleSignIn?: { postMessage: (msg: unknown) => void } } } }).webkit;
+    console.log('[Auth] signInWithGoogleNative called, webkit available:', !!webkit?.messageHandlers?.googleSignIn);
     if (!webkit?.messageHandlers?.googleSignIn) {
       throw new Error('Native Google Sign-In not available');
     }
@@ -180,19 +181,21 @@ class AuthService {
       const onSuccess = async (event: Event) => {
         cleanup();
         const { idToken } = (event as CustomEvent).detail;
+        console.log('[Auth] Got ID token from native, length:', idToken?.length);
         try {
           const { data, error } = await supabase.auth.signInWithIdToken({
             provider: 'google',
             token: idToken,
           });
           if (error) {
-            console.error('[Auth] Google native sign-in error:', error);
+            console.error('[Auth] signInWithIdToken error:', error);
             reject(error);
             return;
           }
+          console.log('[Auth] signInWithIdToken success, user:', data.user?.id);
           resolve(data.user ? this.mapSupabaseUserToUser(data.user) : null);
         } catch (err) {
-          console.error('[Auth] Google native sign-in error:', err);
+          console.error('[Auth] signInWithIdToken exception:', err);
           reject(err);
         }
       };
@@ -200,7 +203,7 @@ class AuthService {
       const onError = (event: Event) => {
         cleanup();
         const msg = (event as CustomEvent).detail?.error || 'Google sign-in failed';
-        console.error('[Auth] Google native sign-in error:', msg);
+        console.error('[Auth] Native Google sign-in error event:', msg);
         reject(new Error(msg));
       };
 
@@ -212,6 +215,7 @@ class AuthService {
       window.addEventListener('googleSignInComplete', onSuccess);
       window.addEventListener('googleSignInError', onError);
 
+      console.log('[Auth] Posting message to native googleSignIn handler');
       // Trigger native Google Sign-In via WKScriptMessageHandler
       webkit.messageHandlers!.googleSignIn!.postMessage({});
     });

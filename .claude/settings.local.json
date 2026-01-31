@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(git stash:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(open http://localhost:3001)",
+      "Bash(npm ls:*)",
+      "WebFetch(domain:www.latimes.com)",
+      "Skill(session-scribe)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(npx vercel:*)",
+      "Bash(npx cap sync:*)",
+      "Bash(open:*)",
+      "WebFetch(domain:capgo.app)",
+      "WebFetch(domain:developers.google.com)",
+      "WebFetch(domain:cnr.sh)",
+      "WebFetch(domain:capacitorjs.com)",
+      "Bash(tree:*)"
     ]
   }
 }

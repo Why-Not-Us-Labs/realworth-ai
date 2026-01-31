@@ -9,7 +9,7 @@ class GoogleSignInViewController: CAPBridgeViewController, WKScriptMessageHandle
         super.viewDidLoad()
 
         // Register JS message handler so the remote web page can trigger native Google Sign-In
-        webView?.configuration.userContentController.addScriptMessageHandler(
+        webView?.configuration.userContentController.add(
             self, name: "googleSignIn"
         )
 
@@ -34,6 +34,7 @@ class GoogleSignInViewController: CAPBridgeViewController, WKScriptMessageHandle
             guard let self = self else { return }
 
             DispatchQueue.main.async {
+                print("[GoogleSignIn] signIn callback - error: \(String(describing: error)), hasUser: \(result?.user != nil)")
                 if let error = error {
                     let escaped = error.localizedDescription
                         .replacingOccurrences(of: "'", with: "\\'")
@@ -49,8 +50,17 @@ class GoogleSignInViewController: CAPBridgeViewController, WKScriptMessageHandle
                     return
                 }
 
-                let js = "window.dispatchEvent(new CustomEvent('googleSignInComplete', { detail: { idToken: '\(idToken)' } }));"
-                self.webView?.evaluateJavaScript(js, completionHandler: nil)
+                let js = """
+                    console.log('[Native] Got ID token, dispatching event');
+                    window.dispatchEvent(new CustomEvent('googleSignInComplete', { detail: { idToken: '\(idToken)' } }));
+                """
+                self.webView?.evaluateJavaScript(js) { result, error in
+                    if let error = error {
+                        print("[GoogleSignIn] evaluateJavaScript error: \(error)")
+                    } else {
+                        print("[GoogleSignIn] evaluateJavaScript success")
+                    }
+                }
             }
         }
     }
