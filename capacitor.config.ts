@@ -30,6 +30,13 @@ const config: CapacitorConfig = {
       // Camera permissions for iOS
       permissions: ['camera', 'photos'],
     },
+    SocialLogin: {
+      google: {
+        iOSClientId: '583787891748-98hish954h42s56p7od3v3jskkfine66.apps.googleusercontent.com',
+        iOSServerClientId: '583787891748-2r484t494l91vdij4396ggi7bffhkf98.apps.googleusercontent.com',
+        mode: 'online',
+      },
+    },
   },
 };
 

@@ -132,16 +132,23 @@ export const SignInModal: React.FC<SignInModalProps> = ({
 
             {/* Provider buttons */}
             <div className="space-y-3">
-              {/* Google - hidden in native app (WebView OAuth blocked by Google) */}
-              {!isNativeApp && (
-                <button
-                  onClick={() => onSelectProvider('google')}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
-                >
-                  <GoogleIcon className="w-5 h-5" />
-                  <span className="font-medium text-slate-700">Continue with Google</span>
-                </button>
-              )}
+              {/* Google - native SDK on iOS, OAuth redirect on web */}
+              <button
+                onClick={() => {
+                  if (isNativeApp) {
+                    authService.signInWithGoogleNative().catch((err) => {
+                      console.error('[SignIn] Native Google error:', err);
+                      setError('Google sign-in failed. Please try again.');
+                    });
+                  } else {
+                    onSelectProvider('google');
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-slate-200 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[48px]"
+              >
+                <GoogleIcon className="w-5 h-5" />
+                <span className="font-medium text-slate-700">Continue with Google</span>
+              </button>
 
               {/* Apple */}
               <button

@@ -157,6 +157,60 @@ class AuthService {
   }
 
   /**
+   * Sign in with Google natively on iOS via Capacitor plugin.
+   * Uses the native Google Sign-In SDK (bypasses WebView restriction),
+   * then exchanges the ID token with Supabase via signInWithIdToken().
+   */
+  public async signInWithGoogleNative(): Promise<User | null> {
+    if (!isSupabaseConfigured) {
+      throw new Error('Supabase not configured');
+    }
+
+    try {
+      const { SocialLogin } = await import('@capgo/capacitor-social-login');
+
+      await SocialLogin.initialize({
+        google: {
+          iOSClientId: '583787891748-98hish954h42s56p7od3v3jskkfine66.apps.googleusercontent.com',
+          iOSServerClientId: '583787891748-2r484t494l91vdij4396ggi7bffhkf98.apps.googleusercontent.com',
+          mode: 'online',
+        },
+      });
+
+      const res = await SocialLogin.login({
+        provider: 'google',
+        options: {
+          scopes: ['email', 'profile'],
+        },
+      });
+
+      const googleResult = res.result as { idToken?: string | null };
+      if (!googleResult.idToken) {
+        throw new Error('No ID token returned from Google Sign-In');
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: googleResult.idToken,
+      });
+
+      if (error) {
+        console.error('[Auth] Google native sign-in error:', error);
+        throw error;
+      }
+
+      if (data.user) {
+        return this.mapSupabaseUserToUser(data.user);
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[Auth] Google native sign-in error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Sign in with Google using Supabase Auth
    * @deprecated Use signInWithProvider('google') instead
    */
