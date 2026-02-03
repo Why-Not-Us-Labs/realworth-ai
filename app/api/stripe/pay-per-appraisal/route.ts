@@ -3,9 +3,11 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -16,6 +18,8 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://realworth.ai';
 
 export async function POST(request: NextRequest) {
   try {
+    const stripe = getStripe();
+
     // Verify authentication
     const authHeader = request.headers.get('authorization');
     const authToken = authHeader?.replace('Bearer ', '');
@@ -41,15 +45,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's Stripe customer ID or create one
+    // Get user's Stripe customer ID from subscriptions table
     const supabaseAdmin = getSupabaseAdmin();
+
+    // Get stripe_customer_id from subscriptions table
+    const { data: subscription } = await supabaseAdmin
+      .from('subscriptions')
+      .select('stripe_customer_id')
+      .eq('user_id', user.id)
+      .single();
+
+    // Get user email/name from users table
     const { data: userData } = await supabaseAdmin
       .from('users')
-      .select('stripe_customer_id, email, name')
+      .select('email, name')
       .eq('id', user.id)
       .single();
 
-    let stripeCustomerId = userData?.stripe_customer_id;
+    let stripeCustomerId = subscription?.stripe_customer_id;
 
     if (!stripeCustomerId) {
       // Create Stripe customer
@@ -62,11 +75,15 @@ export async function POST(request: NextRequest) {
       });
       stripeCustomerId = customer.id;
 
-      // Save customer ID
+      // Save customer ID to subscriptions table (upsert)
       await supabaseAdmin
-        .from('users')
-        .update({ stripe_customer_id: stripeCustomerId })
-        .eq('id', user.id);
+        .from('subscriptions')
+        .upsert({
+          user_id: user.id,
+          stripe_customer_id: stripeCustomerId,
+          tier_id: 'free',
+          status: 'active',
+        }, { onConflict: 'user_id' });
     }
 
     // Create Checkout Session for $1.99 one-time payment

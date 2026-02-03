@@ -2,9 +2,11 @@ import { supabase, getSupabaseAdmin } from '@/lib/supabase';
 import Stripe from 'stripe';
 import twilio from 'twilio';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
 // Initialize Twilio client for phone verification
 const twilioClient = twilio(
@@ -208,7 +210,7 @@ class SellerService {
 
       // Create new Connect account if needed
       if (!accountId) {
-        const account = await stripe.accounts.create({
+        const account = await getStripe().accounts.create({
           type: 'express',
           email: userEmail,
           metadata: {
@@ -230,7 +232,7 @@ class SellerService {
       }
 
       // Create onboarding link
-      const accountLink = await stripe.accountLinks.create({
+      const accountLink = await getStripe().accountLinks.create({
         account: accountId,
         refresh_url: `${returnUrl}?refresh=true`,
         return_url: `${returnUrl}?success=true`,
@@ -274,7 +276,7 @@ class SellerService {
         };
       }
 
-      const account = await stripe.accounts.retrieve(userData.stripe_connect_id);
+      const account = await getStripe().accounts.retrieve(userData.stripe_connect_id);
 
       const status = {
         connected: true,

@@ -134,7 +134,7 @@ export async function consumeTokens(
 export async function grantTokens(
   userId: string,
   amount: number,
-  type: 'refund' | 'bonus' | 'admin' | 'subscription_grant',
+  type: 'refund' | 'bonus' | 'admin' | 'subscription_grant' | 'purchase',
   description: string
 ): Promise<GrantTokenResult> {
   try {

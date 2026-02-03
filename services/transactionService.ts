@@ -1,9 +1,11 @@
 import { supabase, getSupabaseAdmin } from '@/lib/supabase';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-11-17.clover',
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2025-11-17.clover',
+  });
+}
 
 // Platform fee: 2.5%
 const PLATFORM_FEE_PERCENT = 2.5;
@@ -133,7 +135,7 @@ class TransactionService {
       const sellerPayout = amount - platformFee;
 
       // Create Stripe PaymentIntent with manual capture
-      const paymentIntent = await stripe.paymentIntents.create({
+      const paymentIntent = await getStripe().paymentIntents.create({
         amount,
         currency: 'usd',
         capture_method: 'manual', // Authorize now, capture later after pickup
@@ -169,7 +171,7 @@ class TransactionService {
 
       if (createError) {
         // Cancel the payment intent if transaction creation failed
-        await stripe.paymentIntents.cancel(paymentIntent.id);
+        await getStripe().paymentIntents.cancel(paymentIntent.id);
         console.error('Error creating transaction:', createError);
         return { transaction: null, clientSecret: null, error: 'Failed to create transaction' };
       }
@@ -202,7 +204,7 @@ class TransactionService {
       const supabaseAdmin = getSupabaseAdmin();
 
       // Verify the payment intent is authorized
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      const paymentIntent = await getStripe().paymentIntents.retrieve(paymentIntentId);
       if (paymentIntent.status !== 'requires_capture') {
         return { success: false, error: 'Payment was not authorized' };
       }
@@ -308,7 +310,7 @@ class TransactionService {
       }
 
       // Capture the payment
-      const paymentIntent = await stripe.paymentIntents.capture(
+      const paymentIntent = await getStripe().paymentIntents.capture(
         transaction.stripe_payment_intent_id
       );
 
@@ -387,16 +389,16 @@ class TransactionService {
 
       // Cancel/refund the payment intent
       if (transaction.stripe_payment_intent_id) {
-        const paymentIntent = await stripe.paymentIntents.retrieve(
+        const paymentIntent = await getStripe().paymentIntents.retrieve(
           transaction.stripe_payment_intent_id
         );
 
         if (paymentIntent.status === 'requires_capture') {
           // Cancel the authorized payment
-          await stripe.paymentIntents.cancel(transaction.stripe_payment_intent_id);
+          await getStripe().paymentIntents.cancel(transaction.stripe_payment_intent_id);
         } else if (paymentIntent.status === 'succeeded') {
           // Refund captured payment
-          await stripe.refunds.create({
+          await getStripe().refunds.create({
             payment_intent: transaction.stripe_payment_intent_id,
           });
         }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { subscriptionService } from '@/services/subscriptionService';
 import { getSupabaseAdmin } from '@/lib/supabase';
+import { grantTokens } from '@/services/tokenService';
 
 // Disable body parsing for webhook route
 export const runtime = 'nodejs';
@@ -69,58 +70,33 @@ export async function POST(request: NextRequest) {
           try {
             const supabaseAdmin = getSupabaseAdmin();
 
-            // Check if we already processed this session (idempotency)
-            const { data: existingPurchase } = await supabaseAdmin
-              .from('appraisal_purchases')
+            // Idempotency: check token_transactions for this session
+            const { data: existingTx } = await supabaseAdmin
+              .from('token_transactions')
               .select('id')
-              .eq('stripe_payment_intent_id', session.id)
-              .single();
+              .eq('user_id', userId)
+              .ilike('description', `%${session.id}%`)
+              .limit(1);
 
-            if (existingPurchase) {
-              console.log('[Webhook] pay_per_appraisal: Session already processed:', session.id);
+            if (existingTx && existingTx.length > 0) {
+              console.log('[Webhook] pay_per_appraisal: Already processed:', session.id);
               break;
             }
 
-            // Record the purchase
-            const { error: purchaseError } = await supabaseAdmin
-              .from('appraisal_purchases')
-              .insert({
-                user_id: userId,
-                stripe_payment_intent_id: session.id,
-                amount_cents: session.amount_total || 199,
-                credits_granted: credits,
-              });
+            // Grant tokens using tokenService
+            const result = await grantTokens(
+              userId,
+              credits,
+              'purchase',
+              `Pay-per-appraisal purchase (${session.id})`
+            );
 
-            if (purchaseError) {
-              console.error('[Webhook] pay_per_appraisal: Error recording purchase:', purchaseError);
-              return NextResponse.json({ error: 'Failed to record purchase' }, { status: 500 });
+            if (!result.success) {
+              console.error('[Webhook] pay_per_appraisal: Grant failed:', result.error);
+              return NextResponse.json({ error: 'Failed to grant tokens' }, { status: 500 });
             }
 
-            // Add credits to user
-            const { data: currentUser, error: fetchError } = await supabaseAdmin
-              .from('users')
-              .select('appraisal_credits')
-              .eq('id', userId)
-              .single();
-
-            if (fetchError) {
-              console.error('[Webhook] pay_per_appraisal: Error fetching user:', fetchError);
-              return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 });
-            }
-
-            const newCredits = (currentUser?.appraisal_credits || 0) + credits;
-
-            const { error: updateError } = await supabaseAdmin
-              .from('users')
-              .update({ appraisal_credits: newCredits })
-              .eq('id', userId);
-
-            if (updateError) {
-              console.error('[Webhook] pay_per_appraisal: Error updating credits:', updateError);
-              return NextResponse.json({ error: 'Failed to add credits' }, { status: 500 });
-            }
-
-            console.log('[Webhook] pay_per_appraisal: Added', credits, 'credits for user:', userId);
+            console.log('[Webhook] pay_per_appraisal: Granted', credits, 'tokens for user:', userId, 'new balance:', result.newBalance);
           } catch (payError) {
             console.error('[Webhook] pay_per_appraisal: Error:', payError);
             return NextResponse.json({ error: 'Pay per appraisal handler error' }, { status: 500 });
