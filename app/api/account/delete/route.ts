@@ -36,26 +36,26 @@ export async function DELETE(request: NextRequest) {
     const userId = user.id;
     console.log('[AccountDelete] Deleting account for user:', userId);
 
-    // Step 1: Get user data including Stripe info
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('stripe_customer_id, stripe_subscription_id, subscription_status')
-      .eq('id', userId)
+    // Step 1: Get subscription data from subscriptions table (WNU Platform)
+    const { data: subscription, error: subError } = await supabaseAdmin
+      .from('subscriptions')
+      .select('stripe_customer_id, stripe_subscription_id, status')
+      .eq('user_id', userId)
       .single();
 
-    if (userError) {
-      console.error('[AccountDelete] Error fetching user data:', userError);
-      // Continue anyway - user might not exist in public.users table
+    if (subError && subError.code !== 'PGRST116') {
+      // PGRST116 = no rows returned (user has no subscription record)
+      console.error('[AccountDelete] Error fetching subscription data:', subError);
     }
 
     // Step 2: Cancel Stripe subscription if active
-    if (userData?.stripe_subscription_id && userData.subscription_status === 'active') {
+    if (subscription?.stripe_subscription_id && subscription.status === 'active') {
       try {
         const stripe = getStripe();
-        console.log('[AccountDelete] Canceling Stripe subscription:', userData.stripe_subscription_id);
+        console.log('[AccountDelete] Canceling Stripe subscription:', subscription.stripe_subscription_id);
 
         // Cancel immediately (not at period end) since account is being deleted
-        await stripe.subscriptions.cancel(userData.stripe_subscription_id);
+        await stripe.subscriptions.cancel(subscription.stripe_subscription_id);
         console.log('[AccountDelete] Stripe subscription canceled');
       } catch (stripeError) {
         console.error('[AccountDelete] Error canceling Stripe subscription:', stripeError);
@@ -64,11 +64,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Step 3: Delete Stripe customer (optional - removes payment methods)
-    if (userData?.stripe_customer_id) {
+    if (subscription?.stripe_customer_id) {
       try {
         const stripe = getStripe();
-        console.log('[AccountDelete] Deleting Stripe customer:', userData.stripe_customer_id);
-        await stripe.customers.del(userData.stripe_customer_id);
+        console.log('[AccountDelete] Deleting Stripe customer:', subscription.stripe_customer_id);
+        await stripe.customers.del(subscription.stripe_customer_id);
         console.log('[AccountDelete] Stripe customer deleted');
       } catch (stripeError) {
         console.error('[AccountDelete] Error deleting Stripe customer:', stripeError);
