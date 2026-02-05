@@ -28,7 +28,7 @@ interface LeaderboardEntry {
 async function getTopByTotalValue(): Promise<LeaderboardEntry[]> {
   // Fetch public appraisals (without user join - WNU Platform uses different user schema)
   const { data, error } = await supabase
-    .from('rw_appraisals')
+    .from('appraisals')
     .select('user_id, price_low, price_high')
     .eq('is_public', true);
 
@@ -61,7 +61,7 @@ async function getTopByTotalValue(): Promise<LeaderboardEntry[]> {
 async function getTopSingleFind(): Promise<LeaderboardEntry[]> {
   // Fetch public appraisals (without user join - WNU Platform uses different user schema)
   const { data, error } = await supabase
-    .from('rw_appraisals')
+    .from('appraisals')
     .select('user_id, item_name, price_low, price_high')
     .eq('is_public', true)
     .order('price_high', { ascending: false })

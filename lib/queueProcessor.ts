@@ -197,9 +197,9 @@ export async function processQueueItem(
       console.warn('[Queue] Using original image as fallback');
     }
 
-    // Step 4: Save appraisal to database (WNU Platform schema)
+    // Step 4: Save appraisal to database
     const { data: savedAppraisal, error: saveError } = await supabaseAdmin
-      .from('rw_appraisals')
+      .from('appraisals')
       .insert({
         user_id: userId,
         item_name: appraisalData.itemName,
@@ -210,10 +210,10 @@ export async function processQueueItem(
         price_low: appraisalData.priceRange.low,
         price_high: appraisalData.priceRange.high,
         currency: appraisalData.currency,
-        ai_reasoning: appraisalData.reasoning,
-        ai_references: appraisalData.references,
+        reasoning: appraisalData.reasoning,
+        references: appraisalData.references,
         ai_image_url: imageDataUrl,
-        input_images: imageUrls,
+        image_urls: imageUrls,
       })
       .select('id')
       .single();

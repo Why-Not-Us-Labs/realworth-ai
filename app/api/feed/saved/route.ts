@@ -37,17 +37,17 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor');
     const limit = 20;
 
-    // Get user's saves with full appraisal data (WNU Platform schema)
+    // Get user's saves with full appraisal data
     let query = supabase
       .from('saves')
       .select(`
         id,
         created_at,
-        rw_appraisals:appraisal_id (
+        appraisals:appraisal_id (
           id,
           item_name,
           ai_image_url,
-          input_images,
+          image_urls,
           price_low,
           price_high,
           currency,
@@ -81,13 +81,13 @@ export async function GET(request: NextRequest) {
 
     // Transform to match Treasure interface and mark as saved
     const treasures = saves
-      .filter(s => s.rw_appraisals !== null)
+      .filter(s => s.appraisals !== null)
       .map(s => {
-        const appraisal = s.rw_appraisals as any;
+        const appraisal = s.appraisals as any;
         return {
           id: appraisal.id,
           item_name: appraisal.item_name,
-          image_url: appraisal.ai_image_url || (appraisal.input_images && appraisal.input_images[0]) || '',
+          image_url: appraisal.ai_image_url || (appraisal.image_urls && appraisal.image_urls[0]) || '',
           price_low: appraisal.price_low,
           price_high: appraisal.price_high,
           currency: appraisal.currency,

@@ -112,7 +112,7 @@ Keep responses conversational and helpful. If they upload new images in chat, of
     } else {
       // Global chat - get summary of user's collection
       const { data: appraisals } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('item_name, category, price_low, price_high, currency')
         .eq('user_id', userId)
         .is('archived_at', null)

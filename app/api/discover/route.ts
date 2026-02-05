@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
     // If no userId, return only public items (no social state)
     if (!userId) {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select(`
-          id, item_name, ai_image_url, input_images, value_low_cents, value_high_cents, category, era, created_at, user_id, is_public,
+          id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id, is_public,
           users:user_id (avatar_url, display_name, username)
         `)
         .eq('is_public', true)
@@ -57,11 +57,10 @@ export async function GET(request: NextRequest) {
           const userData = t.users as { avatar_url?: string; display_name?: string; username?: string } | null;
           return {
             ...t,
-            image_url: t.ai_image_url || (t.input_images && t.input_images[0]) || '',
-            // Convert cents to dollars for frontend compatibility
-            price_low: t.value_low_cents ? t.value_low_cents / 100 : null,
-            price_high: t.value_high_cents ? t.value_high_cents / 100 : null,
-            currency: 'USD',
+            image_url: t.ai_image_url || (t.image_urls && t.image_urls[0]) || '',
+            price_low: t.price_low,
+            price_high: t.price_high,
+            currency: t.currency || 'USD',
             visibility: 'public',
             isLiked: false,
             isSaved: false,
@@ -89,9 +88,9 @@ export async function GET(request: NextRequest) {
     // Query: public items OR friends' items (all of them, not just public)
     // Fetch extra items to ensure variety after per-user filtering
     let query = supabase
-      .from('rw_appraisals')
+      .from('appraisals')
       .select(`
-        id, item_name, ai_image_url, input_images, value_low_cents, value_high_cents, category, era, created_at, user_id, is_public,
+        id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id, is_public,
         users:user_id (avatar_url, display_name, username)
       `)
       .order('created_at', { ascending: false })
@@ -130,11 +129,10 @@ export async function GET(request: NextRequest) {
 
       return {
         ...treasure,
-        image_url: treasure.ai_image_url || (treasure.input_images && treasure.input_images[0]) || '',
-        // Convert cents to dollars for frontend compatibility
-        price_low: treasure.value_low_cents ? treasure.value_low_cents / 100 : null,
-        price_high: treasure.value_high_cents ? treasure.value_high_cents / 100 : null,
-        currency: 'USD',
+        image_url: treasure.ai_image_url || (treasure.image_urls && treasure.image_urls[0]) || '',
+        price_low: treasure.price_low,
+        price_high: treasure.price_high,
+        currency: treasure.currency || 'USD',
         // Visibility: 'public' = anyone can see, 'friends' = visible because you're friends
         visibility: isPublic ? 'public' : (isFriend ? 'friends' : 'public'),
         isLiked: likedIds.includes(treasure.id),

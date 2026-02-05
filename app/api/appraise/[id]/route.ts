@@ -93,7 +93,7 @@ export async function PATCH(
 
     // Get current appraisal
     const { data: appraisal, error: fetchError } = await supabase
-      .from('rw_appraisals')
+      .from('appraisals')
       .select('*')
       .eq('id', appraisalId)
       .eq('user_id', user.id)
@@ -106,7 +106,7 @@ export async function PATCH(
     // Handle visibility toggle (isPublic) - early return if only updating visibility
     if (isPublic !== undefined && (!imageUrls || imageUrls.length === 0)) {
       const { error: visibilityError } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ is_public: isPublic })
         .eq('id', appraisalId)
         .eq('user_id', user.id);
@@ -123,14 +123,14 @@ export async function PATCH(
     }
 
     // Combine existing and new image URLs
-    const existingUrls = appraisal.input_images || [];
+    const existingUrls = appraisal.image_urls || [];
     const updatedUrls = [...existingUrls, ...(imageUrls || [])];
 
     // Update with new images
     const { error: updateError } = await supabase
-      .from('rw_appraisals')
+      .from('appraisals')
       .update({
-        input_images: updatedUrls,
+        image_urls: updatedUrls,
       })
       .eq('id', appraisalId)
       .eq('user_id', user.id);
@@ -221,7 +221,7 @@ export async function PATCH(
 
       // Update appraisal with new analysis
       const { error: analysisError } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({
           item_name: appraisalData.itemName,
           author: appraisalData.author,
@@ -231,8 +231,8 @@ export async function PATCH(
           price_low: appraisalData.priceRange.low,
           price_high: appraisalData.priceRange.high,
           currency: appraisalData.currency,
-          ai_reasoning: appraisalData.reasoning,
-          ai_references: appraisalData.references,
+          reasoning: appraisalData.reasoning,
+          references: appraisalData.references,
           ai_image_url: newImageUrl,
         })
         .eq('id', appraisalId)
@@ -291,7 +291,7 @@ export async function GET(
     }
 
     const { data: appraisal, error } = await supabase
-      .from('rw_appraisals')
+      .from('appraisals')
       .select('*')
       .eq('id', appraisalId)
       .eq('user_id', user.id)
@@ -313,11 +313,11 @@ export async function GET(
         high: appraisal.price_high,
       },
       currency: appraisal.currency,
-      reasoning: appraisal.ai_reasoning,
-      references: appraisal.ai_references,
+      reasoning: appraisal.reasoning,
+      references: appraisal.references,
       image: appraisal.ai_image_url,
-      images: appraisal.input_images || [],
-      imageCount: appraisal.input_images?.length || 1,
+      images: appraisal.image_urls || [],
+      imageCount: appraisal.image_urls?.length || 1,
       timestamp: new Date(appraisal.created_at).getTime(),
     });
 

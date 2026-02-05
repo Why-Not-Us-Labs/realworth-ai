@@ -73,7 +73,7 @@ class ListingService {
 
       // Verify user owns the appraisal
       const { data: appraisal, error: appraisalError } = await authClient
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('id, user_id, price_low, price_high')
         .eq('id', data.appraisalId)
         .single();
@@ -139,11 +139,11 @@ class ListingService {
         .from('listings')
         .select(`
           *,
-          rw_appraisals (
+          appraisals (
             id,
             item_name,
             ai_image_url,
-            input_images,
+            image_urls,
             category,
             era,
             price_low,
@@ -211,11 +211,11 @@ class ListingService {
         .from('listings')
         .select(`
           *,
-          rw_appraisals (
+          appraisals (
             id,
             item_name,
             ai_image_url,
-            input_images,
+            image_urls,
             category,
             era,
             price_low,
@@ -382,11 +382,11 @@ class ListingService {
         .select(`
           listings (
             *,
-            rw_appraisals (
+            appraisals (
               id,
               item_name,
               ai_image_url,
-              input_images,
+              image_urls,
               category,
               era,
               price_low,
@@ -466,11 +466,9 @@ class ListingService {
   private mapListingWithJoins(row: Record<string, unknown>): Listing {
     const listing = this.mapListing(row);
 
-    // WNU Platform uses rw_appraisals table
-    const appraisalData = row.rw_appraisals as Record<string, unknown> | null;
+    const appraisalData = row.appraisals as Record<string, unknown> | null;
     if (appraisalData) {
-      // Map WNU Platform columns: ai_image_url and input_images
-      const inputImages = appraisalData.input_images as string[] | null;
+      const inputImages = appraisalData.image_urls as string[] | null;
       listing.appraisal = {
         id: appraisalData.id as string,
         itemName: appraisalData.item_name as string,

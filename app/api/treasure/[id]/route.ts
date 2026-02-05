@@ -43,7 +43,7 @@ export async function GET(
   if (supabaseServiceKey) {
     // With service role, we can fetch any treasure
     const { data, error } = await supabase
-      .from('rw_appraisals')
+      .from('appraisals')
       .select('*')
       .eq('id', treasureId)
       .maybeSingle();
@@ -79,7 +79,7 @@ export async function GET(
     // First check if user owns it
     if (currentUserId) {
       const { data: ownedTreasure } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('id', treasureId)
         .eq('user_id', currentUserId)
@@ -94,7 +94,7 @@ export async function GET(
     // If not owned, try to fetch as public
     if (!treasure) {
       const { data: publicTreasure } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('id', treasureId)
         .eq('is_public', true)
@@ -143,9 +143,9 @@ export async function GET(
   const mappedTreasure = {
     ...treasure,
     // Map column names for backwards compatibility
-    image_url: treasure.ai_image_url || (treasure.input_images && treasure.input_images[0]) || '',
-    reasoning: treasure.ai_reasoning || '',
-    references: treasure.ai_references || [],
+    image_url: treasure.ai_image_url || (treasure.image_urls && treasure.image_urls[0]) || '',
+    reasoning: treasure.reasoning || '',
+    references: treasure.references || [],
   };
 
   return NextResponse.json({

@@ -130,7 +130,7 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
       });
 
       const { data, error: updateError } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ is_public: newPublicState })
         .eq('id', treasure.id)
         .eq('user_id', treasure.user_id) // Explicit user_id filter

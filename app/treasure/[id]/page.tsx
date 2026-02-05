@@ -16,8 +16,8 @@ async function getPublicTreasure(id: string) {
 
   // Only fetch public treasures for metadata (anon key can only see public)
   const { data, error } = await supabase
-    .from('rw_appraisals')
-    .select('id, item_name, description, price_low, price_high, currency, ai_image_url, input_images, is_public')
+    .from('appraisals')
+    .select('id, item_name, description, price_low, price_high, currency, ai_image_url, image_urls, is_public')
     .eq('id', id)
     .eq('is_public', true)
     .single();
@@ -27,7 +27,7 @@ async function getPublicTreasure(id: string) {
   // Map to expected format with image_url
   return {
     ...data,
-    image_url: data.ai_image_url || (data.input_images && data.input_images[0]) || '',
+    image_url: data.ai_image_url || (data.image_urls && data.image_urls[0]) || '',
   };
 }
 

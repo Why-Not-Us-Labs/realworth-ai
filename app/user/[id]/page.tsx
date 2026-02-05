@@ -20,8 +20,8 @@ interface UserPageProps {
 async function getUserWithTreasures(id: string) {
   // Get user's public appraisals first (this is the core data)
   const { data: treasures, error: treasuresError } = await supabase
-    .from('rw_appraisals')
-    .select('id, item_name, ai_image_url, input_images, price_low, price_high, currency, category, era, created_at, user_id')
+    .from('appraisals')
+    .select('id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id')
     .eq('user_id', id)
     .eq('is_public', true)
     .order('created_at', { ascending: false });
@@ -34,7 +34,7 @@ async function getUserWithTreasures(id: string) {
   // Map WNU Platform columns to expected format
   const mappedTreasures = treasures.map(t => ({
     ...t,
-    image_url: t.ai_image_url || (t.input_images && t.input_images[0]) || '',
+    image_url: t.ai_image_url || (t.image_urls && t.image_urls[0]) || '',
   }));
 
   // Return with anonymous user info (user table has different schema in WNU Platform)

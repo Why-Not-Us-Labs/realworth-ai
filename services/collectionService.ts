@@ -81,7 +81,7 @@ class CollectionService {
 
       // OPTIMIZED: Single query to get all items for all collections
       const { data: allItems } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('collection_id, price_low, price_high, image_url, created_at')
         .in('collection_id', collectionIds)
         .order('created_at', { ascending: true });
@@ -151,7 +151,7 @@ class CollectionService {
 
       // Get all items in the collection
       const { data: items } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('collection_id', collectionId)
         .order('created_at', { ascending: true });
@@ -217,7 +217,7 @@ class CollectionService {
 
       // Get all items
       const { data: items } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('collection_id', collection.id)
         .order('created_at', { ascending: true });
@@ -327,7 +327,7 @@ class CollectionService {
     try {
       // First unlink all appraisals
       await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ collection_id: null, series_identifier: null, validation_status: null, validation_notes: null })
         .eq('collection_id', collectionId);
 
@@ -363,7 +363,7 @@ class CollectionService {
   ): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({
           collection_id: collectionId,
           series_identifier: seriesIdentifier || null,
@@ -391,7 +391,7 @@ class CollectionService {
   public async removeFromCollection(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({
           collection_id: null,
           series_identifier: null,
@@ -419,7 +419,7 @@ class CollectionService {
   public async getUnassignedAppraisals(userId: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('user_id', userId)
         .is('collection_id', null)

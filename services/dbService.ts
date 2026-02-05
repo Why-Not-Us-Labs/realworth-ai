@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 
 /**
  * Map a database record to AppraisalResult type
- * Uses WNU Platform schema columns
  */
 function mapRecordToAppraisal(record: any): AppraisalResult {
   return {
@@ -18,10 +17,10 @@ function mapRecordToAppraisal(record: any): AppraisalResult {
       high: Number(record.price_high || 0),
     },
     currency: record.currency || 'USD',
-    reasoning: record.ai_reasoning || '',
-    references: record.ai_references || [],
+    reasoning: record.reasoning || '',
+    references: record.references || [],
     image: record.ai_image_url || '',
-    images: record.input_images || [],
+    images: record.image_urls || [],
     timestamp: new Date(record.created_at).getTime(),
     isPublic: record.is_public || false,
     confidenceScore: record.confidence_score != null ? Number(record.confidence_score) : undefined,
@@ -120,7 +119,7 @@ class DBService {
       });
 
       let query = supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('user_id', userId);
 
@@ -184,22 +183,12 @@ return (data || []).map(mapRecordToAppraisal);
         }
       }
 
-      // Build input_images array (required by WNU Platform schema)
-      const inputImages = appraisal.images && appraisal.images.length > 0
+      // Build image_urls array
+      const imageUrlsArray = appraisal.images && appraisal.images.length > 0
         ? appraisal.images
         : (imageUrl ? [imageUrl] : []);
 
-      // Convert price to cents for WNU Platform schema
-      const valueLowCents = Math.round(appraisal.priceRange.low * 100);
-      const valueHighCents = Math.round(appraisal.priceRange.high * 100);
-
-      // Convert confidence from 0-100 scale to 0-1 decimal for WNU Platform
-      // WNU Platform uses NUMERIC(3,2) which stores 0.00-9.99, so we use 0.00-1.00
-      const confidenceDecimal = appraisal.confidenceScore != null
-        ? Math.min(appraisal.confidenceScore / 100, 1.00)
-        : null;
-
-      // Prepare insert data - WNU Platform schema columns only
+      // Prepare insert data
       const insertData: any = {
         id: appraisalId,
         user_id: userId,
@@ -208,15 +197,14 @@ return (data || []).map(mapRecordToAppraisal);
         era: appraisal.era || null,
         category: appraisal.category,
         description: appraisal.description || null,
-        // WNU Platform columns (matching actual schema)
         price_low: appraisal.priceRange.low,
         price_high: appraisal.priceRange.high,
         currency: appraisal.currency || 'USD',
         confidence_score: appraisal.confidenceScore || null,
-        ai_reasoning: appraisal.reasoning || null,
-        ai_references: appraisal.references || [],
+        reasoning: appraisal.reasoning || null,
+        references: appraisal.references || [],
         ai_image_url: imageUrl || null,
-        input_images: inputImages,
+        image_urls: imageUrlsArray,
       };
 
       // Set default is_public if not provided
@@ -262,7 +250,7 @@ return (data || []).map(mapRecordToAppraisal);
       console.log('[saveAppraisal] Inserting data:', JSON.stringify(insertData, null, 2));
 
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .insert([insertData])
         .select()
         .single();
@@ -291,12 +279,12 @@ return (data || []).map(mapRecordToAppraisal);
           high: Number(data.price_high),
         },
         currency: data.currency,
-        reasoning: data.ai_reasoning || '',
-        references: data.ai_references || [],
+        reasoning: data.reasoning || '',
+        references: data.references || [],
         confidenceScore: data.confidence_score || undefined,
         confidenceFactors: data.confidence_factors || undefined,
         image: data.ai_image_url || '',
-        images: data.input_images || [],
+        images: data.image_urls || [],
         timestamp: new Date(data.created_at).getTime(),
         isPublic: data.is_public || false,
         futureValuePredictions: data.future_value_predictions || undefined,
@@ -433,7 +421,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async togglePublic(userId: string, appraisalId: string, isPublic: boolean): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ is_public: isPublic })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -459,7 +447,7 @@ return (data || []).map(mapRecordToAppraisal);
       let imagePath: string | null = null;
       if (deleteImage) {
         const { data: appraisal } = await supabase
-          .from('rw_appraisals')
+          .from('appraisals')
           .select('image_url')
           .eq('id', appraisalId)
           .eq('user_id', userId)
@@ -476,7 +464,7 @@ return (data || []).map(mapRecordToAppraisal);
 
       // Delete the appraisal record
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .delete()
         .eq('id', appraisalId)
         .eq('user_id', userId); // Ensure user can only delete their own appraisals
@@ -517,7 +505,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getCategories(userId: string): Promise<{ category: string; count: number }[]> {
     try {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('category')
         .eq('user_id', userId);
 
@@ -549,7 +537,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getHistoryByCategory(userId: string, category: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('user_id', userId)
         .eq('category', category)
@@ -926,7 +914,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getAppraisal(userId: string, appraisalId: string): Promise<AppraisalResult | null> {
     try {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('id', appraisalId)
         .eq('user_id', userId)
@@ -957,8 +945,8 @@ return (data || []).map(mapRecordToAppraisal);
     try {
       // Get current appraisal
       const { data: appraisal, error: fetchError } = await supabase
-        .from('rw_appraisals')
-        .select('input_images')
+        .from('appraisals')
+        .select('image_urls')
         .eq('id', appraisalId)
         .eq('user_id', userId)
         .single();
@@ -969,14 +957,14 @@ return (data || []).map(mapRecordToAppraisal);
       }
 
       // Combine existing and new image URLs
-      const existingUrls = appraisal.input_images || [];
+      const existingUrls = appraisal.image_urls || [];
       const updatedUrls = [...existingUrls, ...newImageUrls];
 
       // Update the appraisal
       const { error: updateError } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({
-          input_images: updatedUrls,
+          image_urls: updatedUrls,
         })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1027,12 +1015,12 @@ return (data || []).map(mapRecordToAppraisal);
         updatePayload.price_high = updatedData.priceRange.high;
       }
       if (updatedData.currency) updatePayload.currency = updatedData.currency;
-      if (updatedData.reasoning) updatePayload.ai_reasoning = updatedData.reasoning;
-      if (updatedData.references) updatePayload.ai_references = updatedData.references;
+      if (updatedData.reasoning) updatePayload.reasoning = updatedData.reasoning;
+      if (updatedData.references) updatePayload.references = updatedData.references;
       if (updatedData.image) updatePayload.ai_image_url = updatedData.image;
 
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update(updatePayload)
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1055,7 +1043,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async archiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ archived_at: new Date().toISOString() })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1077,7 +1065,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async unarchiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .update({ archived_at: null })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1099,7 +1087,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getArchivedHistory(userId: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('rw_appraisals')
+        .from('appraisals')
         .select('*')
         .eq('user_id', userId)
         .not('archived_at', 'is', null)

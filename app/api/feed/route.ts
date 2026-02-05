@@ -18,16 +18,17 @@ export async function GET(request: NextRequest) {
 
   const supabaseAdmin = getSupabaseAdmin();
 
-  // Fetch public appraisals (WNU Platform schema)
+  // Fetch public appraisals
   const { data: appraisals, error } = await supabaseAdmin
-    .from('rw_appraisals')
+    .from('appraisals')
     .select(`
       id,
       item_name,
       ai_image_url,
-      input_images,
-      value_low_cents,
-      value_high_cents,
+      image_urls,
+      price_low,
+      price_high,
+      currency,
       category,
       era,
       created_at,
@@ -76,12 +77,11 @@ export async function GET(request: NextRequest) {
     return {
       id: appraisal.id,
       item_name: appraisal.item_name,
-      image_url: appraisal.ai_image_url || (appraisal.input_images && appraisal.input_images[0]) || '',
-      image_urls: appraisal.input_images || [],
-      // Convert cents to dollars for frontend compatibility
-      price_low: appraisal.value_low_cents ? appraisal.value_low_cents / 100 : null,
-      price_high: appraisal.value_high_cents ? appraisal.value_high_cents / 100 : null,
-      currency: 'USD',
+      image_url: appraisal.ai_image_url || (appraisal.image_urls && appraisal.image_urls[0]) || '',
+      image_urls: appraisal.image_urls || [],
+      price_low: appraisal.price_low,
+      price_high: appraisal.price_high,
+      currency: appraisal.currency || 'USD',
       category: appraisal.category,
       era: appraisal.era,
       created_at: appraisal.created_at,
