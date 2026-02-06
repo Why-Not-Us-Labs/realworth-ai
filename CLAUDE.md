@@ -299,3 +299,12 @@ This section records patterns and corrections. Add to it when Claude makes mista
 - Test auth on real device - simulator can't complete biometric authentication
 - Full rebuild required after native changes: `rm -rf ios/build && bundle exec pod install`
 - See `MOBILE_APP_SETUP.md` for detailed debugging guide and common errors
+
+### Database (WNU Platform Migration - Feb 2026)
+- **The app uses `wnu-platform` Supabase project** (ID: `ahwensdtjsvuqxbjgkgv`), NOT `realworth-db`
+- **Table name is `rw_appraisals`** (not `appraisals`) - always use `.from('rw_appraisals')`
+- **FK join syntax**: Use `rw_appraisals:appraisal_id` in Supabase select queries
+- **Required columns for INSERT**: `input_images` (text[], NOT NULL) and `status` (text, NOT NULL default 'pending')
+- Users table has both `name`/`picture` AND `display_name`/`avatar_url` (synced via trigger)
+- Subscriptions are in separate `subscriptions` table, not on users table
+- Token system uses `token_balances` table (WNU Platform feature)
