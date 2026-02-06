@@ -43,7 +43,7 @@ export async function GET(
   if (supabaseServiceKey) {
     // With service role, we can fetch any treasure
     const { data, error } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select('*')
       .eq('id', treasureId)
       .maybeSingle();
@@ -79,7 +79,7 @@ export async function GET(
     // First check if user owns it
     if (currentUserId) {
       const { data: ownedTreasure } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('id', treasureId)
         .eq('user_id', currentUserId)
@@ -94,7 +94,7 @@ export async function GET(
     // If not owned, try to fetch as public
     if (!treasure) {
       const { data: publicTreasure } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('id', treasureId)
         .eq('is_public', true)
@@ -110,7 +110,7 @@ export async function GET(
     if (!treasure && currentUserId) {
       // First fetch the treasure to get the owner
       const { data: privateTreasure } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select(`
           *,
           users:user_id (id, name, picture)

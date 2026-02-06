@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         created_at,
-        appraisals:appraisal_id (
+        rw_appraisals:appraisal_id (
           id,
           item_name,
           ai_image_url,
@@ -81,9 +81,9 @@ export async function GET(request: NextRequest) {
 
     // Transform to match Treasure interface and mark as saved
     const treasures = saves
-      .filter(s => s.appraisals !== null)
+      .filter(s => s.rw_appraisals !== null)
       .map(s => {
-        const appraisal = s.appraisals as any;
+        const appraisal = s.rw_appraisals as any;
         return {
           id: appraisal.id,
           item_name: appraisal.item_name,

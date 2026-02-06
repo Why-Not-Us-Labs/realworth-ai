@@ -20,7 +20,7 @@ interface UserPageProps {
 async function getUserWithTreasures(id: string) {
   // Get user's public appraisals first (this is the core data)
   const { data: treasures, error: treasuresError } = await supabase
-    .from('appraisals')
+    .from('rw_appraisals')
     .select('id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id')
     .eq('user_id', id)
     .eq('is_public', true)

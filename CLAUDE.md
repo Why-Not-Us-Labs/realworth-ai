@@ -201,7 +201,7 @@ List my Stripe products to confirm the Stripe MCP is connected.
 ```
 List my Supabase projects to confirm the Supabase MCP is connected.
 ```
-Project ID: `gwoahdeybyjfonoahmvv`
+Project ID: `ahwensdtjsvuqxbjgkgv`
 
 ## Design Conventions
 

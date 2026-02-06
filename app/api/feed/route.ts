@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   // Fetch public appraisals
   const { data: appraisals, error } = await supabaseAdmin
-    .from('appraisals')
+    .from('rw_appraisals')
     .select(`
       id,
       item_name,

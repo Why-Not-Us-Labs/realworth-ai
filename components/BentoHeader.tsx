@@ -65,7 +65,7 @@ export function BentoHeader({ onStartAppraisal, onUpgrade, onSignIn }: BentoHead
 
         // Fetch total value from appraisals
         const { data: appraisals } = await supabase
-          .from('appraisals')
+          .from('rw_appraisals')
           .select('price_low, price_high')
           .eq('user_id', user.id);
 

@@ -119,7 +119,7 @@ class DBService {
       });
 
       let query = supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId);
 
@@ -205,6 +205,9 @@ return (data || []).map(mapRecordToAppraisal);
         references: appraisal.references || [],
         ai_image_url: imageUrl || null,
         image_urls: imageUrlsArray,
+        // wnu-platform required fields
+        input_images: imageUrlsArray,
+        status: 'complete',
       };
 
       // Set default is_public if not provided
@@ -250,7 +253,7 @@ return (data || []).map(mapRecordToAppraisal);
       console.log('[saveAppraisal] Inserting data:', JSON.stringify(insertData, null, 2));
 
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .insert([insertData])
         .select()
         .single();
@@ -421,7 +424,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async togglePublic(userId: string, appraisalId: string, isPublic: boolean): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ is_public: isPublic })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -447,7 +450,7 @@ return (data || []).map(mapRecordToAppraisal);
       let imagePath: string | null = null;
       if (deleteImage) {
         const { data: appraisal } = await supabase
-          .from('appraisals')
+          .from('rw_appraisals')
           .select('image_url')
           .eq('id', appraisalId)
           .eq('user_id', userId)
@@ -464,7 +467,7 @@ return (data || []).map(mapRecordToAppraisal);
 
       // Delete the appraisal record
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .delete()
         .eq('id', appraisalId)
         .eq('user_id', userId); // Ensure user can only delete their own appraisals
@@ -505,7 +508,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getCategories(userId: string): Promise<{ category: string; count: number }[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('category')
         .eq('user_id', userId);
 
@@ -537,7 +540,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getHistoryByCategory(userId: string, category: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId)
         .eq('category', category)
@@ -914,7 +917,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getAppraisal(userId: string, appraisalId: string): Promise<AppraisalResult | null> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('id', appraisalId)
         .eq('user_id', userId)
@@ -945,7 +948,7 @@ return (data || []).map(mapRecordToAppraisal);
     try {
       // Get current appraisal
       const { data: appraisal, error: fetchError } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('image_urls')
         .eq('id', appraisalId)
         .eq('user_id', userId)
@@ -962,7 +965,7 @@ return (data || []).map(mapRecordToAppraisal);
 
       // Update the appraisal
       const { error: updateError } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({
           image_urls: updatedUrls,
         })
@@ -1020,7 +1023,7 @@ return (data || []).map(mapRecordToAppraisal);
       if (updatedData.image) updatePayload.ai_image_url = updatedData.image;
 
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update(updatePayload)
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1043,7 +1046,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async archiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ archived_at: new Date().toISOString() })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1065,7 +1068,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async unarchiveAppraisal(userId: string, appraisalId: string): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ archived_at: null })
         .eq('id', appraisalId)
         .eq('user_id', userId);
@@ -1087,7 +1090,7 @@ return (data || []).map(mapRecordToAppraisal);
   public async getArchivedHistory(userId: string): Promise<AppraisalResult[]> {
     try {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('*')
         .eq('user_id', userId)
         .not('archived_at', 'is', null)

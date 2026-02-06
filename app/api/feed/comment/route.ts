@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
   // Verify the appraisal exists and user has access
   const { data: appraisal, error: appraisalError } = await supabase
-    .from('appraisals')
+    .from('rw_appraisals')
     .select('id, user_id, is_public')
     .eq('id', appraisalId)
     .single();

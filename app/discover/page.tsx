@@ -28,7 +28,7 @@ const supabaseAdmin = createClient(
 async function getPublicTreasures() {
   // Fetch public appraisals with user avatar data (using admin client to bypass RLS)
   const { data, error } = await supabaseAdmin
-    .from('appraisals')
+    .from('rw_appraisals')
     .select(`
       id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id,
       users:user_id (avatar_url, display_name, username)

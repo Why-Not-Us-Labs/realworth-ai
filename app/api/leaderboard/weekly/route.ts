@@ -13,7 +13,7 @@ export async function GET() {
 
     // Query users with their weekly appraisal stats (WNU Platform schema)
     const { data, error } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select(`
         user_id,
         price_low,

@@ -73,7 +73,7 @@ class ListingService {
 
       // Verify user owns the appraisal
       const { data: appraisal, error: appraisalError } = await authClient
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('id, user_id, price_low, price_high')
         .eq('id', data.appraisalId)
         .single();

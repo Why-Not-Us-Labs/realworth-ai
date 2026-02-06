@@ -93,7 +93,7 @@ export async function PATCH(
 
     // Get current appraisal
     const { data: appraisal, error: fetchError } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select('*')
       .eq('id', appraisalId)
       .eq('user_id', user.id)
@@ -106,7 +106,7 @@ export async function PATCH(
     // Handle visibility toggle (isPublic) - early return if only updating visibility
     if (isPublic !== undefined && (!imageUrls || imageUrls.length === 0)) {
       const { error: visibilityError } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({ is_public: isPublic })
         .eq('id', appraisalId)
         .eq('user_id', user.id);
@@ -128,7 +128,7 @@ export async function PATCH(
 
     // Update with new images
     const { error: updateError } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .update({
         image_urls: updatedUrls,
       })
@@ -221,7 +221,7 @@ export async function PATCH(
 
       // Update appraisal with new analysis
       const { error: analysisError } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .update({
           item_name: appraisalData.itemName,
           author: appraisalData.author,
@@ -291,7 +291,7 @@ export async function GET(
     }
 
     const { data: appraisal, error } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select('*')
       .eq('id', appraisalId)
       .eq('user_id', user.id)

@@ -57,7 +57,7 @@ export async function GET(
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const { data: appraisal, error: appraisalError } = await supabase
-    .from('appraisals')
+    .from('rw_appraisals')
     .select('*')
     .eq('id', appraisalId)
     .single();

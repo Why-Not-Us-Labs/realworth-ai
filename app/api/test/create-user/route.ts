@@ -423,7 +423,7 @@ export async function GET(request: NextRequest) {
 
     // Get recent appraisals
     const { data: appraisals } = await supabaseAdmin
-      .from('appraisals')
+      .from('rw_appraisals')
       .select('id, item_name, category, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -504,7 +504,7 @@ export async function DELETE(request: NextRequest) {
 
     // 3. Appraisals
     await supabaseAdmin
-      .from('appraisals')
+      .from('rw_appraisals')
       .delete()
       .eq('user_id', userId);
 

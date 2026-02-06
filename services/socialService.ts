@@ -45,7 +45,7 @@ class SocialService {
 
       // Get updated count
       const { data: appraisal } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('like_count')
         .eq('id', appraisalId)
         .single();
@@ -64,7 +64,7 @@ class SocialService {
 
       // Get updated count
       const { data: appraisal } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select('like_count')
         .eq('id', appraisalId)
         .single();
@@ -209,7 +209,7 @@ class SocialService {
     const supabase = getSupabaseAdmin();
 
     const { data } = await supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select('like_count')
       .eq('id', appraisalId)
       .single();

@@ -199,7 +199,7 @@ export async function processQueueItem(
 
     // Step 4: Save appraisal to database
     const { data: savedAppraisal, error: saveError } = await supabaseAdmin
-      .from('appraisals')
+      .from('rw_appraisals')
       .insert({
         user_id: userId,
         item_name: appraisalData.itemName,
@@ -214,6 +214,9 @@ export async function processQueueItem(
         references: appraisalData.references,
         ai_image_url: imageDataUrl,
         image_urls: imageUrls,
+        // wnu-platform required fields
+        input_images: imageUrls,
+        status: 'complete',
       })
       .select('id')
       .single();

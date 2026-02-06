@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     // If no userId, return only public items (no social state)
     if (!userId) {
       const { data, error } = await supabase
-        .from('appraisals')
+        .from('rw_appraisals')
         .select(`
           id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id, is_public,
           users:user_id (avatar_url, display_name, username)
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     // Query: public items OR friends' items (all of them, not just public)
     // Fetch extra items to ensure variety after per-user filtering
     let query = supabase
-      .from('appraisals')
+      .from('rw_appraisals')
       .select(`
         id, item_name, ai_image_url, image_urls, price_low, price_high, currency, category, era, created_at, user_id, is_public,
         users:user_id (avatar_url, display_name, username)
