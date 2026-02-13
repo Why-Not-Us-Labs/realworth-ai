@@ -19,7 +19,9 @@
       "WebFetch(domain:developers.google.com)",
       "WebFetch(domain:cnr.sh)",
       "WebFetch(domain:capacitorjs.com)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase:*)"
     ]
   }
 }

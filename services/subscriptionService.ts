@@ -10,6 +10,7 @@ const SUPER_ADMIN_EMAILS = [
   'gavin@realworth.ai',
   'ann.mcnamara01@icloud.com',
   'sammy@whynotus.ai',
+  'james@bullseyesb.com',
 ];
 
 /**
