@@ -244,6 +244,12 @@ export function buildSearchKeywords(appraisalData: {
     mintMark?: string;
     gradeEstimate?: string;
   };
+  sneakerDetails?: {
+    brand?: string;
+    model?: string;
+    colorway?: string;
+    styleCode?: string;
+  };
 }): string {
   const parts: string[] = [];
   const category = appraisalData.category?.toLowerCase() || '';
@@ -254,8 +260,20 @@ export function buildSearchKeywords(appraisalData: {
     .replace(/\s+/g, ' ')      // Normalize whitespace
     .trim();
 
-  // For coins, simplify to: year + country/type + denomination
-  if (category === 'coin') {
+  // For sneakers: style code is the most specific eBay search term
+  if (category === 'sneaker' && appraisalData.sneakerDetails) {
+    const sd = appraisalData.sneakerDetails;
+    if (sd.styleCode && sd.styleCode !== 'unknown') {
+      // Style code alone is very precise on eBay (e.g., "DQ8426-100")
+      parts.push(sd.styleCode);
+    } else {
+      // Fallback: brand + model + colorway
+      if (sd.brand) parts.push(sd.brand);
+      if (sd.model) parts.push(sd.model);
+      if (sd.colorway) parts.push(sd.colorway);
+    }
+
+  } else if (category === 'coin') {
     // Extract year from item name or era
     const yearMatch = cleanName.match(/\b(1[789]\d{2}|20[0-2]\d)\b/) ||
                       appraisalData.era?.match(/\b(1[789]\d{2}|20[0-2]\d)\b/);

@@ -1,0 +1,135 @@
+'use client';
+
+import React from 'react';
+import type { BuyOffer, SneakerDetails } from '@/lib/types';
+import AuthenticityBadge from './AuthenticityBadge';
+import FlawList from './FlawList';
+
+type Props = {
+  offer: BuyOffer;
+  sneakerDetails: SneakerDetails;
+  itemName: string;
+  images: string[];
+  onAccept: () => void;
+  onDecline: () => void;
+};
+
+function formatMoney(n: number) {
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, onAccept, onDecline }: Props) {
+  const { breakdown } = offer;
+
+  return (
+    <div className="max-w-lg mx-auto space-y-6">
+      {/* Images */}
+      {images.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+          {images.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt={`${itemName} photo ${i + 1}`}
+              className="h-32 w-32 rounded-lg object-cover shrink-0 border border-slate-700"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Item info */}
+      <div>
+        <h2 className="text-xl font-bold text-white">{itemName}</h2>
+        <p className="text-sm text-slate-400 mt-1">
+          {sneakerDetails.brand} {sneakerDetails.model} &middot; {sneakerDetails.colorway}
+        </p>
+        {sneakerDetails.styleCode && sneakerDetails.styleCode !== 'unknown' && (
+          <p className="text-xs text-slate-500 mt-0.5">Style: {sneakerDetails.styleCode}</p>
+        )}
+        <div className="flex gap-3 mt-2 text-xs text-slate-400">
+          {sneakerDetails.size && sneakerDetails.size !== 'unknown' && (
+            <span>Size {sneakerDetails.size}</span>
+          )}
+          <span>Grade: {sneakerDetails.conditionGrade}</span>
+          <span>{sneakerDetails.hasOriginalBox ? 'With box' : 'No box'}</span>
+        </div>
+      </div>
+
+      {/* Offer amount — hero */}
+      <div className="text-center py-6 rounded-xl bg-gradient-to-br from-red-600 to-red-800 border border-red-500/30">
+        <div className="text-sm text-red-200 font-medium mb-1">Our Offer</div>
+        <div className="text-4xl font-extrabold text-white tracking-tight">
+          {formatMoney(offer.amount)}
+        </div>
+        {offer.requiresManagerReview && (
+          <div className="text-xs text-yellow-300 mt-2">Pending manager review</div>
+        )}
+      </div>
+
+      {/* Breakdown */}
+      <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-2 text-sm">
+        <h3 className="font-semibold text-white text-base mb-3">Offer Breakdown</h3>
+        <Row label="Market value" value={formatMoney(breakdown.marketValue)} />
+        <Row label="Base offer (after margin)" value={formatMoney(breakdown.baseOffer)} />
+        {breakdown.conditionAdjustment !== 0 && (
+          <Row label="Condition adjustment" value={formatMoney(breakdown.conditionAdjustment)} negative />
+        )}
+        {breakdown.flawDeductions !== 0 && (
+          <Row label="Flaw deductions" value={formatMoney(breakdown.flawDeductions)} negative />
+        )}
+        {breakdown.accessoryDeductions !== 0 && (
+          <Row label="No box deduction" value={formatMoney(breakdown.accessoryDeductions)} negative />
+        )}
+        <div className="border-t border-slate-600 pt-2 mt-2 flex justify-between font-bold text-white">
+          <span>Final Offer</span>
+          <span>{formatMoney(breakdown.finalOffer)}</span>
+        </div>
+      </div>
+
+      {/* Authenticity */}
+      <AuthenticityBadge score={sneakerDetails.authenticityScore} notes={sneakerDetails.authenticityNotes} />
+
+      {/* Flaws */}
+      {sneakerDetails.flaws.length > 0 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+          <h3 className="font-semibold text-white text-base mb-3">Flaws Detected</h3>
+          <FlawList flaws={sneakerDetails.flaws} />
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="space-y-3 pt-2">
+        <button
+          onClick={onAccept}
+          className="w-full py-3 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors"
+        >
+          Accept Offer
+        </button>
+        <button
+          onClick={onDecline}
+          className="w-full py-3 rounded-xl font-medium text-sm border border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white transition-colors"
+        >
+          Decline
+        </button>
+      </div>
+
+      {/* Store locations */}
+      <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 text-center">
+        <h3 className="font-semibold text-white text-sm mb-2">Bring to a Bullseye location</h3>
+        <div className="text-xs text-slate-400 space-y-1">
+          <p>Philadelphia, PA &middot; Delaware &middot; Pennsylvania</p>
+          <p className="text-slate-500">Offer valid for 48 hours</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, negative }: { label: string; value: string; negative?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-slate-400">{label}</span>
+      <span className={negative ? 'text-red-400' : 'text-slate-300'}>{value}</span>
+    </div>
+  );
+}

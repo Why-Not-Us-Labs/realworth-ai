@@ -245,3 +245,73 @@ export type AppraisalResultV2 = AppraisalResult & {
   futureValuePredictions?: FutureValuePrediction[];
   ebayComparables?: EbayComparable[];
 };
+
+// ============================================
+// Partner / Sneaker Types
+// ============================================
+
+export type SneakerConditionGrade = 'DS' | 'VNDS' | 'Excellent' | 'Good' | 'Fair' | 'Beater';
+export type SneakerReleaseType = 'general_release' | 'limited' | 'collab' | 'exclusive';
+export type FlawSeverity = 'major' | 'moderate' | 'minor';
+
+export type SneakerFlaw = {
+  location: string;
+  description: string;
+  severity: FlawSeverity;
+  priceImpact: number; // percentage reduction
+};
+
+export type SneakerDetails = {
+  brand: string;
+  model: string;
+  colorway: string;
+  styleCode: string;
+  size: string;
+  releaseType: SneakerReleaseType;
+  conditionGrade: SneakerConditionGrade;
+  hasOriginalBox: boolean;
+  hasOriginalAccessories: boolean;
+  flaws: SneakerFlaw[];
+  authenticityScore: number; // 0-100
+  authenticityNotes: string;
+};
+
+export type BuyOfferBreakdown = {
+  marketValue: number;
+  baseOffer: number;
+  conditionAdjustment: number;
+  flawDeductions: number;
+  accessoryDeductions: number;
+  finalOffer: number;
+};
+
+export type BuyOffer = {
+  amount: number;
+  breakdown: BuyOfferBreakdown;
+  requiresManagerReview: boolean;
+  reviewReasons: string[];
+  expiresAt: string; // ISO date
+};
+
+export type BuyOfferRules = {
+  baseMarginPercent: number;
+  conditionModifiers: Record<SneakerConditionGrade, number>;
+  flawDeductions: Record<FlawSeverity, number>;
+  authThreshold: number;
+  maxOfferAmount: number;
+  minOfferAmount: number;
+  noBoxDeduction: number;
+};
+
+export type PartnerConfig = {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  buyOfferRules: BuyOfferRules;
+  branding: {
+    primaryColor: string;
+    accentColor: string;
+    logoUrl: string | null;
+  };
+  isActive: boolean;
+};

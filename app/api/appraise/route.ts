@@ -3,7 +3,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
-import { FutureValuePrediction } from '@/lib/types';
+import { FutureValuePrediction, SneakerDetails, BuyOfferRules } from '@/lib/types';
+import { calculateBuyOffer } from '@/services/buyOfferService';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -197,6 +198,39 @@ const responseSchema = {
         }
       },
       required: ["suggestions", "canImprove"]
+    },
+    // Sneaker-specific fields (only populated for sneaker appraisals)
+    sneakerDetails: {
+      type: Type.OBJECT,
+      description: "Sneaker-specific details. Only populate when appraising sneakers/athletic shoes.",
+      properties: {
+        brand: { type: Type.STRING, description: "Brand name (Nike, Jordan, adidas, New Balance, etc.)" },
+        model: { type: Type.STRING, description: "Model name (Air Jordan 1, Dunk Low, Yeezy 350, etc.)" },
+        colorway: { type: Type.STRING, description: "Official colorway name (Chicago, Bred, University Blue)" },
+        styleCode: { type: Type.STRING, description: "Style code from size tag (e.g., DQ8426-100). Use 'unknown' if not visible." },
+        size: { type: Type.STRING, description: "US size from tag. Use 'unknown' if not visible." },
+        releaseType: { type: Type.STRING, description: "'general_release', 'limited', 'collab', or 'exclusive'" },
+        conditionGrade: { type: Type.STRING, description: "'DS', 'VNDS', 'Excellent', 'Good', 'Fair', or 'Beater'" },
+        hasOriginalBox: { type: Type.BOOLEAN, description: "Whether the original shoe box is present in photos" },
+        hasOriginalAccessories: { type: Type.BOOLEAN, description: "Whether extra laces, hang tags, or other accessories are present" },
+        flaws: {
+          type: Type.ARRAY,
+          description: "List of visible flaws with location, description, severity, and price impact",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              location: { type: Type.STRING, description: "Where on the shoe (toe box, heel, midsole, upper, outsole, tongue, laces)" },
+              description: { type: Type.STRING, description: "Description of the flaw" },
+              severity: { type: Type.STRING, description: "'major', 'moderate', or 'minor'" },
+              priceImpact: { type: Type.NUMBER, description: "Percentage price reduction this flaw causes" }
+            },
+            required: ["location", "description", "severity", "priceImpact"]
+          }
+        },
+        authenticityScore: { type: Type.NUMBER, description: "Authentication confidence 0-100 based on visible markers" },
+        authenticityNotes: { type: Type.STRING, description: "Notes on authentication markers observed or concerns" }
+      },
+      required: ["brand", "model", "colorway", "styleCode", "size", "releaseType", "conditionGrade", "hasOriginalBox", "hasOriginalAccessories", "flaws", "authenticityScore", "authenticityNotes"]
     }
   },
 required: ["itemName", "author", "era", "category", "description", "priceRange", "currency", "reasoning", "references", "confidenceScore", "confidenceFactors", "collectionOpportunity", "careTips", "gradeValueTiers", "insuranceValue", "appraisalImprovements"]
@@ -254,6 +288,45 @@ BOOKS: First editions 10-1000x. Signed 2-10x. Dust jacket=90% of value. Pre-1800
 TOYS: Cast iron pre-1940($100-10K), Early Barbie($500-25K), Star Wars original($20-5K), Baseball cards pre-1970($10-1M+)
 MILITARIA: Civil War($100-50K+), WWI/WWII medals($50-5K), Swords pre-1900($200-10K)`;
 
+const SNEAKER_GRADING_GUIDE = `
+=== SNEAKER GRADING & AUTHENTICATION GUIDE ===
+
+IDENTIFICATION:
+- Brand (Nike, Jordan, adidas, New Balance, etc.)
+- Model (Air Jordan 1, Dunk Low, Yeezy 350, 550, etc.)
+- Colorway (official name: "Chicago", "Bred", "University Blue")
+- Style Code (found on size tag inside shoe, e.g., "DQ8426-100")
+- Size (US sizing from tag)
+
+CONDITION GRADES (sneaker-industry standard):
+- DS (Deadstock): Brand new, never worn, no flaws. Original packaging intact.
+- VNDS (Very Near Deadstock): Tried on/worn once briefly. No visible wear on soles.
+- Excellent: Worn 2-5 times. Minimal sole wear, no creasing, no stains.
+- Good: Moderate wear. Light creasing, minor sole yellowing, intact upper.
+- Fair: Heavy wear visible. Noticeable creasing, toe box damage, sole wear.
+- Beater: Significantly worn. Major creasing, stains, separation, or damage.
+
+FLAW ASSESSMENT:
+For each flaw, note:
+1. Location (toe box, heel, midsole, upper, outsole, tongue, laces)
+2. Description (crease, stain, yellowing, separation, discoloration, scuff)
+3. Severity: major (structural/very visible), moderate (noticeable), minor (cosmetic only)
+4. Price impact percentage (major: 15-30%, moderate: 5-15%, minor: 1-5%)
+
+AUTHENTICATION MARKERS (0-100 confidence score):
+- Stitching quality and pattern consistency
+- Materials feel and quality (from visible texture)
+- Shape and proportions (toe box height, heel shape, midsole thickness)
+- Tags and labels (font, placement, sizing format)
+- Color accuracy vs retail
+- Visible glue work and construction quality
+Score: 90-100=Very High, 70-89=High, 50-69=Moderate (recommend in-person check), <50=Suspicious
+
+MARKET CONTEXT:
+- Release type: General Release (GR), Limited, Collab, Exclusive
+- Size liquidity: Men's 8-12 most liquid; small/large sizes slower
+- Platform pricing: StockX, GOAT, eBay for sold comps
+- Seasonal factors: Jordan 1s spike during back-to-school and holidays`;
 
 // Validation function to catch face-value errors for collectibles
 interface AppraisalData {
@@ -405,12 +478,31 @@ export async function POST(req: NextRequest) {
   try {
     // Accept JSON body with image URLs (uploaded directly to Supabase Storage)
     const body = await req.json();
-    const { imageUrls, imagePaths, condition, collectionId } = body as {
+    const { imageUrls, imagePaths, condition, collectionId, partnerId } = body as {
       imageUrls: string[];
       imagePaths: string[];
-      condition?: string; // Optional - AI determines from photos if not provided
+      condition?: string;
       collectionId?: string;
+      partnerId?: string; // Partner mode — skips auth, adds sneaker prompt & buy offer
     };
+
+    // ---- Partner config lookup (if partner mode) ----
+    let partnerConfig: { buy_offer_rules: BuyOfferRules; partner_name: string } | null = null;
+    if (partnerId) {
+      const adminSupabase = createClient(supabaseUrl, supabaseServiceKey!, {
+        auth: { persistSession: false },
+      });
+      const { data: pc } = await adminSupabase
+        .from('partner_configs')
+        .select('buy_offer_rules, partner_name')
+        .eq('partner_id', partnerId)
+        .eq('is_active', true)
+        .single();
+      partnerConfig = pc;
+      if (!partnerConfig) {
+        return NextResponse.json({ error: 'Unknown or inactive partner.' }, { status: 400 });
+      }
+    }
 
     // Get auth token from Authorization header
     const authHeader = req.headers.get('authorization');
@@ -446,8 +538,13 @@ export async function POST(req: NextRequest) {
 
     // --- Parallelize auth/tokens, image fetching, and collection fetch ---
 
-    // Auth + token consumption (must complete before we proceed, but can run alongside image fetch)
+    // Auth + token consumption — SKIP in partner mode (no auth required)
     const authAndTokensPromise = (async () => {
+      if (partnerId) {
+        console.log(`[Appraise API] Partner mode (${partnerId}) — skipping auth/token consumption`);
+        return { userId: null, userEmail: null, tokenTransactionId: undefined, isSuperAdmin: false, insufficientTokens: false, balance: 0 };
+      }
+
       let userId: string | null = null;
       let userEmail: string | null = null;
       let tokenTransactionId: string | undefined;
@@ -606,14 +703,26 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
 
     // Always include both guides to avoid category pre-detection latency
     let appraisalSystemInstruction = baseSystemInstruction + '\n\n' + COIN_GRADING_GUIDE + '\n\n' + COLLECTIBLES_GUIDE;
+    if (partnerId) {
+      appraisalSystemInstruction += '\n\n' + SNEAKER_GRADING_GUIDE;
+    }
     if (collectionContext) {
       appraisalSystemInstruction += '\n\n' + collectionContext;
     }
 
     // Build the user prompt for the main appraisal
-    const appraisalTextPart = { text: condition
-      ? `User-specified Condition: ${condition}${collectionContext ? '\n\n' + collectionContext : ''}`
-      : `Please assess the item's condition from the photos provided.${collectionContext ? '\n\n' + collectionContext : ''}` };
+    let promptText = '';
+    if (partnerId) {
+      // Partner mode: sneaker-focused prompt
+      promptText = `IMPORTANT: This is a SNEAKER appraisal for a buy/sell partner. You MUST populate the sneakerDetails field with full sneaker-specific data including brand, model, colorway, style code, size, condition grade, flaws, and authenticity score. Set category to "Sneaker".`;
+      if (condition) promptText += `\nUser-specified condition: ${condition}`;
+    } else if (condition) {
+      promptText = `User-specified Condition: ${condition}`;
+    } else {
+      promptText = 'Please assess the item\'s condition from the photos provided.';
+    }
+    if (collectionContext) promptText += '\n\n' + collectionContext;
+    const appraisalTextPart = { text: promptText };
 
     console.log(`[Appraise API] Starting main appraisal (prompt size: ~${Math.round(appraisalSystemInstruction.length / 4)} tokens)...`);
     const appraisalStartTime = Date.now();
@@ -769,13 +878,58 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
       }
     }
 
+    // ---- Partner mode: compute buy offer + save to DB ----
+    let buyOfferResult = null;
+    let sneakerDetailsResult: SneakerDetails | null = null;
+
+    if (partnerId && partnerConfig && appraisalData.sneakerDetails) {
+      sneakerDetailsResult = appraisalData.sneakerDetails as SneakerDetails;
+      buyOfferResult = calculateBuyOffer(
+        appraisalData.priceRange,
+        sneakerDetailsResult,
+        partnerConfig.buy_offer_rules
+      );
+      console.log(`[Appraise API] Partner buy offer: $${buyOfferResult.amount} (review: ${buyOfferResult.requiresManagerReview})`);
+
+      // Save partner appraisal to DB (admin client to bypass RLS since no user auth)
+      try {
+        const adminSupabase = createClient(supabaseUrl, supabaseServiceKey!, {
+          auth: { persistSession: false },
+        });
+        await adminSupabase.from('rw_appraisals').insert({
+          id: crypto.randomUUID(),
+          item_name: appraisalData.itemName,
+          author: appraisalData.author || null,
+          era: appraisalData.era || null,
+          category: appraisalData.category,
+          description: appraisalData.description || null,
+          price_low: appraisalData.priceRange.low,
+          price_high: appraisalData.priceRange.high,
+          currency: appraisalData.currency || 'USD',
+          confidence_score: appraisalData.confidenceScore || null,
+          reasoning: appraisalData.reasoning || null,
+          references: appraisalData.references || [],
+          image_urls: imageUrls,
+          input_images: imageUrls,
+          status: 'complete',
+          partner_id: partnerId,
+          sneaker_details: sneakerDetailsResult,
+          buy_offer: buyOfferResult,
+          buy_offer_status: buyOfferResult.requiresManagerReview ? 'review' : 'pending',
+        });
+        console.log(`[Appraise API] Partner appraisal saved to DB`);
+      } catch (dbError) {
+        console.error('[Appraise API] Failed to save partner appraisal (non-blocking):', dbError);
+      }
+    }
+
     return NextResponse.json({
       appraisalData,
       imageDataUrl,
-      imagePath, // Return path if storage was used
-      imageUrls, // All uploaded image URLs
+      imagePath,
+      imageUrls,
       userId: userId || undefined,
-      usedStorage: !!imagePath, // Indicate if storage was used
+      usedStorage: !!imagePath,
       collectionId: collectionId || undefined,
       collectionName: collectionName || undefined,
       validation: collectionId ? {
@@ -783,12 +937,14 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
         notes: appraisalData.validationNotes || '',
         seriesIdentifier: appraisalData.seriesIdentifier || ''
       } : undefined,
-      streakInfo, // Streak data for gamification
-      // v2 Antiques Roadshow experience data
-      futureValuePredictions, // Appreciation forecasts
+      streakInfo,
+      futureValuePredictions,
       gradeValueTiers: appraisalData.gradeValueTiers || undefined,
       insuranceValue: appraisalData.insuranceValue || undefined,
       appraisalImprovements: appraisalData.appraisalImprovements || undefined,
+      // Partner-specific fields
+      sneakerDetails: sneakerDetailsResult || undefined,
+      buyOffer: buyOfferResult || undefined,
     });
 
   } catch (error) {
