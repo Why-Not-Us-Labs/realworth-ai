@@ -1,6 +1,7 @@
 
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { headers } from "next/headers";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -58,52 +59,65 @@ export const viewport: Viewport = {
   themeColor: "#14B8A6",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Detect partner subdomains to strip RealWorth chrome
+  const headersList = await headers();
+  const host = headersList.get('host') || '';
+  const isPartner = host.startsWith('bullseyesb.');
+
   return (
     <html lang="en">
       <head>
         <GoogleAnalytics />
       </head>
-      <body className={`${inter.className} pb-nav md:pb-0`}>
-        <AuthProvider>
-          <AppraisalProvider>
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-            <ChatFAB />
-            <FeedbackWidget position="bottom-left" />
-          </AppraisalProvider>
-        </AuthProvider>
-        <BottomTabNav />
-        <Toaster position="top-center" richColors closeButton />
-        {/* Portal container for modals */}
-        <div id="modal-root" />
+      <body className={`${inter.className} ${isPartner ? '' : 'pb-nav md:pb-0'}`}>
+        {isPartner ? (
+          // Partner mode: no AuthProvider, no RealWorth UI chrome
+          <>{children}</>
+        ) : (
+          // Main RealWorth app
+          <>
+            <AuthProvider>
+              <AppraisalProvider>
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
+                <ChatFAB />
+                <FeedbackWidget position="bottom-left" />
+              </AppraisalProvider>
+            </AuthProvider>
+            <BottomTabNav />
+            <Toaster position="top-center" richColors closeButton />
+            {/* Portal container for modals */}
+            <div id="modal-root" />
+            <Script
+              src="https://accounts.google.com/gsi/client"
+              strategy="afterInteractive"
+            />
+            <Script id="register-sw" strategy="afterInteractive">
+              {`
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').then(
+                      function(registration) {
+                        console.log('ServiceWorker registered:', registration.scope);
+                      },
+                      function(err) {
+                        console.log('ServiceWorker registration failed:', err);
+                      }
+                    );
+                  });
+                }
+              `}
+            </Script>
+          </>
+        )}
         <Analytics />
         <SpeedInsights />
-        <Script
-          src="https://accounts.google.com/gsi/client"
-          strategy="afterInteractive"
-        />
-        <Script id="register-sw" strategy="afterInteractive">
-          {`
-            if ('serviceWorker' in navigator) {
-              window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(
-                  function(registration) {
-                    console.log('ServiceWorker registered:', registration.scope);
-                  },
-                  function(err) {
-                    console.log('ServiceWorker registration failed:', err);
-                  }
-                );
-              });
-            }
-          `}
-        </Script>
       </body>
     </html>
   );
