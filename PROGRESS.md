@@ -3,60 +3,51 @@
 ## Current Session
 *Updated at end of each session*
 
-**Date:** February 4, 2026
-**Focus:** Fix Discover feed, verify Stripe integration after WNU Platform migration
+**Date:** February 13, 2026
+**Focus:** Bullseye Sneaker Partner Portal — Phase 1 MVP
 
 ### Completed
-- [x] Fixed Discover feed showing empty (Vercel env vars pointed to old database)
-- [x] Updated discover/feed APIs for WNU Platform schema (value_low_cents column)
-- [x] Updated all 3 Supabase env vars in Vercel via CLI
-- [x] Fixed account delete route for WNU Platform (subscriptions table)
-- [x] Comprehensive Stripe integration testing (all flows verified)
-- [x] Synced stale subscription dates from Stripe to database
-- [x] Session documentation complete
+- [x] Subdomain middleware routing (`bullseyesb.realworth.ai` → `/partner/bullseye`)
+- [x] Sneaker-specific Gemini prompt (`SNEAKER_GRADING_GUIDE`) + `sneakerDetails` schema
+- [x] Buy offer rules engine (`buyOfferService.ts`) with configurable margins/deductions
+- [x] Database migration: `partner_configs` table + sneaker columns on `rw_appraisals`
+- [x] Partner portal UI: landing, upload, condition picker, offer card, accept/decline flow
+- [x] Partner mode in `/api/appraise`: skips auth, injects sneaker prompt, computes buy offer
+- [x] eBay search optimized for sneakers (style code keyword)
+- [x] Root layout strips RealWorth chrome for partner subdomains (fixes hydration errors)
+- [x] Domain `bullseyesb.realworth.ai` added to Vercel + DNS configured
+- [x] Build verification: zero TypeScript errors, live and serving HTTP 200
 
 ### Commits
-- `c49d187` Fix discover/feed APIs for WNU Platform schema
-- `a28f402` Fix account delete route for WNU Platform migration
-- `2ab9430` Fix Stripe webhooks for WNU Platform token system
+- `0e017f2` Add Bullseye sneaker partner portal (Phase 1 MVP)
+- `a261068` Fix partner layout: remove nested html/body, strip RealWorth chrome
 
-### Key Discovery
-**Root Cause:** Vercel env vars were still pointing to old `realworth-db` database (`gwoahdeybyjfonoahmvv`) instead of `wnu-platform` (`ahwensdtjsvuqxbjgkgv`). This caused `PGRST205: Could not find table 'rw_appraisals'` errors because the old DB has `appraisals` table, not `rw_appraisals`.
-
-### Stripe Test Results
-| Component | Status |
-|-----------|--------|
-| Products | PASS |
-| Prices | PASS |
-| Checkout Route | PASS |
-| Webhook Route | PASS |
-| Pay-per-appraisal | PASS |
-| Signup Grant | PASS |
-| Active Subscriptions | PASS |
+### Files Changed (12 files, +1,067 lines)
+- **New:** `middleware.ts`, `app/partner/bullseye/{layout,page}.tsx`, `components/partner/{BuyOfferCard,SneakerConditionPicker,FlawList,AuthenticityBadge}.tsx`, `services/buyOfferService.ts`
+- **Modified:** `app/api/appraise/route.ts`, `app/layout.tsx`, `lib/types.ts`, `services/ebayPriceService.ts`
 
 ### Next Session Should
-1. Monitor webhook delivery for subscription renewals
-2. Consider adding webhook event logging to database
-3. Continue iOS app testing with correct database
-4. UI/UX polish
+1. End-to-end test: submit real sneaker photos through bullseyesb.realworth.ai
+2. Bullseye Phase 2: partner dashboard, rules editor UI
+3. Consider employee accounts + manager review workflow
+4. Monitor main app for regressions from layout change
 
 ---
 
 ## Previous Session
 *Moved from Current Session at start of new session*
 
-**Date:** January 29, 2026
-**Focus:** Sign-in modal fix, header cleanup, env sync
+**Date:** February 4, 2026
+**Focus:** Fix Discover feed, verify Stripe integration after WNU Platform migration
 
-- [x] Synced local env with Vercel (`vercel env pull`) for new WNU Platform database
-- [x] Fixed SignInModal clipped behind sticky header (React portal)
-- [x] Tested all 3 auth methods (Google, Apple, Email) on production
-- [x] Removed "We've upgraded!" migration banner from page.tsx
-- [x] Removed Help (?) button from header
-- [x] Updated @vercel/analytics to 1.6.1
+- [x] Fixed Discover feed showing empty (Vercel env vars pointed to old database)
+- [x] Updated discover/feed APIs for WNU Platform schema (value_low_cents column)
+- [x] Updated all 3 Supabase env vars in Vercel via CLI
+- [x] Fixed account delete route for WNU Platform (subscriptions table)
+- [x] Comprehensive Stripe integration testing (all flows verified)
+- [x] Synced stale subscription dates from Stripe to database
 
-Commits: `9cbbfbf`, `86e1ee9`, `8f4e715`, `e3d3273`
-Stats: 4 commits, 3 files changed, ~55 lines removed
+Commits: `c49d187`, `a28f402`, `2ab9430`
 
 ---
 
@@ -64,6 +55,7 @@ Stats: 4 commits, 3 files changed, ~55 lines removed
 
 ### Production URLs
 - Web: https://realworth.ai
+- Partner Portal: https://bullseyesb.realworth.ai
 - Supabase: Project ID `ahwensdtjsvuqxbjgkgv` (wnu-platform)
 - Vercel Project: `real-worth` (NOT `realworth-ai`)
 
@@ -77,3 +69,4 @@ Stats: 4 commits, 3 files changed, ~55 lines removed
 ### Key IDs
 - Stripe Pay-Per-Appraisal Price: `price_1Sr3C9CVhCc8z8wiP8xC3VCs`
 - Stripe Pro Product: `prod_TTQ9nVd9uSkgvu`
+- Bullseye Partner ID: `bullseye` (in `partner_configs` table)
