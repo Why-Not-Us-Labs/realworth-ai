@@ -3,11 +3,42 @@
 ## Current Session
 *Updated at end of each session*
 
+**Date:** February 17, 2026
+**Focus:** Bullseye Portal Polish — RLS fix, logos, share links, white theme
+
+### Completed
+- [x] Fixed image upload failure: added Supabase storage RLS policy for anon uploads to `partner/*`
+- [x] Removed condition picker — AI determines sneaker condition from photos alone
+- [x] Processed Bullseye logo (background removal via sharp) saved to `public/partners/`
+- [x] Generated RealWorth collab logo via Gemini `gemini-2.5-flash-image`
+- [x] Replaced text headers with actual logo images in landing + form views
+- [x] Switched portal from dark to white background theme (result card stays dark)
+- [x] Added share button to BuyOfferCard (Web Share API + clipboard fallback)
+- [x] API returns `appraisalId`, saves partner appraisals with `is_public: true`
+- [x] Share links use existing `/treasure/[id]` route — appraisals are now persistent
+- [x] Verified deployment: Vercel build passed, production screenshot confirmed
+
+### Commits
+- `7465149` Bullseye portal: white theme, logo branding, share links, remove condition picker
+
+### Files Changed (7 files + 3 new assets)
+- **Modified:** `app/api/appraise/route.ts`, `app/partner/bullseye/layout.tsx`, `app/partner/bullseye/page.tsx`, `components/partner/BuyOfferCard.tsx`
+- **New:** `public/partners/bullseye-logo.png`, `public/partners/bullseye-logo-white.png`, `public/partners/realworth-collab-logo.png`
+
+### Next Session Should
+1. End-to-end test: submit real sneaker photos on bullseyesb.realworth.ai, verify share link
+2. Test main app regression: normal appraisal on realworth.ai
+3. Bullseye Phase 2: partner dashboard (appraisal pipeline, metrics, rules editor)
+4. Consider employee accounts + manager review workflow
+
+---
+
+## Previous Session
+
 **Date:** February 13, 2026
 **Focus:** Bullseye Sneaker Partner Portal — Phase 1 MVP
 
-### Completed
-- [x] Subdomain middleware routing (`bullseyesb.realworth.ai` → `/partner/bullseye`)
+- [x] Subdomain middleware routing (`bullseyesb.realworth.ai` -> `/partner/bullseye`)
 - [x] Sneaker-specific Gemini prompt (`SNEAKER_GRADING_GUIDE`) + `sneakerDetails` schema
 - [x] Buy offer rules engine (`buyOfferService.ts`) with configurable margins/deductions
 - [x] Database migration: `partner_configs` table + sneaker columns on `rw_appraisals`
@@ -18,24 +49,11 @@
 - [x] Domain `bullseyesb.realworth.ai` added to Vercel + DNS configured
 - [x] Build verification: zero TypeScript errors, live and serving HTTP 200
 
-### Commits
-- `0e017f2` Add Bullseye sneaker partner portal (Phase 1 MVP)
-- `a261068` Fix partner layout: remove nested html/body, strip RealWorth chrome
-
-### Files Changed (12 files, +1,067 lines)
-- **New:** `middleware.ts`, `app/partner/bullseye/{layout,page}.tsx`, `components/partner/{BuyOfferCard,SneakerConditionPicker,FlawList,AuthenticityBadge}.tsx`, `services/buyOfferService.ts`
-- **Modified:** `app/api/appraise/route.ts`, `app/layout.tsx`, `lib/types.ts`, `services/ebayPriceService.ts`
-
-### Next Session Should
-1. End-to-end test: submit real sneaker photos through bullseyesb.realworth.ai
-2. Bullseye Phase 2: partner dashboard, rules editor UI
-3. Consider employee accounts + manager review workflow
-4. Monitor main app for regressions from layout change
+Commits: `0e017f2`, `a261068`
 
 ---
 
-## Previous Session
-*Moved from Current Session at start of new session*
+## Earlier Session
 
 **Date:** February 4, 2026
 **Focus:** Fix Discover feed, verify Stripe integration after WNU Platform migration
