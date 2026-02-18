@@ -49,6 +49,16 @@ WITH CHECK (bucket_id = 'appraisal-images' AND (storage.foldername(name))[1] = '
 - **Share URL:** `https://realworth.ai/treasure/{id}` — reuses existing TreasureViewer
 - Appraisals are now persistent and shareable (previously ephemeral, lost on page close)
 
+### 6. Fix: `user_id` NOT NULL Blocking Partner Appraisal Saves
+**Problem:** `rw_appraisals.user_id` was `NOT NULL`. Partner appraisals have no authenticated user, so every INSERT silently failed (caught by try/catch). This meant share links returned "Treasure not found."
+
+**Solution:** Migration `allow_nullable_user_id_for_partner_appraisals`:
+```sql
+ALTER TABLE rw_appraisals ALTER COLUMN user_id DROP NOT NULL;
+```
+
+**Impact:** Partner appraisals now save to DB with `user_id = NULL`. The treasure route uses service-role key to bypass RLS and checks `is_public = true`, so these are accessible via share links.
+
 ---
 
 ## Commits
@@ -57,7 +67,9 @@ WITH CHECK (bucket_id = 'appraisal-images' AND (storage.foldername(name))[1] = '
 |------|---------|
 | `7465149` | Bullseye portal: white theme, logo branding, share links, remove condition picker |
 
-*Note: RLS migration applied directly to Supabase via MCP (not in git)*
+*Note: Two Supabase migrations applied directly via MCP (not in git):*
+- `allow_anon_partner_storage_uploads` — RLS policy for anon uploads to `partner/*`
+- `allow_nullable_user_id_for_partner_appraisals` — `user_id` nullable for partner appraisals
 
 ---
 
@@ -105,8 +117,17 @@ WITH CHECK (bucket_id = 'appraisal-images' AND (storage.foldername(name))[1] = '
 
 ---
 
+## Known Issues / Next Steps
+
+### Share Link Polish (Identified but not yet fixed)
+- **OG metadata:** `/treasure/[id]` page title/description says "RealWorth" — should say "Bullseye x RealWorth" for partner appraisals
+- **Favicon/app icon:** Bullseye subdomain uses RealWorth logo.svg — should use collab logo for "Add to Home Screen"
+- **Accept offer → create account:** User wants "Accept Offer" to prompt signup (Google/Apple) to capture the lead and associate the appraisal with the new user
+- **Appraisal speed:** ~2 min generation time is expected (Gemini + eBay), but could explore UX improvements (progress indicators, trivia quiz like main app)
+
 ## Next Session Priorities
-1. **Test end-to-end:** Submit real sneaker photos on bullseyesb.realworth.ai, verify share link works
-2. **Test main app regression:** Normal appraisal on realworth.ai still works
-3. **Bullseye Phase 2:** Partner dashboard (appraisal pipeline, metrics, rules editor)
-4. **Consider:** Employee accounts, manager review workflow, QR code attribution
+1. **Verify share links work:** Re-test after `user_id` nullable fix
+2. **Accept offer → signup flow:** Prompt account creation on accept, associate appraisal with new user
+3. **Share link branding:** OG metadata, favicon, partner-branded share page
+4. **Test main app regression:** Normal appraisal on realworth.ai still works
+5. **Bullseye Phase 2:** Partner dashboard (appraisal pipeline, metrics, rules editor)

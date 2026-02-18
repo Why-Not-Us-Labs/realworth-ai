@@ -17,6 +17,7 @@
 - [x] API returns `appraisalId`, saves partner appraisals with `is_public: true`
 - [x] Share links use existing `/treasure/[id]` route — appraisals are now persistent
 - [x] Verified deployment: Vercel build passed, production screenshot confirmed
+- [x] Fixed partner appraisal DB save: `user_id` was NOT NULL, causing silent INSERT failure — made nullable via migration
 
 ### Commits
 - `7465149` Bullseye portal: white theme, logo branding, share links, remove condition picker
@@ -25,11 +26,18 @@
 - **Modified:** `app/api/appraise/route.ts`, `app/partner/bullseye/layout.tsx`, `app/partner/bullseye/page.tsx`, `components/partner/BuyOfferCard.tsx`
 - **New:** `public/partners/bullseye-logo.png`, `public/partners/bullseye-logo-white.png`, `public/partners/realworth-collab-logo.png`
 
+### Known Issues (Identified, Not Yet Fixed)
+- Share link OG metadata says "RealWorth" not "Bullseye x RealWorth" for partner appraisals
+- Favicon/app icon should be collab logo for Bullseye subdomain
+- User wants "Accept Offer" to prompt account creation (lead capture)
+- ~2 min generation time expected but UX could improve (progress indicators)
+
 ### Next Session Should
-1. End-to-end test: submit real sneaker photos on bullseyesb.realworth.ai, verify share link
-2. Test main app regression: normal appraisal on realworth.ai
-3. Bullseye Phase 2: partner dashboard (appraisal pipeline, metrics, rules editor)
-4. Consider employee accounts + manager review workflow
+1. Verify share links work after `user_id` fix
+2. Accept offer → signup flow (create account on accept, associate appraisal)
+3. Share link branding (OG metadata, favicon, partner detection)
+4. Test main app regression
+5. Bullseye Phase 2: partner dashboard
 
 ---
 

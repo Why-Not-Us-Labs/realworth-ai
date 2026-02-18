@@ -23,18 +23,24 @@
 | Database | WNU Platform | `ahwensdtjsvuqxbjgkgv` (wnu-platform) |
 | Discover Feed | Working | 66 public treasures displaying |
 | Partner Uploads | Fixed | RLS policy added for anon → `partner/*` paths |
+| Partner DB Save | Fixed | `user_id` now nullable — partner appraisals save to DB |
 
 ## Pending Questions
 - None currently
 
+## Pending Questions
+- Accept offer → create account flow: what auth providers? Google + Apple? Email?
+- Share link branding: partner-specific OG image needed?
+
 ## Next Session Priorities
-1. **End-to-end test:** Submit real sneaker photos on bullseyesb.realworth.ai, verify share link works at `/treasure/[id]`
-2. **Test main app regression:** Normal appraisal on realworth.ai still works after API changes
-3. **Bullseye Phase 2:** Partner dashboard (appraisal pipeline, metrics, rules editor)
-4. **Consider:** Employee accounts, manager review workflow, QR code attribution
-5. Continue iOS app testing
+1. **Verify share links:** Re-test after `user_id` nullable fix — should work now
+2. **Accept offer → signup:** Prompt account creation on "Accept Offer", associate appraisal with new user
+3. **Share link branding:** OG metadata ("Bullseye x RealWorth"), favicon, partner detection in treasure route
+4. **Test main app regression:** Normal appraisal on realworth.ai still works
+5. **Bullseye Phase 2:** Partner dashboard (appraisal pipeline, metrics, rules editor)
 
 ## Recent Technical Decisions
+- **Feb 17**: Made `rw_appraisals.user_id` nullable for partner appraisals (migration: `allow_nullable_user_id_for_partner_appraisals`)
 - **Feb 17**: Added Supabase storage RLS policy for anon uploads to `partner/*` (migration: `allow_anon_partner_storage_uploads`)
 - **Feb 17**: Gemini image generation model is `gemini-2.5-flash-image` (other model names 404)
 - **Feb 17**: Partner appraisals saved with `is_public: true` and `appraisalId` returned to client for sharing
