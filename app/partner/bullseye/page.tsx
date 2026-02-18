@@ -96,7 +96,6 @@ export default function BullseyePage() {
   const [condition, setCondition] = useState<SneakerConditionGrade | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
 
   // Result state
   const [itemName, setItemName] = useState('');
@@ -112,37 +111,13 @@ export default function BullseyePage() {
     }
   }, []);
 
-  // When files are added, compress and upload them immediately
-  const handleFiles = useCallback(async (fileList: FileList | null) => {
+  // When files are added, store them for preview (upload happens at submit time, like main app)
+  const handleFiles = useCallback((fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-
     setState(prev => prev === 'landing' ? 'form' : prev);
-    setIsUploading(true);
-
-    const newFiles = Array.from(fileList).slice(0, 5 - uploadedUrls.length);
-
-    // Keep File objects for preview (same as main app)
+    const newFiles = Array.from(fileList);
     setFiles(prev => [...prev, ...newFiles].slice(0, 5));
-
-    // Also upload to storage for persistence
-    for (const file of newFiles) {
-      try {
-        const compressed = await compressImage(file);
-        const url = await uploadFile(compressed);
-        if (url) {
-          setUploadedUrls(prev => {
-            const updated = [...prev, url].slice(0, 5);
-            saveUrls(updated);
-            return updated;
-          });
-        }
-      } catch (e) {
-        console.error('Failed to upload photo:', e);
-      }
-    }
-
-    setIsUploading(false);
-  }, [uploadedUrls.length]);
+  }, []);
 
   const removePhoto = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
@@ -160,17 +135,38 @@ export default function BullseyePage() {
   };
 
   const submit = async () => {
-    if (uploadedUrls.length === 0 && files.length === 0) { setError('Please add at least one photo'); return; }
+    // Need either File objects or previously uploaded URLs (from sessionStorage restore)
+    if (files.length === 0 && uploadedUrls.length === 0) {
+      setError('Please add at least one photo');
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
     setState('loading');
 
     try {
+      // Upload files to storage at submit time (same pattern as main RealWorth app)
+      let urls = uploadedUrls;
+
+      if (files.length > 0) {
+        const uploaded: string[] = [];
+        for (const file of files) {
+          const compressed = await compressImage(file);
+          const url = await uploadFile(compressed);
+          if (url) uploaded.push(url);
+        }
+        if (uploaded.length === 0) {
+          throw new Error('Failed to upload images. Please try again.');
+        }
+        urls = uploaded;
+      }
+
       const res = await fetch('/api/appraise', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageUrls: uploadedUrls,
+          imageUrls: urls,
           imagePaths: [],
           condition: condition || undefined,
           partnerId: 'bullseye',
@@ -281,7 +277,7 @@ export default function BullseyePage() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               <p className="mt-3 text-sm font-semibold text-red-400">
-                {isUploading ? 'Uploading...' : 'Take Photos'}
+                Take Photos
               </p>
               <p className="mt-1 text-xs text-slate-500">Tap to open camera</p>
             </button>
@@ -298,14 +294,6 @@ export default function BullseyePage() {
             <p className="mt-3 text-sm font-semibold text-red-400">Upload Photos</p>
             <p className="mt-1 text-xs text-slate-500">Click to browse</p>
           </button>
-
-          {/* Uploading indicator */}
-          {isUploading && (
-            <div className="mt-3 flex items-center gap-2 text-sm text-slate-400">
-              <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-              Uploading photo...
-            </div>
-          )}
 
           {/* Image previews — show from File objects (instant) with URL fallback (persisted) */}
           {photoCount > 0 && (
@@ -344,7 +332,7 @@ export default function BullseyePage() {
 
           <button
             onClick={submit}
-            disabled={photoCount === 0 || isSubmitting || isUploading}
+            disabled={photoCount === 0 || isSubmitting}
             className="mt-6 w-full py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-lg transition-colors"
           >
             {isSubmitting ? 'Analyzing...' : 'Get My Offer'}
@@ -357,7 +345,7 @@ export default function BullseyePage() {
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
           <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-6" />
           <h2 className="text-xl font-bold text-white mb-2">Analyzing your sneakers...</h2>
-          <p className="text-sm text-slate-400">Our AI is checking condition, authenticity, and market value</p>
+          <p className="text-sm text-slate-400">Uploading photos and checking condition, authenticity, and market value</p>
         </div>
       )}
 
