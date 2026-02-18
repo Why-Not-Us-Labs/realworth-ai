@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import type { SneakerConditionGrade, SneakerDetails, BuyOffer } from '@/lib/types';
-import SneakerConditionPicker from '@/components/partner/SneakerConditionPicker';
+import type { SneakerDetails, BuyOffer } from '@/lib/types';
 import BuyOfferCard from '@/components/partner/BuyOfferCard';
 
 const supabase = createClient(
@@ -93,12 +92,12 @@ export default function BullseyePage() {
   const [state, setState] = useState<AppState>('landing');
   const [files, setFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
-  const [condition, setCondition] = useState<SneakerConditionGrade | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Result state
   const [itemName, setItemName] = useState('');
+  const [appraisalId, setAppraisalId] = useState<string | null>(null);
   const [sneakerDetails, setSneakerDetails] = useState<SneakerDetails | null>(null);
   const [buyOffer, setBuyOffer] = useState<BuyOffer | null>(null);
 
@@ -168,7 +167,6 @@ export default function BullseyePage() {
         body: JSON.stringify({
           imageUrls: urls,
           imagePaths: [],
-          condition: condition || undefined,
           partnerId: 'bullseye',
         }),
       });
@@ -180,6 +178,7 @@ export default function BullseyePage() {
 
       const data = await res.json();
       setItemName(data.appraisalData?.itemName || 'Unknown Item');
+      setAppraisalId(data.appraisalId || null);
       setSneakerDetails(data.sneakerDetails || null);
       setBuyOffer(data.buyOffer || null);
       clearUrls();
@@ -196,7 +195,6 @@ export default function BullseyePage() {
     setState('landing');
     setFiles([]);
     setUploadedUrls([]);
-    setCondition(null);
     setError(null);
     clearUrls();
   };
@@ -206,7 +204,7 @@ export default function BullseyePage() {
 
   // --- Single return — inputs are ALWAYS in the DOM ---
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* Hidden file inputs — always mounted, same pattern as main RealWorth FileUpload */}
       <input
         ref={cameraInputRef}
@@ -231,17 +229,17 @@ export default function BullseyePage() {
       {state === 'landing' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
           <div className="mb-8">
-            <h1 className="text-3xl font-extrabold tracking-tight">
-              <span className="text-red-500">Bullseye</span>{' '}
-              <span className="text-slate-400 text-lg font-normal">x</span>{' '}
-              <span className="text-white">RealWorth</span>
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">AI-Powered Sneaker Offers</p>
+            <div className="flex items-center justify-center gap-3">
+              <img src="/partners/bullseye-logo.png" alt="Bullseye" className="h-10" />
+              <span className="text-slate-300 text-lg font-normal">x</span>
+              <img src="/partners/realworth-collab-logo.png" alt="RealWorth" className="h-10" />
+            </div>
+            <p className="text-slate-500 text-sm mt-2">AI-Powered Sneaker Offers</p>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">
             Get an instant cash offer for your sneakers
           </h2>
-          <p className="text-slate-400 text-sm max-w-sm mb-8">
+          <p className="text-slate-500 text-sm max-w-sm mb-8">
             Snap a few photos, get an AI-powered valuation and buy offer in seconds. Bring them to any Bullseye location to get paid.
           </p>
           <button
@@ -250,7 +248,7 @@ export default function BullseyePage() {
           >
             Get Your Offer
           </button>
-          <p className="text-xs text-slate-600 mt-6">No sign-up required</p>
+          <p className="text-xs text-slate-400 mt-6">No sign-up required</p>
         </div>
       )}
 
@@ -258,15 +256,15 @@ export default function BullseyePage() {
       {state === 'form' && (
         <div className="min-h-screen px-4 py-8 max-w-lg mx-auto">
           <div className="text-center mb-6">
-            <h1 className="text-xl font-bold">
-              <span className="text-red-500">Bullseye</span>{' '}
-              <span className="text-slate-500 text-sm">x</span>{' '}
-              <span className="text-white">RealWorth</span>
-            </h1>
+            <div className="flex items-center justify-center gap-2">
+              <img src="/partners/bullseye-logo.png" alt="Bullseye" className="h-7" />
+              <span className="text-slate-300 text-sm">x</span>
+              <img src="/partners/realworth-collab-logo.png" alt="RealWorth" className="h-7" />
+            </div>
           </div>
 
-          <h2 className="text-lg font-bold text-white mb-4">Take sneaker photos</h2>
-          <p className="text-xs text-slate-400 mb-4">Up to 5 photos &middot; Multiple angles help accuracy</p>
+          <h2 className="text-lg font-bold text-slate-900 mb-4">Take sneaker photos</h2>
+          <p className="text-xs text-slate-500 mb-4">Up to 5 photos &middot; Multiple angles help accuracy</p>
 
           {/* Mobile: Camera button — same pattern as main RealWorth FileUpload */}
           {photoCount < maxFiles && (
@@ -298,7 +296,7 @@ export default function BullseyePage() {
           {/* Image previews — show from File objects (instant) with URL fallback (persisted) */}
           {photoCount > 0 && (
             <div className="mt-4">
-              <div className="text-xs text-slate-400 mb-2">{photoCount} of {maxFiles} photos</div>
+              <div className="text-xs text-slate-500 mb-2">{photoCount} of {maxFiles} photos</div>
               <div className="grid grid-cols-3 gap-2">
                 {(files.length > 0 ? files : []).map((file, i) => (
                   <FilePreview key={`${file.name}-${file.lastModified}-${i}`} file={file} index={i} onRemove={() => removePhoto(i)} />
@@ -306,7 +304,7 @@ export default function BullseyePage() {
                 {/* Show URL-based previews for restored photos (after page reload) */}
                 {files.length === 0 && uploadedUrls.map((url, i) => (
                   <div key={url} className="relative group aspect-square">
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-slate-700" />
+                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-slate-200" />
                     <button
                       type="button"
                       onClick={() => removePhoto(i)}
@@ -319,10 +317,6 @@ export default function BullseyePage() {
               </div>
             </div>
           )}
-
-          <div className="mt-6">
-            <SneakerConditionPicker value={condition} onChange={setCondition} />
-          </div>
 
           {error && (
             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
@@ -344,19 +338,20 @@ export default function BullseyePage() {
       {state === 'loading' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
           <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-6" />
-          <h2 className="text-xl font-bold text-white mb-2">Analyzing your sneakers...</h2>
-          <p className="text-sm text-slate-400">Uploading photos and checking condition, authenticity, and market value</p>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Analyzing your sneakers...</h2>
+          <p className="text-sm text-slate-500">Uploading photos and checking condition, authenticity, and market value</p>
         </div>
       )}
 
       {/* Result with buy offer */}
       {state === 'result' && sneakerDetails && buyOffer && (
-        <div className="min-h-screen px-4 py-8">
+        <div className="min-h-screen px-4 py-8 bg-slate-900">
           <BuyOfferCard
             offer={buyOffer}
             sneakerDetails={sneakerDetails}
             itemName={itemName}
             images={uploadedUrls}
+            appraisalId={appraisalId}
             onAccept={() => setState('accepted')}
             onDecline={() => setState('declined')}
           />
@@ -366,8 +361,8 @@ export default function BullseyePage() {
       {/* Result without buy offer */}
       {state === 'result' && !buyOffer && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-          <h2 className="text-xl font-bold text-white mb-3">Appraisal Complete</h2>
-          <p className="text-slate-400 text-sm mb-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-3">Appraisal Complete</h2>
+          <p className="text-slate-500 text-sm mb-6">
             {itemName ? `We identified: ${itemName}` : 'Item identified.'}{' '}
             We couldn&apos;t generate a buy offer for this item. This service is currently for sneakers only.
           </p>
@@ -380,17 +375,17 @@ export default function BullseyePage() {
       {/* Accepted */}
       {state === 'accepted' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-          <div className="text-5xl mb-4">&#10003;</div>
-          <h2 className="text-2xl font-bold text-white mb-3">Offer Accepted</h2>
-          <p className="text-slate-400 text-sm max-w-sm mb-6">
+          <div className="text-5xl mb-4 text-green-500">&#10003;</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">Offer Accepted</h2>
+          <p className="text-slate-500 text-sm max-w-sm mb-6">
             Bring your sneakers to any Bullseye location within 48 hours. Show this screen to complete the sale.
           </p>
           {buyOffer && (
-            <div className="text-3xl font-extrabold text-red-500 mb-6">
+            <div className="text-3xl font-extrabold text-red-600 mb-6">
               ${buyOffer.amount.toFixed(2)}
             </div>
           )}
-          <button onClick={reset} className="px-6 py-3 border border-slate-600 text-slate-400 hover:text-white rounded-xl transition-colors">
+          <button onClick={reset} className="px-6 py-3 border border-slate-300 text-slate-600 hover:text-slate-900 rounded-xl transition-colors">
             Start New Offer
           </button>
         </div>
@@ -399,8 +394,8 @@ export default function BullseyePage() {
       {/* Declined */}
       {state === 'declined' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-          <h2 className="text-xl font-bold text-white mb-3">No problem</h2>
-          <p className="text-slate-400 text-sm max-w-sm mb-6">
+          <h2 className="text-xl font-bold text-slate-900 mb-3">No problem</h2>
+          <p className="text-slate-500 text-sm max-w-sm mb-6">
             Thanks for checking. You can always submit again or visit a Bullseye location for an in-person offer.
           </p>
           <button onClick={reset} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-colors">
@@ -427,7 +422,7 @@ function FilePreview({ file, index, onRemove }: { file: File; index: number; onR
       <img
         src={imageUrl}
         alt={`Photo ${index + 1}`}
-        className="w-full h-full object-cover rounded-lg border border-slate-700"
+        className="w-full h-full object-cover rounded-lg border border-slate-200"
       />
       <button
         type="button"

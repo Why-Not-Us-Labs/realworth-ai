@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function BullseyeLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-black text-white min-h-screen">
+    <div className="bg-white text-slate-900 min-h-screen">
       {children}
     </div>
   );

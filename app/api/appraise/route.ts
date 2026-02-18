@@ -881,6 +881,7 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
     // ---- Partner mode: compute buy offer + save to DB ----
     let buyOfferResult = null;
     let sneakerDetailsResult: SneakerDetails | null = null;
+    let partnerAppraisalId: string | undefined;
 
     if (partnerId && partnerConfig && appraisalData.sneakerDetails) {
       sneakerDetailsResult = appraisalData.sneakerDetails as SneakerDetails;
@@ -892,12 +893,13 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
       console.log(`[Appraise API] Partner buy offer: $${buyOfferResult.amount} (review: ${buyOfferResult.requiresManagerReview})`);
 
       // Save partner appraisal to DB (admin client to bypass RLS since no user auth)
+      partnerAppraisalId = crypto.randomUUID();
       try {
         const adminSupabase = createClient(supabaseUrl, supabaseServiceKey!, {
           auth: { persistSession: false },
         });
         await adminSupabase.from('rw_appraisals').insert({
-          id: crypto.randomUUID(),
+          id: partnerAppraisalId,
           item_name: appraisalData.itemName,
           author: appraisalData.author || null,
           era: appraisalData.era || null,
@@ -912,12 +914,13 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
           image_urls: imageUrls,
           input_images: imageUrls,
           status: 'complete',
+          is_public: true,
           partner_id: partnerId,
           sneaker_details: sneakerDetailsResult,
           buy_offer: buyOfferResult,
           buy_offer_status: buyOfferResult.requiresManagerReview ? 'review' : 'pending',
         });
-        console.log(`[Appraise API] Partner appraisal saved to DB`);
+        console.log(`[Appraise API] Partner appraisal saved to DB (id: ${partnerAppraisalId})`);
       } catch (dbError) {
         console.error('[Appraise API] Failed to save partner appraisal (non-blocking):', dbError);
       }
@@ -943,6 +946,7 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
       insuranceValue: appraisalData.insuranceValue || undefined,
       appraisalImprovements: appraisalData.appraisalImprovements || undefined,
       // Partner-specific fields
+      appraisalId: partnerId ? partnerAppraisalId : undefined,
       sneakerDetails: sneakerDetailsResult || undefined,
       buyOffer: buyOfferResult || undefined,
     });

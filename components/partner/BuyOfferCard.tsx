@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { BuyOffer, SneakerDetails } from '@/lib/types';
 import AuthenticityBadge from './AuthenticityBadge';
 import FlawList from './FlawList';
@@ -10,6 +10,7 @@ type Props = {
   sneakerDetails: SneakerDetails;
   itemName: string;
   images: string[];
+  appraisalId?: string | null;
   onAccept: () => void;
   onDecline: () => void;
 };
@@ -18,8 +19,23 @@ function formatMoney(n: number) {
   return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, onAccept, onDecline }: Props) {
+export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, appraisalId, onAccept, onDecline }: Props) {
   const { breakdown } = offer;
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleShare = async () => {
+    if (!appraisalId) return;
+    const shareUrl = `https://realworth.ai/treasure/${appraisalId}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: itemName, text: 'Check out my sneaker appraisal!', url: shareUrl });
+      } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="max-w-lg mx-auto space-y-6">
@@ -111,6 +127,17 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
         >
           Decline
         </button>
+        {appraisalId && (
+          <button
+            onClick={handleShare}
+            className="w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-2 border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            {linkCopied ? 'Link Copied!' : 'Share Appraisal'}
+          </button>
+        )}
       </div>
 
       {/* Store locations */}
