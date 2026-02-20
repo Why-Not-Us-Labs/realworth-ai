@@ -26,7 +26,8 @@ git push origin main # Auto-deploys to Vercel
 - **Payments**: Stripe (subscriptions, webhooks, customer portal)
 - **Email**: Resend (transactional emails)
 - **SMS**: Twilio (seller verification)
-- **Hosting**: Vercel (120s timeout for appraise, 60s for chat)
+- **UI Components**: shadcn/ui (Button, Card, Dialog via Radix primitives)
+- **Hosting**: Vercel (300s timeout for appraise, 60s for chat)
 
 ## Architecture
 
@@ -35,6 +36,7 @@ git push origin main # Auto-deploys to Vercel
 2. API route `/api/appraise/route.ts` fetches images, sends to Gemini for structured JSON appraisal
 3. Results stored in Supabase via `services/dbService.ts`
 4. Auth state managed globally via `AuthContext.tsx` wrapping the app
+5. Layout provider order: `AuthProvider` → `AppraisalProvider` → `ErrorBoundary` (in `app/layout.tsx`)
 
 ### View State Machine (`app/page.tsx`)
 The main page uses a state machine for the appraisal flow:
@@ -42,17 +44,23 @@ The main page uses a state machine for the appraisal flow:
 HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 ```
 
+### Partner Portal / White-Label
+- `middleware.ts` handles subdomain routing: `bullseyesb.realworth.ai` → `/partner/bullseye/*`
+- Partner pages at `app/partner/bullseye/` with separate layout (strips RealWorth branding)
+- Partner-specific components in `components/partner/`
+
 ### Key Patterns
 
 **Authentication Flow**:
 - `AuthContext` (`components/contexts/AuthContext.tsx`) provides user state app-wide
+- `AppraisalContext` (`components/contexts/AppraisalContext.tsx`) provides appraisal state
 - `authService.ts` wraps Supabase Auth (signInWithGoogle, onAuthStateChange)
 - API routes validate auth via `Authorization: Bearer <token>` header
 - RLS policies enforce data isolation at database level
 
 **Subscription System**:
 - `subscriptionService.ts` manages Pro tier logic with Stripe integration
-- Free tier: 2 appraisals/month (tracked in `users.monthly_appraisal_count`)
+- Free tier: 2 appraisals/month (tracked in `users.monthly_appraisal_count`, constant `FREE_APPRAISAL_LIMIT` in `lib/constants.ts`)
 - Pro tier: $19.99/mo or $149.99/yr (V2 prices with legacy $9.99 grandfathering)
 - **Pay-per-appraisal**: $1.99 one-time for 1 credit (tracked in `users.appraisal_credits`)
 - Free limit defined in `lib/constants.ts` as `FREE_APPRAISAL_LIMIT`
@@ -129,48 +137,68 @@ HOME → FORM → LOADING (trivia quiz) → CELEBRATION → RESULT
 | `/api/feed/like` | POST | Toggle like on appraisal |
 | `/api/feed/save` | POST | Toggle save/bookmark |
 | `/api/feed/comment` | GET/POST/DELETE | Comments CRUD |
+| `/api/feed/saved` | GET | User's saved/bookmarked items |
+| `/api/feed/engagement` | GET | Engagement metrics |
+| `/api/discover` | GET | Discovery/trending feed |
+| `/api/leaderboard/weekly` | GET | Weekly leaderboard |
+| `/api/friends` | Various | Friend requests and management |
+| `/api/admin/flags` | Various | Feature flag management |
+| `/api/apple/verify-purchase` | POST | StoreKit 2 IAP verification |
+| `/api/apple/webhook` | POST | App Store Server notifications |
+| `/api/notifications/register` | POST | Push notification registration |
+| `/api/certificate/[id]` | GET | Insurance certificate generation |
+| `/api/account/delete` | POST | Account deletion |
+| `/api/appraise/can-create` | GET | Check if user can create appraisal |
 
 ### Services Layer (`services/`)
 - `authService.ts` - Supabase Auth wrapper
-- `dbService.ts` - Appraisals CRUD, user streaks, friend operations
-- `subscriptionService.ts` - Pro tier, usage limits, Stripe customer management
+- `dbService.ts` - Appraisals CRUD, user streaks, friend operations (largest service, ~1100 lines)
+- `subscriptionService.ts` - Pro tier, usage limits, Stripe customer management, token balance
+- `tokenService.ts` - Token/credit system (WNU Platform)
 - `collectionService.ts` - Collection management with validation
 - `chatService.ts` - AI chat history for Pro users
 - `featureFlagService.ts` - Database-driven feature flag management
+- `ebayPriceService.ts` - eBay API integration with 48-hour `price_cache` table
 - `transactionService.ts` - Marketplace transactions with Stripe Connect
 - `listingService.ts` - Marketplace listings management
 - `eventService.ts` - Local events/garage sales
-- `sellerService.ts` - Seller onboarding and verification
+- `sellerService.ts` - Seller onboarding (Stripe Connect, Twilio SMS)
+- `socialService.ts` - Social features (friends, follows)
+- `notificationService.ts` - Push notifications
+- `metalPriceService.ts` - Precious metal market prices
+- `numismaticContextService.ts` - Coin/numismatic specialized data
+- `buyOfferService.ts` - Buy offer calculations for partner portal
 
 ### Custom Hooks (`hooks/`)
 - `useAppraisal.ts` - Appraisal submission and state
-- `useSubscription.ts` - Subscription state and limit checking
+- `useSubscription.ts` - Subscription state with Supabase Realtime listener + polling fallback
 - `useChat.ts` - AI chat functionality
-- `useLocalStorage.ts` - Persistent storage wrapper
 - `useQueue.ts` - Batch processing queue state with polling
+- `useScanQueue.tsx` - Scan mode queue management
+- `useSeller.ts` - Seller onboarding flow
+- `useStoreKit.ts` - Apple StoreKit 2 IAP integration
 - `useSurvey.ts` - Feature validation survey management
-- `useSpeechRecognition.ts` - Browser speech-to-text wrapper
-- `useDescriptionGenerator.ts` - AI-powered item descriptions
 - `useFeatureFlag.ts` - Feature flag state for components
 
 ### Database Schema
 
 Main tables (see `supabase/schema.sql` and migrations):
 - `users` - Extends auth.users with profile, subscription, streak, and credit fields
-  - `appraisal_credits` (INTEGER) - Pay-per-appraisal balance
-  - `monthly_appraisal_count` (INTEGER) - Free tier usage tracking
-- `appraisals` - Appraisal results with foreign key to users
-  - `is_public` (BOOLEAN) - Whether visible in discovery feed
-  - `like_count`, `comment_count` (INTEGER) - Denormalized counters
-  - `image_urls` (TEXT[]) - Multi-image carousel support
+  - Has both `name`/`picture` AND `display_name`/`avatar_url` (synced via trigger)
+- `rw_appraisals` - Appraisal results (**NOT `appraisals`** — always use `.from('rw_appraisals')`)
+  - `input_images` (text[], NOT NULL) and `status` (text, NOT NULL default 'pending') required for INSERT
+  - FK join syntax: use `rw_appraisals:appraisal_id` in Supabase select queries
+- `subscriptions` - Subscription records (separate from users table)
+- `token_balances` - Token/credit tracking (WNU Platform)
 - `collections` - User collections with validation metadata
-- `access_codes` - Pro access codes for promotional grants
+- `price_cache` - eBay price data with 48-hour TTL
 - `friendships` - Friend requests (user_id, friend_id, status)
 - `chat_messages` - Pro user AI chat history
+- `likes`, `saves`, `comments` - Social engagement (comments support threading via parent_id)
+- `listings`, `transactions` - Marketplace
+- `events` - Local events/garage sales
+- `feature_flags` - Database-driven flags
 - `surveys` - Feature validation survey responses
-- `likes` - User likes on appraisals (user_id, appraisal_id)
-- `saves` - User bookmarks/saves (user_id, appraisal_id)
-- `comments` - Comments on appraisals with threading (parent_id)
 - `appraisal_purchases` - Pay-per-appraisal transaction history
 
 User profile auto-created via `handle_new_user()` trigger on auth signup.
@@ -212,12 +240,14 @@ Project ID: `ahwensdtjsvuqxbjgkgv`
 
 ## Important Notes
 
-- API route timeouts configured in `vercel.json`: 120s for `/api/appraise`, 60s for `/api/chat` - requires Vercel Pro
+- API route timeouts configured in `vercel.json`: 300s for `/api/appraise`, 60s for `/api/chat` - requires Vercel Pro
 - Supabase client in `lib/supabase.ts` is for client-side; API routes create authenticated clients with user tokens
 - `getSupabaseAdmin()` returns a service-role client that bypasses RLS - use only in API routes/webhooks
-- Free tier limit of 3 appraisals/month enforced via `FREE_APPRAISAL_LIMIT` constant in `lib/constants.ts`
+- **All API routes** that read user data must use `getSupabaseAdmin()` (anon client has no auth context in API routes, RLS blocks everything)
+- Free tier limit of 2 appraisals/month enforced via `FREE_APPRAISAL_LIMIT` constant in `lib/constants.ts`
 - Super admin emails are hardcoded in `subscriptionService.ts` and bypass all limits
 - Admin dashboard at `/admin` requires super admin authentication; manages feature flags
+- See `LESSONS_LEARNED.md` for detailed debugging history (Stripe webhooks, env var issues, RLS gotchas)
 
 ## Project Management
 
@@ -227,9 +257,11 @@ Project ID: `ahwensdtjsvuqxbjgkgv`
 - Assignee (Gavin): `ab6f874f-1af3-4a8a-8d1a-71ae542bf019`
 - See `HISTORY.md` for development changelog
 
-## Mobile App (React Native)
+## Mobile App
 
-Located in `mobile/` - separate React Native app for iOS/Android.
+The project has two mobile approaches:
+1. **Capacitor** (primary) - `capacitor.config.ts` at root, wraps the Next.js web app for iOS
+2. **React Native** - Located in `mobile/`, separate native app for iOS/Android
 
 **Commands** (run from `mobile/` directory):
 ```bash
@@ -300,11 +332,6 @@ This section records patterns and corrections. Add to it when Claude makes mista
 - Full rebuild required after native changes: `rm -rf ios/build && bundle exec pod install`
 - See `MOBILE_APP_SETUP.md` for detailed debugging guide and common errors
 
-### Database (WNU Platform Migration - Feb 2026)
+### Database (WNU Platform - Feb 2026)
 - **The app uses `wnu-platform` Supabase project** (ID: `ahwensdtjsvuqxbjgkgv`), NOT `realworth-db`
-- **Table name is `rw_appraisals`** (not `appraisals`) - always use `.from('rw_appraisals')`
-- **FK join syntax**: Use `rw_appraisals:appraisal_id` in Supabase select queries
-- **Required columns for INSERT**: `input_images` (text[], NOT NULL) and `status` (text, NOT NULL default 'pending')
-- Users table has both `name`/`picture` AND `display_name`/`avatar_url` (synced via trigger)
-- Subscriptions are in separate `subscriptions` table, not on users table
-- Token system uses `token_balances` table (WNU Platform feature)
+- See Database Schema section above for table details and naming conventions
