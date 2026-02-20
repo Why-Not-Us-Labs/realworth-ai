@@ -478,12 +478,13 @@ export async function POST(req: NextRequest) {
   try {
     // Accept JSON body with image URLs (uploaded directly to Supabase Storage)
     const body = await req.json();
-    const { imageUrls, imagePaths, condition, collectionId, partnerId } = body as {
+    const { imageUrls, imagePaths, condition, collectionId, partnerId, storeLocation } = body as {
       imageUrls: string[];
       imagePaths: string[];
       condition?: string;
       collectionId?: string;
       partnerId?: string; // Partner mode — skips auth, adds sneaker prompt & buy offer
+      storeLocation?: string; // Partner store attribution from QR code
     };
 
     // ---- Partner config lookup (if partner mode) ----
@@ -919,6 +920,7 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
           sneaker_details: sneakerDetailsResult,
           buy_offer: buyOfferResult,
           buy_offer_status: buyOfferResult.requiresManagerReview ? 'review' : 'pending',
+          ...(storeLocation && { source_store: storeLocation }),
         });
         console.log(`[Appraise API] Partner appraisal saved to DB (id: ${partnerAppraisalId})`);
       } catch (dbError) {

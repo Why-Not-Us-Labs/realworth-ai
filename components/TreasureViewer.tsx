@@ -26,6 +26,19 @@ interface TreasureData {
   user_id: string;
   confidence_score?: number;
   confidence_factors?: Array<{ factor: string; impact: string; detail: string }>;
+  partner_id?: string;
+  sneaker_details?: {
+    brand?: string;
+    model?: string;
+    colorway?: string;
+    conditionGrade?: string;
+    authenticityScore?: number;
+  };
+  buy_offer?: {
+    amount?: number;
+    expiresAt?: string;
+  };
+  image_urls?: string[];
 }
 
 interface TreasureViewerProps {
@@ -262,6 +275,79 @@ export function TreasureViewer({ treasureId }: TreasureViewerProps) {
             Discover Your Own Treasures
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  // Partner-branded view for Bullseye appraisals
+  if (treasure.partner_id === 'bullseye') {
+    const sneaker = treasure.sneaker_details;
+    const offer = treasure.buy_offer;
+    const images = treasure.image_urls || (treasure.image_url ? [treasure.image_url] : []);
+
+    return (
+      <div className="min-h-screen bg-slate-900">
+        <header className="bg-slate-900 border-b border-slate-800">
+          <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-center gap-2">
+            <img src="/partners/bullseye-logo.png" alt="Bullseye" className="h-7" />
+            <span className="text-slate-500 text-sm">x</span>
+            <img src="/partners/realworth-collab-logo.png" alt="RealWorth" className="h-7" />
+          </div>
+        </header>
+
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
+          {/* Images */}
+          {images.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {images.map((url, i) => (
+                <img key={i} src={url} alt={`${treasure.item_name} photo ${i + 1}`} className="h-32 w-32 rounded-lg object-cover shrink-0 border border-slate-700" />
+              ))}
+            </div>
+          )}
+
+          {/* Item info */}
+          <div>
+            <h1 className="text-xl font-bold text-white">{treasure.item_name}</h1>
+            {sneaker && (
+              <p className="text-sm text-slate-400 mt-1">
+                {sneaker.brand} {sneaker.model} {sneaker.colorway ? `\u00B7 ${sneaker.colorway}` : ''}
+              </p>
+            )}
+            {sneaker?.conditionGrade && (
+              <p className="text-xs text-slate-500 mt-1">Condition: {sneaker.conditionGrade}</p>
+            )}
+          </div>
+
+          {/* Offer amount */}
+          {offer?.amount && (
+            <div className="text-center py-6 rounded-xl bg-gradient-to-br from-red-600 to-red-800 border border-red-500/30">
+              <div className="text-sm text-red-200 font-medium mb-1">Bullseye Offer</div>
+              <div className="text-4xl font-extrabold text-white tracking-tight">
+                ${offer.amount.toFixed(2)}
+              </div>
+            </div>
+          )}
+
+          {/* Description */}
+          <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+            <p className="text-sm text-slate-300 leading-relaxed">{treasure.description}</p>
+          </div>
+
+          {/* CTA */}
+          <div className="text-center pt-4">
+            <p className="text-slate-400 text-sm mb-4">Want your own sneaker offer?</p>
+            <a
+              href="https://bullseyesb.realworth.ai"
+              className="inline-block px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-lg transition-colors"
+            >
+              Get Your Offer
+            </a>
+          </div>
+        </main>
+
+        <footer className="text-center p-6 text-slate-600 text-xs">
+          <p>Bullseye x RealWorth.ai</p>
+        </footer>
       </div>
     );
   }

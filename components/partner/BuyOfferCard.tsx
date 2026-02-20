@@ -15,6 +15,19 @@ type Props = {
   onDecline: () => void;
 };
 
+async function persistOfferStatus(appraisalId: string, status: 'accepted' | 'declined') {
+  try {
+    await fetch('/api/partner/offer-response', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ appraisalId, status }),
+    });
+  } catch {
+    // Non-blocking — still transition state even if API fails
+    console.error('[BuyOfferCard] Failed to persist offer status');
+  }
+}
+
 function formatMoney(n: number) {
   return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
@@ -22,6 +35,19 @@ function formatMoney(n: number) {
 export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, appraisalId, onAccept, onDecline }: Props) {
   const { breakdown } = offer;
   const [linkCopied, setLinkCopied] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
+
+  const handleAccept = async () => {
+    setIsResponding(true);
+    if (appraisalId) await persistOfferStatus(appraisalId, 'accepted');
+    onAccept();
+  };
+
+  const handleDecline = async () => {
+    setIsResponding(true);
+    if (appraisalId) await persistOfferStatus(appraisalId, 'declined');
+    onDecline();
+  };
 
   const handleShare = async () => {
     if (!appraisalId) return;
@@ -116,14 +142,16 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
       {/* CTA */}
       <div className="space-y-3 pt-2">
         <button
-          onClick={onAccept}
-          className="w-full py-3 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-700 active:bg-red-800 text-white transition-colors"
+          onClick={handleAccept}
+          disabled={isResponding}
+          className="w-full py-3 rounded-xl font-bold text-lg bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 text-white transition-colors"
         >
-          Accept Offer
+          {isResponding ? 'Processing...' : 'Accept Offer'}
         </button>
         <button
-          onClick={onDecline}
-          className="w-full py-3 rounded-xl font-medium text-sm border border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white transition-colors"
+          onClick={handleDecline}
+          disabled={isResponding}
+          className="w-full py-3 rounded-xl font-medium text-sm border border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white disabled:opacity-50 transition-colors"
         >
           Decline
         </button>

@@ -10,21 +10,23 @@ interface TreasurePageProps {
 // Fetch treasure data for metadata generation (public treasures only)
 async function getPublicTreasure(id: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // Use service role for metadata fetch to ensure partner appraisals (no user_id) are accessible
+  const supabase = supabaseServiceKey
+    ? createClient(supabaseUrl, supabaseServiceKey)
+    : createClient(supabaseUrl, supabaseAnonKey);
 
-  // Only fetch public treasures for metadata (anon key can only see public)
   const { data, error } = await supabase
     .from('rw_appraisals')
-    .select('id, item_name, description, price_low, price_high, currency, ai_image_url, image_urls, is_public')
+    .select('id, item_name, description, price_low, price_high, currency, ai_image_url, image_urls, is_public, partner_id, sneaker_details, buy_offer')
     .eq('id', id)
     .eq('is_public', true)
     .single();
 
   if (error || !data) return null;
 
-  // Map to expected format with image_url
   return {
     ...data,
     image_url: data.ai_image_url || (data.image_urls && data.image_urls[0]) || '',
@@ -39,6 +41,37 @@ export async function generateMetadata({ params }: TreasurePageProps): Promise<M
     return {
       title: 'Treasure | RealWorth.ai',
       description: 'Discover the value of your items with AI-powered appraisals.',
+    };
+  }
+
+  // Bullseye partner-branded metadata
+  if (treasure.partner_id === 'bullseye') {
+    const buyOffer = treasure.buy_offer as { amount?: number } | null;
+    const offerAmount = buyOffer?.amount ? `$${buyOffer.amount.toFixed(0)}` : null;
+    const title = offerAmount
+      ? `${treasure.item_name} — Bullseye Offer: ${offerAmount}`
+      : `${treasure.item_name} — Bullseye x RealWorth`;
+    const description = offerAmount
+      ? `AI-powered sneaker offer: ${offerAmount}. Get your own instant cash offer at Bullseye.`
+      : `AI-powered sneaker appraisal. Get your own instant cash offer at Bullseye.`;
+    const ogImage = 'https://realworth.ai/partners/bullseye-og.png';
+
+    return {
+      title: `${title} | Bullseye x RealWorth`,
+      description,
+      openGraph: {
+        title,
+        description,
+        images: [ogImage],
+        type: 'article',
+        siteName: 'Bullseye x RealWorth',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        images: [ogImage],
+      },
     };
   }
 

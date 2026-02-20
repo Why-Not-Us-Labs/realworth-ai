@@ -12,6 +12,14 @@ const supabase = createClient(
 
 type AppState = 'landing' | 'form' | 'loading' | 'result' | 'accepted' | 'declined';
 
+const LOADING_STEPS = [
+  { label: 'Uploading photos...', delay: 0 },
+  { label: 'Identifying sneaker model...', delay: 4000 },
+  { label: 'Checking authenticity markers...', delay: 12000 },
+  { label: 'Looking up market prices...', delay: 22000 },
+  { label: 'Calculating your offer...', delay: 35000 },
+];
+
 // --- Helpers ---
 
 async function uploadFile(file: File): Promise<string | null> {
@@ -94,6 +102,9 @@ export default function BullseyePage() {
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [loadingElapsed, setLoadingElapsed] = useState(0);
+  const [storeLocation, setStoreLocation] = useState<string | null>(null);
 
   // Result state
   const [itemName, setItemName] = useState('');
@@ -101,14 +112,46 @@ export default function BullseyePage() {
   const [sneakerDetails, setSneakerDetails] = useState<SneakerDetails | null>(null);
   const [buyOffer, setBuyOffer] = useState<BuyOffer | null>(null);
 
-  // Restore uploaded URLs from sessionStorage on mount (survives camera reload)
+  // Read ?store= param and restore session state on mount
   useEffect(() => {
-    const saved = loadUrls();
-    if (saved.length > 0) {
-      setUploadedUrls(saved);
+    const params = new URLSearchParams(window.location.search);
+    const store = params.get('store');
+    if (store) {
+      setStoreLocation(store);
+      try { sessionStorage.setItem('bse_store', store); } catch {}
+    } else {
+      try {
+        const saved = sessionStorage.getItem('bse_store');
+        if (saved) setStoreLocation(saved);
+      } catch {}
+    }
+
+    const savedUrls = loadUrls();
+    if (savedUrls.length > 0) {
+      setUploadedUrls(savedUrls);
       setState('form');
     }
   }, []);
+
+  // Loading step timer
+  useEffect(() => {
+    if (state !== 'loading') {
+      setLoadingStep(0);
+      setLoadingElapsed(0);
+      return;
+    }
+    const start = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - start;
+      setLoadingElapsed(elapsed);
+      const step = LOADING_STEPS.reduce(
+        (acc, s, i) => (elapsed >= s.delay ? i : acc),
+        0
+      );
+      setLoadingStep(step);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [state]);
 
   // When files are added, store them for preview (upload happens at submit time, like main app)
   const handleFiles = useCallback((fileList: FileList | null) => {
@@ -159,6 +202,9 @@ export default function BullseyePage() {
           throw new Error('Failed to upload images. Please try again.');
         }
         urls = uploaded;
+        // Save URLs immediately so they survive if the API call fails
+        setUploadedUrls(urls);
+        saveUrls(urls);
       }
 
       const res = await fetch('/api/appraise', {
@@ -168,6 +214,7 @@ export default function BullseyePage() {
           imageUrls: urls,
           imagePaths: [],
           partnerId: 'bullseye',
+          ...(storeLocation && { storeLocation }),
         }),
       });
 
@@ -184,7 +231,14 @@ export default function BullseyePage() {
       clearUrls();
       setState('result');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong');
+      const msg = e instanceof Error ? e.message : 'Something went wrong';
+      // Provide friendlier error for sneaker detection failures
+      if (msg.toLowerCase().includes('sneaker') || msg.toLowerCase().includes('not detected')) {
+        setError('We couldn\'t identify sneakers in your photos. Try taking clearer photos showing the full shoe from multiple angles.');
+      } else {
+        setError(msg);
+      }
+      // uploadedUrls already preserved via setUploadedUrls/saveUrls after upload step
       setState('form');
     } finally {
       setIsSubmitting(false);
@@ -234,7 +288,11 @@ export default function BullseyePage() {
               <span className="text-slate-300 text-lg font-normal">x</span>
               <img src="/partners/realworth-collab-logo.png" alt="RealWorth" className="h-10" />
             </div>
-            <p className="text-slate-500 text-sm mt-2">AI-Powered Sneaker Offers</p>
+            {storeLocation ? (
+              <p className="text-slate-500 text-sm mt-2">Welcome to Bullseye {storeLocation.charAt(0).toUpperCase() + storeLocation.slice(1)}</p>
+            ) : (
+              <p className="text-slate-500 text-sm mt-2">AI-Powered Sneaker Offers</p>
+            )}
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-3">
             Get an instant cash offer for your sneakers
@@ -244,7 +302,7 @@ export default function BullseyePage() {
           </p>
           <button
             onClick={() => setState('form')}
-            className="px-8 py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded-xl text-lg transition-colors"
+            className="px-10 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded-xl text-xl transition-colors shadow-lg shadow-red-500/20"
           >
             Get Your Offer
           </button>
@@ -263,8 +321,14 @@ export default function BullseyePage() {
             </div>
           </div>
 
-          <h2 className="text-lg font-bold text-slate-900 mb-4">Take sneaker photos</h2>
-          <p className="text-xs text-slate-500 mb-4">Up to 5 photos &middot; Multiple angles help accuracy</p>
+          <h2 className="text-lg font-bold text-slate-900 mb-1">Take sneaker photos</h2>
+          <p className="text-xs text-slate-500 mb-4">
+            {photoCount === 0
+              ? 'Up to 5 photos \u00B7 Multiple angles help accuracy'
+              : photoCount < 3
+                ? `${photoCount} photo${photoCount > 1 ? 's' : ''} added \u2014 more angles = better offer`
+                : `${photoCount} photos added \u2014 great coverage!`}
+          </p>
 
           {/* Mobile: Camera button — same pattern as main RealWorth FileUpload */}
           {photoCount < maxFiles && (
@@ -319,8 +383,11 @@ export default function BullseyePage() {
           )}
 
           {error && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400">
-              {error}
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-600">
+              <p>{error}</p>
+              {uploadedUrls.length > 0 && (
+                <p className="text-xs text-slate-500 mt-1">Your photos have been saved — tap &quot;Get My Offer&quot; to try again.</p>
+              )}
             </div>
           )}
 
@@ -339,7 +406,28 @@ export default function BullseyePage() {
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
           <div className="w-12 h-12 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-6" />
           <h2 className="text-xl font-bold text-slate-900 mb-2">Analyzing your sneakers...</h2>
-          <p className="text-sm text-slate-500">Uploading photos and checking condition, authenticity, and market value</p>
+          <div className="space-y-2 mt-4 w-full max-w-xs">
+            {LOADING_STEPS.map((step, i) => (
+              <div
+                key={step.label}
+                className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                  i < loadingStep ? 'text-green-600' : i === loadingStep ? 'text-slate-900 font-medium' : 'text-slate-300'
+                }`}
+              >
+                {i < loadingStep ? (
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                ) : i === loadingStep ? (
+                  <div className="w-4 h-4 flex-shrink-0 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <div className="w-4 h-4 flex-shrink-0 rounded-full border-2 border-slate-200" />
+                )}
+                <span>{step.label}</span>
+              </div>
+            ))}
+          </div>
+          {loadingElapsed > 120000 && (
+            <p className="text-xs text-amber-600 mt-6">Taking longer than expected... hang tight!</p>
+          )}
         </div>
       )}
 
