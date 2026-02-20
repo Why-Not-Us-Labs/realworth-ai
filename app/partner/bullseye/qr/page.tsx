@@ -1,12 +1,7 @@
 'use client';
 
 import { QRCodeSVG } from 'qrcode.react';
-
-const STORES = [
-  { id: 'philly', name: 'Philadelphia, PA' },
-  { id: 'delaware', name: 'Delaware' },
-  { id: 'pennsylvania', name: 'Pennsylvania' },
-];
+import { BULLSEYE_STORES } from '@/lib/partnerConfig';
 
 const BASE_URL = 'https://bullseyesb.realworth.ai';
 
@@ -26,7 +21,7 @@ export default function BullseyeQRPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 print:grid-cols-3 print:gap-4">
-          {STORES.map((store) => {
+          {BULLSEYE_STORES.map((store) => {
             const url = `${BASE_URL}/?store=${store.id}`;
             return (
               <div
