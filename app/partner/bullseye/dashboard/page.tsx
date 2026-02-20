@@ -6,6 +6,7 @@ import { isBullseyeAdmin, BULLSEYE_STORES } from '@/lib/partnerConfig';
 import { MetricsCards } from '@/components/partner/dashboard/MetricsCards';
 import { AppraisalsChart } from '@/components/partner/dashboard/AppraisalsChart';
 import { PipelineView } from '@/components/partner/dashboard/PipelineView';
+import SubmitAppraisalModal from '@/components/partner/dashboard/SubmitAppraisalModal';
 import type { PipelineAppraisal } from '@/components/partner/dashboard/AppraisalRow';
 import type { Session } from '@supabase/supabase-js';
 
@@ -37,6 +38,7 @@ export default function BullseyeDashboard() {
   const [range, setRange] = useState<'7d' | '30d' | 'all'>('30d');
   const [sourceStore, setSourceStore] = useState<string>('');
   const [signingIn, setSigningIn] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   // Check auth on mount
   useEffect(() => {
@@ -263,12 +265,20 @@ export default function BullseyeDashboard() {
           ))}
         </div>
 
-        <button
-          onClick={handleExport}
-          className="ml-auto text-xs font-medium px-3 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          Export CSV
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setShowSubmitModal(true)}
+            className="text-xs font-medium px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+          >
+            + New Appraisal
+          </button>
+          <button
+            onClick={handleExport}
+            className="text-xs font-medium px-3 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Error state */}
@@ -295,6 +305,13 @@ export default function BullseyeDashboard() {
           <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : null}
+
+      {showSubmitModal && (
+        <SubmitAppraisalModal
+          onSuccess={() => { setShowSubmitModal(false); fetchData(); }}
+          onClose={() => setShowSubmitModal(false)}
+        />
+      )}
     </div>
   );
 }
