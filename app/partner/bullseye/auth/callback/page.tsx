@@ -21,7 +21,7 @@ export default function BullseyeAuthCallback() {
 
       if (error) {
         setStatus(`Error: ${errorDescription || error}`);
-        setTimeout(() => router.replace('/dashboard'), 3000);
+        setTimeout(() => router.replace('/partner/bullseye/dashboard'), 3000);
         return;
       }
 
@@ -34,7 +34,7 @@ export default function BullseyeAuthCallback() {
 
         if (sessionError) {
           setStatus(`Session error: ${sessionError.message}`);
-          setTimeout(() => router.replace('/dashboard'), 3000);
+          setTimeout(() => router.replace('/partner/bullseye/dashboard'), 3000);
           return;
         }
       } else if (code) {
@@ -43,13 +43,13 @@ export default function BullseyeAuthCallback() {
 
         if (exchangeError) {
           setStatus(`Sign-in error: ${exchangeError.message}`);
-          setTimeout(() => router.replace('/dashboard'), 3000);
+          setTimeout(() => router.replace('/partner/bullseye/dashboard'), 3000);
           return;
         }
       }
 
       await new Promise(resolve => setTimeout(resolve, 300));
-      router.replace('/dashboard');
+      router.replace('/partner/bullseye/dashboard');
     };
 
     handleCallback();

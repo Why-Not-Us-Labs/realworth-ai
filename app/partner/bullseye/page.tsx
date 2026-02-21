@@ -232,13 +232,11 @@ export default function BullseyePage() {
       setState('result');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Something went wrong';
-      // Provide friendlier error for sneaker detection failures
       if (msg.toLowerCase().includes('sneaker') || msg.toLowerCase().includes('not detected')) {
         setError('We couldn\'t identify sneakers in your photos. Try taking clearer photos showing the full shoe from multiple angles.');
       } else {
         setError(msg);
       }
-      // uploadedUrls already preserved via setUploadedUrls/saveUrls after upload step
       setState('form');
     } finally {
       setIsSubmitting(false);

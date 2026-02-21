@@ -133,7 +133,6 @@ export default function BullseyeDashboard() {
     if (!session?.access_token) return;
     const params = new URLSearchParams({ range });
     if (sourceStore) params.set('source_store', sourceStore);
-    // Open in new tab — the browser will download the CSV
     window.open(`/api/partner/dashboard/export?${params}`, '_blank');
   };
 
