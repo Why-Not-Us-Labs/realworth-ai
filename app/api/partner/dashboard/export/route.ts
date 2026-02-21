@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     let query = admin
       .from('rw_appraisals')
-      .select('id, item_name, buy_offer, buy_offer_status, sneaker_details, source_store, created_at, completed_at')
+      .select('id, item_name, buy_offer, buy_offer_status, decline_reason, sneaker_details, source_store, created_at, completed_at')
       .eq('partner_id', 'bullseye')
       .order('created_at', { ascending: false });
 
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch data' }, { status: 500 });
     }
 
-    const headers = ['ID', 'Item Name', 'Brand', 'Model', 'Size', 'Condition', 'Offer Amount', 'Status', 'Store', 'Created', 'Completed'];
+    const headers = ['ID', 'Item Name', 'Brand', 'Model', 'Size', 'Condition', 'Offer Amount', 'Status', 'Decline Reason', 'Store', 'Created', 'Completed'];
     const csvLines = [headers.join(',')];
 
     for (const row of rows || []) {
@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
         escapeCSV(sneaker?.conditionGrade),
         escapeCSV(offer?.amount?.toFixed(2)),
         escapeCSV(row.buy_offer_status),
+        escapeCSV(row.decline_reason),
         escapeCSV(row.source_store),
         escapeCSV(row.created_at?.substring(0, 10)),
         escapeCSV(row.completed_at?.substring(0, 10)),

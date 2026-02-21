@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     // Fetch all partner appraisals
     let query = admin
       .from('rw_appraisals')
-      .select('id, item_name, input_images, buy_offer, buy_offer_status, sneaker_details, source_store, created_at, completed_at')
+      .select('id, item_name, input_images, buy_offer, buy_offer_status, decline_reason, sneaker_details, source_store, created_at, completed_at')
       .eq('partner_id', 'bullseye')
       .order('created_at', { ascending: false });
 
@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
       thumbnailUrl: string | null;
       offerAmount: number;
       buyOfferStatus: string;
+      declineReason: string | null;
       sneakerBrand: string | null;
       sneakerModel: string | null;
       sneakerSize: string | null;
@@ -114,6 +115,7 @@ export async function GET(req: NextRequest) {
         thumbnailUrl: (row.input_images as string[] | null)?.[0] || null,
         offerAmount,
         buyOfferStatus: status,
+        declineReason: (row.decline_reason as string) || null,
         sneakerBrand: sneaker?.brand || null,
         sneakerModel: sneaker?.model || null,
         sneakerSize: sneaker?.size || null,
@@ -171,6 +173,18 @@ export async function GET(req: NextRequest) {
       count,
     }));
 
+    // Build decline reasons summary
+    const reasonCounts: Record<string, number> = {};
+    for (const row of rows) {
+      const reason = row.decline_reason as string | null;
+      if (reason) {
+        reasonCounts[reason] = (reasonCounts[reason] || 0) + 1;
+      }
+    }
+    const declineReasons = Object.entries(reasonCounts)
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count);
+
     return NextResponse.json({
       metrics: {
         totalAppraisals,
@@ -182,6 +196,7 @@ export async function GET(req: NextRequest) {
       pipeline,
       chartData,
       stores,
+      declineReasons,
     });
   } catch (e) {
     console.error('[Partner Dashboard] Error:', e);

@@ -15,12 +15,21 @@ type Props = {
   onDecline: () => void;
 };
 
-async function persistOfferStatus(appraisalId: string, status: 'accepted' | 'declined') {
+const DECLINE_REASONS = [
+  'Offer too low',
+  'Changed my mind',
+  'Wrong item identified',
+  'Want to sell elsewhere',
+  'Just browsing',
+  'Other',
+] as const;
+
+async function persistOfferStatus(appraisalId: string, status: 'accepted' | 'declined', declineReason?: string) {
   try {
     await fetch('/api/partner/offer-response', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ appraisalId, status }),
+      body: JSON.stringify({ appraisalId, status, declineReason }),
     });
   } catch {
     // Non-blocking — still transition state even if API fails
@@ -36,6 +45,8 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
   const { breakdown } = offer;
   const [linkCopied, setLinkCopied] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
 
   const handleAccept = async () => {
     setIsResponding(true);
@@ -43,9 +54,14 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
     onAccept();
   };
 
-  const handleDecline = async () => {
+  const handleDeclineClick = () => {
+    setShowDeclineModal(true);
+  };
+
+  const handleConfirmDecline = async () => {
+    setShowDeclineModal(false);
     setIsResponding(true);
-    if (appraisalId) await persistOfferStatus(appraisalId, 'declined');
+    if (appraisalId) await persistOfferStatus(appraisalId, 'declined', selectedReason || undefined);
     onDecline();
   };
 
@@ -149,7 +165,7 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
           {isResponding ? 'Processing...' : 'Accept Offer'}
         </button>
         <button
-          onClick={handleDecline}
+          onClick={handleDeclineClick}
           disabled={isResponding}
           className="w-full py-3 rounded-xl font-medium text-sm border border-slate-600 text-slate-400 hover:border-slate-400 hover:text-white disabled:opacity-50 transition-colors"
         >
@@ -176,6 +192,41 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
           <p className="text-slate-500">Offer valid for 48 hours</p>
         </div>
       </div>
+
+      {/* Decline reason modal */}
+      {showDeclineModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setShowDeclineModal(false)}>
+          <div
+            className="w-full max-w-lg bg-slate-800 rounded-t-2xl p-6 pb-8 animate-in slide-in-from-bottom duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 bg-slate-600 rounded-full mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-white mb-1">Why are you declining?</h3>
+            <p className="text-sm text-slate-400 mb-4">Optional — helps us improve our offers</p>
+            <div className="space-y-2 mb-6">
+              {DECLINE_REASONS.map((reason) => (
+                <button
+                  key={reason}
+                  onClick={() => setSelectedReason(selectedReason === reason ? null : reason)}
+                  className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-colors ${
+                    selectedReason === reason
+                      ? 'bg-red-600/20 border border-red-500 text-white'
+                      : 'bg-slate-700/50 border border-slate-600 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  {reason}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleConfirmDecline}
+              className="w-full py-3 rounded-xl font-bold text-sm bg-slate-700 hover:bg-slate-600 text-white transition-colors"
+            >
+              Confirm Decline
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

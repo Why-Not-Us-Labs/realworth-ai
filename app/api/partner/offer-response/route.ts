@@ -16,9 +16,10 @@ function getSupabaseAdmin() {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const { appraisalId, status } = (await req.json()) as {
+    const { appraisalId, status, declineReason } = (await req.json()) as {
       appraisalId: string;
       status: 'accepted' | 'declined';
+      declineReason?: string;
     };
 
     if (!appraisalId || !['accepted', 'declined'].includes(status)) {
@@ -30,9 +31,14 @@ export async function PATCH(req: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
+    const updateData: Record<string, string> = { buy_offer_status: status };
+    if (status === 'declined' && declineReason) {
+      updateData.decline_reason = declineReason;
+    }
+
     const { error } = await supabase
       .from('rw_appraisals')
-      .update({ buy_offer_status: status })
+      .update(updateData)
       .eq('id', appraisalId)
       .not('partner_id', 'is', null); // Safety: only update partner appraisals
 

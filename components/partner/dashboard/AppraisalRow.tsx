@@ -8,6 +8,7 @@ export type PipelineAppraisal = {
   thumbnailUrl: string | null;
   offerAmount: number;
   buyOfferStatus: string;
+  declineReason: string | null;
   sneakerBrand: string | null;
   sneakerModel: string | null;
   sneakerSize: string | null;
@@ -119,9 +120,16 @@ export function AppraisalRow({ appraisal, onUpdateStatus, onAdjustOffer }: Props
       </div>
 
       {/* Status badge */}
-      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${statusColors[appraisal.buyOfferStatus] || statusColors.pending}`}>
-        {appraisal.buyOfferStatus === 'review' ? 'Needs Review' : appraisal.buyOfferStatus}
-      </span>
+      <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColors[appraisal.buyOfferStatus] || statusColors.pending}`}>
+          {appraisal.buyOfferStatus === 'review' ? 'Needs Review' : appraisal.buyOfferStatus}
+        </span>
+        {appraisal.buyOfferStatus === 'declined' && appraisal.declineReason && (
+          <span className="text-[10px] text-slate-400 italic max-w-[120px] truncate" title={appraisal.declineReason}>
+            {appraisal.declineReason}
+          </span>
+        )}
+      </div>
 
       {/* Actions */}
       {showActions && !adjusting && (

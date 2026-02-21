@@ -26,6 +26,7 @@ type DashboardData = {
   };
   chartData: { date: string; count: number; value: number }[];
   stores: { id: string; name: string; count: number }[];
+  declineReasons: { reason: string; count: number }[];
 };
 
 type AuthState = 'loading' | 'unauthenticated' | 'unauthorized' | 'authenticated';
@@ -105,35 +106,67 @@ export default function BullseyeDashboard() {
   // Action handlers
   const handleUpdateStatus = async (id: string, status: 'accepted' | 'declined' | 'pending') => {
     if (!session?.access_token) return;
-    await fetch('/api/partner/dashboard/appraisal', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ appraisalId: id, status }),
-    });
-    fetchData();
+    try {
+      const res = await fetch('/api/partner/dashboard/appraisal', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ appraisalId: id, status }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to update status (${res.status})`);
+      }
+      setFetchError(null);
+      fetchData();
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to update status');
+    }
   };
 
   const handleAdjustOffer = async (id: string, amount: number) => {
     if (!session?.access_token) return;
-    await fetch('/api/partner/dashboard/appraisal', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ appraisalId: id, adjustedOffer: amount }),
-    });
-    fetchData();
+    try {
+      const res = await fetch('/api/partner/dashboard/appraisal', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ appraisalId: id, adjustedOffer: amount }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to adjust offer (${res.status})`);
+      }
+      setFetchError(null);
+      fetchData();
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to adjust offer');
+    }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!session?.access_token) return;
     const params = new URLSearchParams({ range });
     if (sourceStore) params.set('source_store', sourceStore);
-    window.open(`/api/partner/dashboard/export?${params}`, '_blank');
+    try {
+      const res = await fetch(`/api/partner/dashboard/export?${params}`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bullseye-appraisals-${new Date().toISOString().substring(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setFetchError(e instanceof Error ? e.message : 'Failed to export CSV');
+    }
   };
 
   const handleSignIn = async () => {
@@ -293,6 +326,31 @@ export default function BullseyeDashboard() {
         <div className="space-y-6">
           <MetricsCards metrics={data.metrics} />
           <AppraisalsChart data={data.chartData} />
+
+          {/* Decline reasons breakdown */}
+          {data.declineReasons && data.declineReasons.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-3">Decline Reasons</h3>
+              <div className="space-y-2">
+                {data.declineReasons.map((dr) => {
+                  const totalDeclines = data.declineReasons.reduce((s, d) => s + d.count, 0);
+                  const pct = Math.round((dr.count / totalDeclines) * 100);
+                  return (
+                    <div key={dr.reason}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-slate-600">{dr.reason}</span>
+                        <span className="text-slate-500">{dr.count} ({pct}%)</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-red-500 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <PipelineView
             pipeline={data.pipeline}
             onUpdateStatus={handleUpdateStatus}
