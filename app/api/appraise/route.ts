@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
 import { FutureValuePrediction, SneakerDetails, BuyOfferRules } from '@/lib/types';
 import { calculateBuyOffer } from '@/services/buyOfferService';
+import { getEbayMarketValue, buildSearchKeywords, type EbayMarketData } from '@/services/ebayPriceService';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -883,15 +884,39 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
     let buyOfferResult = null;
     let sneakerDetailsResult: SneakerDetails | null = null;
     let partnerAppraisalId: string | undefined;
+    let ebayMarketData: EbayMarketData | null = null;
 
     if (partnerId && partnerConfig && appraisalData.sneakerDetails) {
       sneakerDetailsResult = appraisalData.sneakerDetails as SneakerDetails;
+
+      // Fetch eBay sold data for real market comps
+      try {
+        const keywords = buildSearchKeywords({
+          itemName: appraisalData.itemName,
+          category: appraisalData.category,
+          sneakerDetails: sneakerDetailsResult,
+        });
+        console.log(`[Appraise API] eBay lookup for partner: "${keywords}"`);
+        ebayMarketData = await getEbayMarketValue({
+          keywords,
+          categoryId: '93427', // Athletic Shoes
+          maxResults: 120,
+          removeOutliers: true,
+        });
+        if (ebayMarketData) {
+          console.log(`[Appraise API] eBay: ${ebayMarketData.sampleSize} results, median $${ebayMarketData.median.toFixed(2)}, confidence ${ebayMarketData.confidence.toFixed(2)}`);
+        }
+      } catch (ebayError) {
+        console.error('[Appraise API] eBay lookup failed (non-blocking):', ebayError);
+      }
+
       buyOfferResult = calculateBuyOffer(
         appraisalData.priceRange,
         sneakerDetailsResult,
-        partnerConfig.buy_offer_rules
+        partnerConfig.buy_offer_rules,
+        ebayMarketData
       );
-      console.log(`[Appraise API] Partner buy offer: $${buyOfferResult.amount} (review: ${buyOfferResult.requiresManagerReview})`);
+      console.log(`[Appraise API] Partner buy offer: $${buyOfferResult.amount} (source: ${buyOfferResult.breakdown.marketSource}, review: ${buyOfferResult.requiresManagerReview})`);
 
       // Save partner appraisal to DB (admin client to bypass RLS since no user auth)
       partnerAppraisalId = crypto.randomUUID();
@@ -921,6 +946,7 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
           buy_offer: buyOfferResult,
           buy_offer_status: buyOfferResult.requiresManagerReview ? 'review' : 'pending',
           ...(storeLocation && { source_store: storeLocation }),
+          ...(ebayMarketData && { ebay_market_data: ebayMarketData }),
         });
         console.log(`[Appraise API] Partner appraisal saved to DB (id: ${partnerAppraisalId})`);
       } catch (dbError) {
@@ -951,6 +977,7 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
       appraisalId: partnerId ? partnerAppraisalId : undefined,
       sneakerDetails: sneakerDetailsResult || undefined,
       buyOffer: buyOfferResult || undefined,
+      ebayMarketData: ebayMarketData || undefined,
     });
 
   } catch (error) {

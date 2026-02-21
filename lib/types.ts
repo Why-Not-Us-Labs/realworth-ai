@@ -192,7 +192,8 @@ export interface CollectionSummary {
  */
 export type EbayComparable = {
   title: string;
-  price: number;
+  price: number; // Sold price
+  listingPrice?: number; // Original listing/ask price (if different)
   soldDate: string;
   listingType: 'auction' | 'buy_it_now' | 'fixed_price';
   url?: string;
@@ -278,10 +279,14 @@ export type SneakerDetails = {
 
 export type BuyOfferBreakdown = {
   marketValue: number;
+  marketSource: 'ebay' | 'hybrid' | 'gemini';
+  ebaySampleSize?: number;
   baseOffer: number;
   conditionAdjustment: number;
   flawDeductions: number;
   accessoryDeductions: number;
+  releaseAdjustment: number;
+  sizeAdjustment: number;
   finalOffer: number;
 };
 

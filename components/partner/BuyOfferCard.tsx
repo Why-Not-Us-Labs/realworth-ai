@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { BuyOffer, SneakerDetails } from '@/lib/types';
+import type { EbayMarketData } from '@/services/ebayPriceService';
 import AuthenticityBadge from './AuthenticityBadge';
 import FlawList from './FlawList';
 
@@ -11,6 +12,7 @@ type Props = {
   itemName: string;
   images: string[];
   appraisalId?: string | null;
+  ebayMarketData?: EbayMarketData | null;
   onAccept: () => void;
   onDecline: () => void;
 };
@@ -41,7 +43,13 @@ function formatMoney(n: number) {
   return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, appraisalId, onAccept, onDecline }: Props) {
+const SOURCE_LABELS: Record<string, string> = {
+  ebay: 'eBay sold data',
+  hybrid: 'eBay + AI estimate',
+  gemini: 'AI estimate',
+};
+
+export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, appraisalId, ebayMarketData, onAccept, onDecline }: Props) {
   const { breakdown } = offer;
   const [linkCopied, setLinkCopied] = useState(false);
   const [isResponding, setIsResponding] = useState(false);
@@ -124,16 +132,69 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
         )}
       </div>
 
+      {/* Market data section */}
+      {ebayMarketData && ebayMarketData.sampleSize >= 2 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-white text-base">Market Data</h3>
+            <span className="text-xs text-slate-400">
+              Based on {ebayMarketData.sampleSize} recent sales
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-xs text-slate-500">Low</div>
+              <div className="text-sm font-semibold text-slate-300">{formatMoney(ebayMarketData.low)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500">Median</div>
+              <div className="text-sm font-semibold text-white">{formatMoney(ebayMarketData.median)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-500">High</div>
+              <div className="text-sm font-semibold text-slate-300">{formatMoney(ebayMarketData.high)}</div>
+            </div>
+          </div>
+          {ebayMarketData.comparables.length > 0 && (
+            <div className="border-t border-slate-700 pt-3">
+              <div className="text-xs text-slate-500 mb-2">Recent sold comps</div>
+              <div className="space-y-1.5">
+                {ebayMarketData.comparables.slice(0, 3).map((comp, i) => (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="text-slate-400 truncate mr-3">{comp.title}</span>
+                    <span className="shrink-0">
+                      {comp.listingPrice && comp.listingPrice !== comp.price && (
+                        <span className="text-slate-500 line-through mr-1.5">{formatMoney(comp.listingPrice)}</span>
+                      )}
+                      <span className="text-slate-300 font-medium">Sold {formatMoney(comp.price)}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Breakdown */}
       <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-2 text-sm">
-        <h3 className="font-semibold text-white text-base mb-3">Offer Breakdown</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-semibold text-white text-base">Offer Breakdown</h3>
+          <span className="text-xs text-slate-500">{SOURCE_LABELS[breakdown.marketSource] || breakdown.marketSource}</span>
+        </div>
         <Row label="Market value" value={formatMoney(breakdown.marketValue)} />
+        {breakdown.releaseAdjustment !== 0 && (
+          <Row label="Release premium" value={`+${formatMoney(breakdown.releaseAdjustment)}`} />
+        )}
         <Row label="Base offer (after margin)" value={formatMoney(breakdown.baseOffer)} />
         {breakdown.conditionAdjustment !== 0 && (
           <Row label="Condition adjustment" value={formatMoney(breakdown.conditionAdjustment)} negative />
         )}
         {breakdown.flawDeductions !== 0 && (
           <Row label="Flaw deductions" value={formatMoney(breakdown.flawDeductions)} negative />
+        )}
+        {breakdown.sizeAdjustment !== 0 && (
+          <Row label="Size adjustment" value={formatMoney(breakdown.sizeAdjustment)} negative />
         )}
         {breakdown.accessoryDeductions !== 0 && (
           <Row label="No box deduction" value={formatMoney(breakdown.accessoryDeductions)} negative />

@@ -40,6 +40,10 @@ export default function BullseyeDashboard() {
   const [sourceStore, setSourceStore] = useState<string>('');
   const [signingIn, setSigningIn] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [magicLinkEmail, setMagicLinkEmail] = useState('');
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  const [sendingMagicLink, setSendingMagicLink] = useState(false);
 
   // Check auth on mount
   useEffect(() => {
@@ -183,6 +187,25 @@ export default function BullseyeDashboard() {
     }
   };
 
+  const handleMagicLink = async () => {
+    if (!magicLinkEmail.trim()) return;
+    setSendingMagicLink(true);
+    setMagicLinkError(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: magicLinkEmail.trim(),
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/partner/bullseye/auth/callback`,
+      },
+    });
+    setSendingMagicLink(false);
+    if (error) {
+      setMagicLinkError(error.message);
+    } else {
+      setMagicLinkSent(true);
+    }
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -201,7 +224,7 @@ export default function BullseyeDashboard() {
   if (authState === 'unauthenticated') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 px-6">
-        <div className="text-center max-w-sm">
+        <div className="text-center max-w-sm w-full">
           <div className="flex items-center justify-center gap-3 mb-6">
             <img src="/partners/bullseye-logo.png" alt="Bullseye" className="h-10" />
             <span className="text-slate-300 text-lg">x</span>
@@ -209,6 +232,8 @@ export default function BullseyeDashboard() {
           </div>
           <h1 className="text-xl font-bold text-slate-900 mb-2">Partner Dashboard</h1>
           <p className="text-sm text-slate-500 mb-6">Sign in to access your dashboard</p>
+
+          {/* Google OAuth */}
           <button
             onClick={handleSignIn}
             disabled={signingIn}
@@ -222,6 +247,50 @@ export default function BullseyeDashboard() {
             </svg>
             {signingIn ? 'Redirecting...' : 'Sign in with Google'}
           </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs text-slate-400">or</span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+
+          {/* Magic link */}
+          {magicLinkSent ? (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+              <p className="text-sm font-medium text-green-800">Check your email</p>
+              <p className="text-xs text-green-600 mt-1">
+                We sent a sign-in link to <strong>{magicLinkEmail}</strong>
+              </p>
+              <button
+                onClick={() => { setMagicLinkSent(false); setMagicLinkEmail(''); }}
+                className="text-xs text-green-700 underline mt-3"
+              >
+                Try a different email
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email address"
+                value={magicLinkEmail}
+                onChange={(e) => setMagicLinkEmail(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleMagicLink()}
+                className="w-full px-4 py-3 border border-slate-300 rounded-xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+              <button
+                onClick={handleMagicLink}
+                disabled={sendingMagicLink || !magicLinkEmail.trim()}
+                className="w-full px-6 py-3 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors"
+              >
+                {sendingMagicLink ? 'Sending...' : 'Send magic link'}
+              </button>
+              {magicLinkError && (
+                <p className="text-xs text-red-500">{magicLinkError}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

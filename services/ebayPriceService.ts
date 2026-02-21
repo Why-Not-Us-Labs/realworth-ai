@@ -13,7 +13,8 @@ import crypto from 'crypto';
 // Types for eBay API responses and our internal data
 export type EbayComparable = {
   title: string;
-  price: number;
+  price: number; // Sold price (what the item actually sold for)
+  listingPrice?: number; // Original listing/ask price (if different from sold price)
   soldDate: string;
   listingType: 'auction' | 'buy_it_now' | 'fixed_price';
   url?: string;
@@ -197,13 +198,22 @@ export async function getEbayMarketValue(params: EbaySearchParams): Promise<Ebay
     const confidence = calculateConfidence(sampleSize);
 
     // Extract comparable listings
-    const comparables: EbayComparable[] = (data.results || []).slice(0, 10).map((item: Record<string, unknown>) => ({
-      title: item.title as string || '',
-      price: typeof item.price === 'number' ? item.price : parseFloat(String(item.price)) || 0,
-      soldDate: item.sold_date as string || item.endTime as string || '',
-      listingType: (item.listing_type as string || 'auction') as 'auction' | 'buy_it_now' | 'fixed_price',
-      url: item.url as string || item.viewItemURL as string || undefined,
-    }));
+    const comparables: EbayComparable[] = (data.results || []).slice(0, 10).map((item: Record<string, unknown>) => {
+      const soldPrice = typeof item.price === 'number' ? item.price : parseFloat(String(item.price)) || 0;
+      const listingPrice = typeof item.listing_price === 'number' ? item.listing_price
+        : item.listing_price ? parseFloat(String(item.listing_price)) || undefined
+        : typeof item.buy_it_now_price === 'number' ? item.buy_it_now_price
+        : item.buy_it_now_price ? parseFloat(String(item.buy_it_now_price)) || undefined
+        : undefined;
+      return {
+        title: item.title as string || '',
+        price: soldPrice,
+        listingPrice: listingPrice && listingPrice !== soldPrice ? listingPrice : undefined,
+        soldDate: item.sold_date as string || item.endTime as string || '',
+        listingType: (item.listing_type as string || 'auction') as 'auction' | 'buy_it_now' | 'fixed_price',
+        url: item.url as string || item.viewItemURL as string || undefined,
+      };
+    });
 
     const ebayData: EbayMarketData = {
       average: data.average_price || 0,

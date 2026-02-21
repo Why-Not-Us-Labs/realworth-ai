@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import type { SneakerDetails, BuyOffer } from '@/lib/types';
+import type { EbayMarketData } from '@/services/ebayPriceService';
 import BuyOfferCard from '@/components/partner/BuyOfferCard';
 
 const supabase = createClient(
@@ -111,6 +112,7 @@ export default function BullseyePage() {
   const [appraisalId, setAppraisalId] = useState<string | null>(null);
   const [sneakerDetails, setSneakerDetails] = useState<SneakerDetails | null>(null);
   const [buyOffer, setBuyOffer] = useState<BuyOffer | null>(null);
+  const [ebayMarketData, setEbayMarketData] = useState<EbayMarketData | null>(null);
 
   // Read ?store= param and restore session state on mount
   useEffect(() => {
@@ -228,6 +230,7 @@ export default function BullseyePage() {
       setAppraisalId(data.appraisalId || null);
       setSneakerDetails(data.sneakerDetails || null);
       setBuyOffer(data.buyOffer || null);
+      setEbayMarketData(data.ebayMarketData || null);
       clearUrls();
       setState('result');
     } catch (e) {
@@ -438,6 +441,7 @@ export default function BullseyePage() {
             itemName={itemName}
             images={uploadedUrls}
             appraisalId={appraisalId}
+            ebayMarketData={ebayMarketData}
             onAccept={() => setState('accepted')}
             onDecline={() => setState('declined')}
           />
