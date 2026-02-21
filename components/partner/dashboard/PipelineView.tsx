@@ -9,11 +9,12 @@ type Pipeline = {
   accepted: PipelineAppraisal[];
   declined: PipelineAppraisal[];
   review: PipelineAppraisal[];
+  fulfilled: PipelineAppraisal[];
 };
 
 type Props = {
   pipeline: Pipeline;
-  onUpdateStatus: (id: string, status: 'accepted' | 'declined' | 'pending') => Promise<void>;
+  onUpdateStatus: (id: string, status: 'accepted' | 'declined' | 'pending' | 'fulfilled' | 'no_show') => Promise<void>;
   onAdjustOffer: (id: string, amount: number) => Promise<void>;
 };
 
@@ -21,6 +22,7 @@ const TABS = [
   { key: 'pending', label: 'Pending' },
   { key: 'review', label: 'Review' },
   { key: 'accepted', label: 'Accepted' },
+  { key: 'fulfilled', label: 'Fulfilled' },
   { key: 'declined', label: 'Declined' },
 ] as const;
 

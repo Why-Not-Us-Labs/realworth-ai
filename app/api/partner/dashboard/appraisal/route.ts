@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
 
     const { appraisalId, status, adjustedOffer } = (await req.json()) as {
       appraisalId: string;
-      status?: 'accepted' | 'declined' | 'pending';
+      status?: 'accepted' | 'declined' | 'pending' | 'fulfilled' | 'no_show';
       adjustedOffer?: number;
     };
 
@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest) {
       update.buy_offer_status = status;
       if (status === 'accepted' || status === 'declined') {
         update.completed_at = new Date().toISOString();
+      }
+      if (status === 'fulfilled') {
+        update.fulfilled_at = new Date().toISOString();
       }
     }
 

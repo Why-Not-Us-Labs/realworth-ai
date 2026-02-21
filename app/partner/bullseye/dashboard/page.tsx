@@ -17,12 +17,14 @@ type DashboardData = {
     acceptRate: number;
     totalOfferValue: number;
     pendingReviewCount: number;
+    fulfillmentRate: number;
   };
   pipeline: {
     pending: PipelineAppraisal[];
     accepted: PipelineAppraisal[];
     declined: PipelineAppraisal[];
     review: PipelineAppraisal[];
+    fulfilled: PipelineAppraisal[];
   };
   chartData: { date: string; count: number; value: number }[];
   stores: { id: string; name: string; count: number }[];
@@ -108,7 +110,7 @@ export default function BullseyeDashboard() {
   }, [authState, fetchData]);
 
   // Action handlers
-  const handleUpdateStatus = async (id: string, status: 'accepted' | 'declined' | 'pending') => {
+  const handleUpdateStatus = async (id: string, status: 'accepted' | 'declined' | 'pending' | 'fulfilled' | 'no_show') => {
     if (!session?.access_token) return;
     try {
       const res = await fetch('/api/partner/dashboard/appraisal', {

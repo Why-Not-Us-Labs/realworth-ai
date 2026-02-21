@@ -6,6 +6,7 @@ type Metrics = {
   acceptRate: number;
   totalOfferValue: number;
   pendingReviewCount: number;
+  fulfillmentRate: number;
 };
 
 export function MetricsCards({ metrics }: { metrics: Metrics }) {
@@ -26,9 +27,14 @@ export function MetricsCards({ metrics }: { metrics: Metrics }) {
       color: metrics.acceptRate >= 50 ? 'text-green-600' : 'text-slate-900',
     },
     {
-      label: 'Total Accepted',
+      label: 'Revenue (Fulfilled)',
       value: `$${metrics.totalOfferValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
       color: 'text-green-600',
+    },
+    {
+      label: 'Fulfillment Rate',
+      value: `${metrics.fulfillmentRate}%`,
+      color: metrics.fulfillmentRate >= 75 ? 'text-blue-600' : metrics.fulfillmentRate > 0 ? 'text-orange-600' : 'text-slate-900',
     },
     {
       label: 'Needs Review',
@@ -38,7 +44,7 @@ export function MetricsCards({ metrics }: { metrics: Metrics }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((card) => (
         <div key={card.label} className="bg-white p-4 rounded-xl border border-slate-200">
           <p className="text-xs font-medium text-slate-500 mb-1">{card.label}</p>

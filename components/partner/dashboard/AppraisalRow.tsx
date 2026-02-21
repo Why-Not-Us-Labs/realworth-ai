@@ -21,7 +21,7 @@ export type PipelineAppraisal = {
 
 type Props = {
   appraisal: PipelineAppraisal;
-  onUpdateStatus: (id: string, status: 'accepted' | 'declined' | 'pending') => Promise<void>;
+  onUpdateStatus: (id: string, status: 'accepted' | 'declined' | 'pending' | 'fulfilled' | 'no_show') => Promise<void>;
   onAdjustOffer: (id: string, amount: number) => Promise<void>;
 };
 
@@ -30,6 +30,14 @@ const statusColors: Record<string, string> = {
   accepted: 'bg-green-100 text-green-700',
   declined: 'bg-red-100 text-red-700',
   review: 'bg-purple-100 text-purple-700',
+  fulfilled: 'bg-blue-100 text-blue-700',
+  no_show: 'bg-orange-100 text-orange-700',
+};
+
+const statusLabels: Record<string, string> = {
+  review: 'Needs Review',
+  no_show: 'No-Show',
+  fulfilled: 'Fulfilled',
 };
 
 export function AppraisalRow({ appraisal, onUpdateStatus, onAdjustOffer }: Props) {
@@ -38,8 +46,9 @@ export function AppraisalRow({ appraisal, onUpdateStatus, onAdjustOffer }: Props
   const [loading, setLoading] = useState(false);
 
   const showActions = appraisal.buyOfferStatus === 'pending' || appraisal.buyOfferStatus === 'review';
+  const showFulfillmentActions = appraisal.buyOfferStatus === 'accepted';
 
-  const handleAction = async (status: 'accepted' | 'declined') => {
+  const handleAction = async (status: 'accepted' | 'declined' | 'fulfilled' | 'no_show') => {
     setLoading(true);
     try {
       await onUpdateStatus(appraisal.id, status);
@@ -122,7 +131,7 @@ export function AppraisalRow({ appraisal, onUpdateStatus, onAdjustOffer }: Props
       {/* Status badge */}
       <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
         <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${statusColors[appraisal.buyOfferStatus] || statusColors.pending}`}>
-          {appraisal.buyOfferStatus === 'review' ? 'Needs Review' : appraisal.buyOfferStatus}
+          {statusLabels[appraisal.buyOfferStatus] || appraisal.buyOfferStatus}
         </span>
         {appraisal.buyOfferStatus === 'declined' && appraisal.declineReason && (
           <span className="text-[10px] text-slate-400 italic max-w-[120px] truncate" title={appraisal.declineReason}>
@@ -157,6 +166,26 @@ export function AppraisalRow({ appraisal, onUpdateStatus, onAdjustOffer }: Props
               Adjust
             </button>
           )}
+        </div>
+      )}
+
+      {/* Fulfillment actions (on accepted items) */}
+      {showFulfillmentActions && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => handleAction('fulfilled')}
+            disabled={loading}
+            className="text-xs px-2.5 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            Fulfilled
+          </button>
+          <button
+            onClick={() => handleAction('no_show')}
+            disabled={loading}
+            className="text-xs px-2.5 py-1 bg-orange-100 text-orange-700 rounded hover:bg-orange-200 disabled:opacity-50"
+          >
+            No-Show
+          </button>
         </div>
       )}
     </div>

@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
       accepted: [],
       declined: [],
       review: [],
+      fulfilled: [],
     };
 
     type PipelineAppraisal = {
@@ -100,6 +101,8 @@ export async function GET(req: NextRequest) {
     let totalOfferValue = 0;
     let acceptedCount = 0;
     let decidedCount = 0;
+    let fulfilledCount = 0;
+    let noShowCount = 0;
 
     const storeCounts: Record<string, number> = {};
 
@@ -126,11 +129,23 @@ export async function GET(req: NextRequest) {
         completedAt: row.completed_at || null,
       };
 
-      const bucket = status === 'review' ? 'review' : status === 'accepted' ? 'accepted' : status === 'declined' ? 'declined' : 'pending';
+      const bucket = status === 'fulfilled' || status === 'no_show' ? 'fulfilled'
+        : status === 'review' ? 'review'
+        : status === 'accepted' ? 'accepted'
+        : status === 'declined' ? 'declined'
+        : 'pending';
       pipeline[bucket].push(item);
 
-      if (status === 'accepted') {
+      if (status === 'fulfilled') {
         totalOfferValue += offerAmount;
+        fulfilledCount++;
+        acceptedCount++;
+        decidedCount++;
+      } else if (status === 'no_show') {
+        noShowCount++;
+        acceptedCount++;
+        decidedCount++;
+      } else if (status === 'accepted') {
         acceptedCount++;
         decidedCount++;
       } else if (status === 'declined') {
@@ -152,6 +167,8 @@ export async function GET(req: NextRequest) {
       : 0;
     const acceptRate = decidedCount > 0 ? Math.round((acceptedCount / decidedCount) * 100) : 0;
     const pendingReviewCount = pipeline.review.length;
+    const fulfillmentTotal = fulfilledCount + noShowCount;
+    const fulfillmentRate = fulfillmentTotal > 0 ? Math.round((fulfilledCount / fulfillmentTotal) * 100) : 0;
 
     // Build chart data (daily counts)
     const dailyCounts: Record<string, { count: number; value: number }> = {};
@@ -192,6 +209,7 @@ export async function GET(req: NextRequest) {
         acceptRate,
         totalOfferValue: Math.round(totalOfferValue * 100) / 100,
         pendingReviewCount,
+        fulfillmentRate,
       },
       pipeline,
       chartData,
