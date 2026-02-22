@@ -1,3 +1,9 @@
+/**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-10: Partner Configuration Abstraction
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ */
+
 export const BULLSEYE_ADMIN_EMAILS = [
   'james@bullseyesb.com',
   'gavin@realworth.ai',

@@ -1,4 +1,9 @@
 /**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-5: Metal Melt-Value Floor Pricing
+ * This file contains proprietary composition tables and floor pricing directives.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ *
  * Metal Price Service
  *
  * Fetches real-time precious metal spot prices for accurate appraisals.

@@ -1,3 +1,10 @@
+/**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secrets TS-1, TS-2, TS-6, TS-8: AI Prompt Engineering, Structured Schema,
+ * Face-Value Detection, Category Grading Guides
+ * This file contains proprietary AI configurations and valuation algorithms.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ */
 
 import { GoogleGenAI, Type } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';

@@ -1,3 +1,10 @@
+/**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-4: Buy Offer Calculation Rules
+ * This file contains proprietary algorithms and business logic.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ */
+
 import type {
   SneakerDetails,
   BuyOffer,

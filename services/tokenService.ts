@@ -1,3 +1,10 @@
+/**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-7: WNU Platform Token Economy Design
+ * This file contains proprietary token economics and monetization logic.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ */
+
 import { getSupabaseAdmin } from '@/lib/supabase';
 
 export interface TokenBalance {

@@ -1,4 +1,9 @@
 /**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-9: eBay Cache Optimization Strategy
+ * This file contains proprietary caching algorithms and marketplace integration logic.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ *
  * eBay Average Selling Price Service
  *
  * Integrates with the eBay Average Selling Price API via RapidAPI

@@ -1,4 +1,9 @@
 /**
+ * CONFIDENTIAL - WHY NOT US LABS LLC
+ * Trade Secret TS-3: Numismatic Context Injection System
+ * This file contains proprietary reference data and high-value detection algorithms.
+ * Unauthorized disclosure is prohibited under NDA and the Defend Trade Secrets Act.
+ *
  * Numismatic Context Service
  * Provides specialized reference data for coin and currency appraisals
  */
