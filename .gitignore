@@ -35,6 +35,9 @@ yarn-error.log*
 # Vercel
 .vercel
 
+# Legal / IP Protection (CONFIDENTIAL - never commit)
+/legal/
+
 # Typescript
 *.tsbuildinfo
 next-env.d.ts
