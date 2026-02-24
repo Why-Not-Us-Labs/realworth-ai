@@ -3,45 +3,50 @@
 ## Current Session
 *Updated at end of each session*
 
-**Date:** February 17, 2026
-**Focus:** Bullseye Portal Polish — RLS fix, logos, share links, white theme
+**Date:** February 24, 2026
+**Focus:** Partnership Documents Rewrite — Advisor feedback from Michael & Scott
 
 ### Completed
-- [x] Fixed image upload failure: added Supabase storage RLS policy for anon uploads to `partner/*`
-- [x] Removed condition picker — AI determines sneaker condition from photos alone
-- [x] Processed Bullseye logo (background removal via sharp) saved to `public/partners/`
-- [x] Generated RealWorth collab logo via Gemini `gemini-2.5-flash-image`
-- [x] Replaced text headers with actual logo images in landing + form views
-- [x] Switched portal from dark to white background theme (result card stays dark)
-- [x] Added share button to BuyOfferCard (Web Share API + clipboard fallback)
-- [x] API returns `appraisalId`, saves partner appraisals with `is_public: true`
-- [x] Share links use existing `/treasure/[id]` route — appraisals are now persistent
-- [x] Verified deployment: Vercel build passed, production screenshot confirmed
-- [x] Fixed partner appraisal DB save: `user_id` was NOT NULL, causing silent INSERT failure — made nullable via migration
+- [x] Complete rewrite of `COUNTER_PROPOSAL_FOR_ADVISORS.md` — new structure: 10-20% equity for $30-50K, due diligence checklist, vetting questions
+- [x] Complete rewrite of `COUNTER_PROPOSAL_TERMS.md` — term sheet with IP protection, revenue sharing options, confident talking points
+- [x] Complete rewrite of `MEETING_AGENDA.md` — Wed Feb 26 meeting prep with pushback responses
+- [x] Complete rewrite of `30_DAY_MILESTONE_PLAN.md` — now 6-month beta evaluation (March-August 2026)
+- [x] Updated `PATENT_RESEARCH_FOR_JAMES.md` — removed joint filing language, patents owned by WNU LLC
+- [x] Updated `IP_SUMMARY_ONE_PAGER.md` — strengthened IP ownership, added dissolution language
+- [x] Generated PDFs for all 6 documents
+- [x] Verified: no stale references to old structure (25-30%, $8-10K/mo, personal justifications)
 
 ### Commits
-- `7465149` Bullseye portal: white theme, logo branding, share links, remove condition picker
+- None (all files in gitignored `legal/` directory)
 
-### Files Changed (7 files + 3 new assets)
-- **Modified:** `app/api/appraise/route.ts`, `app/partner/bullseye/layout.tsx`, `app/partner/bullseye/page.tsx`, `components/partner/BuyOfferCard.tsx`
-- **New:** `public/partners/bullseye-logo.png`, `public/partners/bullseye-logo-white.png`, `public/partners/realworth-collab-logo.png`
-
-### Known Issues (Identified, Not Yet Fixed)
-- Share link OG metadata says "RealWorth" not "Bullseye x RealWorth" for partner appraisals
-- Favicon/app icon should be collab logo for Bullseye subdomain
-- User wants "Accept Offer" to prompt account creation (lead capture)
-- ~2 min generation time expected but UX could improve (progress indicators)
+### Files Changed (6 markdown + 6 PDFs)
+- All in `legal/partnership/` (gitignored)
 
 ### Next Session Should
-1. Verify share links work after `user_id` fix
-2. Accept offer → signup flow (create account on accept, associate appraisal)
-3. Share link branding (OG metadata, favicon, partner detection)
-4. Test main app regression
+1. Post-meeting follow-up (after Wed Feb 26 meeting with James)
+2. Verify share links work after `user_id` fix
+3. Accept offer -> signup flow
+4. Share link branding (OG metadata, favicon)
 5. Bullseye Phase 2: partner dashboard
 
 ---
 
 ## Previous Session
+
+**Date:** February 17, 2026
+**Focus:** Bullseye Portal Polish — RLS fix, logos, share links, white theme
+
+- [x] Fixed image upload failure: added Supabase storage RLS policy for anon uploads to `partner/*`
+- [x] Removed condition picker — AI determines sneaker condition from photos alone
+- [x] Processed Bullseye logo, generated RealWorth collab logo via Gemini
+- [x] White background theme, share links, logo branding
+- [x] Fixed partner appraisal DB save: `user_id` nullable migration
+
+Commits: `7465149`
+
+---
+
+## Earlier Session
 
 **Date:** February 13, 2026
 **Focus:** Bullseye Sneaker Partner Portal — Phase 1 MVP
