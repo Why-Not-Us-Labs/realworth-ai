@@ -9,6 +9,7 @@ export const BULLSEYE_ADMIN_EMAILS = [
   'gavin@realworth.ai',
   'gavin@whynotus.ai',
   'g@whynotus.ai',
+  'sammy@whynotus.ai',
 ];
 
 export const BULLSEYE_STORES = [
