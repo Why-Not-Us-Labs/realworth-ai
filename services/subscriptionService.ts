@@ -377,7 +377,8 @@ class SubscriptionService {
       }
 
       const balance = tokenBalance.balance;
-      const canCreate = balance > 0;
+      // Super admins always get unlimited appraisals regardless of token balance
+      const canCreate = isPro ? true : balance > 0;
 
       console.log('[SubscriptionService] canCreateAppraisal check:', {
         userId,
@@ -388,7 +389,7 @@ class SubscriptionService {
 
       return {
         canCreate,
-        remaining: balance,
+        remaining: isPro ? Infinity : balance,
         isPro,
         tokenBalance: balance,
       };

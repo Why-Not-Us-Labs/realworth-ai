@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-
-// Super admin emails - always have Pro features
-const SUPER_ADMIN_EMAILS = [
-  'gavin@realworth.ai',
-  'ann.mcnamara01@icloud.com',
-];
+import { subscriptionService } from '@/services/subscriptionService';
 
 /**
  * WNU Platform version: Check if user can create an appraisal
@@ -68,15 +63,14 @@ export async function GET(request: NextRequest) {
     const tokenBalance = tokenData?.balance || 0;
 
     // Check if Pro (super admin, Stripe Pro, or Apple IAP)
-    const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(user.email?.toLowerCase());
+    const isSuperAdmin = user.email ? subscriptionService.isSuperAdmin(user.email) : false;
     const isStripePro = subscription?.tier_id === 'pro' && subscription?.status === 'active';
     const isIAPPro = subscription?.iap_product_id && subscription?.iap_expires_at &&
       new Date(subscription.iap_expires_at) > new Date();
     const isPro = isSuperAdmin || isStripePro || isIAPPro;
 
-    // In WNU Platform, Pro users still need tokens to create appraisals
-    // But they get monthly token grants automatically
-    const canCreate = tokenBalance > 0;
+    // Super admins always get unlimited appraisals regardless of token balance
+    const canCreate = isSuperAdmin || tokenBalance > 0;
 
     console.log('[CanCreate] Check result:', {
       userId: authUser.id,
