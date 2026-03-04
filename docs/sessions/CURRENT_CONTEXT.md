@@ -1,13 +1,14 @@
 # RealWorth.ai - Current Context
 
-**Last Updated:** February 24, 2026
+**Last Updated:** March 3, 2026
 
 ## Active Work Streams
 
 | Stream | Status | Last Activity |
 |--------|--------|---------------|
-| Partnership / Legal Docs | Rewritten for Wed meeting | Feb 24 - All 6 docs + PDFs reflect advisor feedback |
-| Bullseye Partner Portal | Phase 1 Polished | Feb 17 - White theme, logos, share links, condition picker removed |
+| March Beta (Bullseye x Shopify) | Planning | Mar 3 - Priorities synthesized from Feb 25 meeting |
+| Partnership / Beta Agreement | Pending | Feb 25 - 30-day beta agreed, formal doc needed |
+| Bullseye Partner Portal | Phase 1 Polished | Feb 17 - White theme, logos, share links |
 | WNU Platform Migration | Complete | Feb 4 - Vercel env vars fixed, Discover working |
 | Stripe Integration | Verified | Feb 4 - All payment flows tested |
 | iOS App / Apple Review | Active | Jan 29 - Capacitor loads from production |
@@ -17,34 +18,57 @@
 | Component | State | Notes |
 |-----------|-------|-------|
 | Web App | Stable | Production at realworth.ai |
-| Partner Portal | Live + Polished | bullseyesb.realworth.ai (white theme, real logos, share links) |
-| iOS App | Active | Capacitor WebView loads from realworth.ai |
+| Partner Portal | Live + Polished | bullseyesb.realworth.ai |
+| Vercel | Healthy | All deployments Ready, no failures |
+| Supabase | Healthy | ACTIVE_HEALTHY, some security advisors flagged |
 | Auth | Working | Google, Apple, Email all verified |
 | Payments | Verified | Stripe fully tested Feb 4 |
 | Database | WNU Platform | `ahwensdtjsvuqxbjgkgv` (wnu-platform) |
-| Discover Feed | Working | 66 public treasures displaying |
-| Partnership Docs | Ready | All 6 docs rewritten + PDFs generated for Wed Feb 26 meeting |
+
+## Partnership Status (Post Feb 25 Meeting)
+
+**Agreed with James:**
+- 30-day beta trial (no equity during beta)
+- 2-year exclusivity on footwear/streetwear
+- Transaction fee model once live
+- RealWorth can opt out anytime
+- Deploy directly on bullseyesb.com (Shopify embed)
+
+**Working cadence:** Twice-weekly check-ins, weekly sprints
+**Team Slack:** Pending (James sending invite)
 
 ## Pending Questions
-- Accept offer -> create account flow: what auth providers? Google + Apple? Email?
+- Shopify embed approach: widget vs full page integration?
+- Bot protection: whitelisting vs rate limiting vs both?
+- Accept offer -> create account flow: what auth providers?
 - Share link branding: partner-specific OG image needed?
 
 ## Next Session Priorities
-1. **Post-meeting follow-up** (after Wed Feb 26 meeting with James)
-2. **Verify share links:** Re-test after `user_id` nullable fix
-3. **Accept offer -> signup:** Prompt account creation on "Accept Offer", associate appraisal with new user
-4. **Share link branding:** OG metadata ("Bullseye x RealWorth"), favicon, partner detection in treasure route
-5. **Test main app regression:** Normal appraisal on realworth.ai still works
-6. **Bullseye Phase 2:** Partner dashboard (appraisal pipeline, metrics, rules editor)
+
+### March Beta — Technical
+1. **Shopify embed/widget** for bullseyesb.com — James providing dev access
+2. **Hide methodology** — strip rationale from partner-facing results, show simple offer only
+3. **Bot protection** — prevent algorithm reverse-engineering, whitelisting system
+4. **Accept offer -> signup flow** — account creation on "Accept Offer"
+
+### Carried Forward
+5. **Verify share links** — re-test after `user_id` nullable fix
+6. **Share link branding** — OG metadata, favicon, partner detection
+7. **Test main app regression** — normal appraisal on realworth.ai
+8. **Bullseye Phase 2** — partner dashboard (pipeline, metrics, rules editor)
+
+### Supabase Security (Noted, Not Urgent)
+- Enable RLS on `partner_configs` (exposed `api_key` column)
+- Enable RLS on `profiles`, Whoop tables
+- Fix mutable search_path on 12 functions
 
 ## Recent Technical Decisions
-- **Feb 24**: All partnership docs rewritten per advisor guidance (10-20% equity for $30-50K, 6-month eval, no compensation from James)
-- **Feb 24**: IP ownership language strengthened across all docs — all IP stays with WNU LLC, no co-ownership
+- **Mar 3**: Confirmed `wnu-platform` is active DB; `realworth-db` is legacy/unused
+- **Feb 25**: Partnership shifted to 30-day beta trial (not equity deal) per meeting with James
+- **Feb 25**: Shopify embed deployment agreed (vs subdomain approach for public beta)
+- **Feb 25**: Must hide appraisal methodology from partner-facing tool (IP protection)
+- **Feb 24**: Partnership docs rewritten per advisor guidance
 - **Feb 17**: Made `rw_appraisals.user_id` nullable for partner appraisals
-- **Feb 17**: Added Supabase storage RLS policy for anon uploads to `partner/*`
-- **Feb 17**: Gemini image generation model is `gemini-2.5-flash-image`
-- **Feb 17**: Partner appraisals saved with `is_public: true` and `appraisalId` returned to client
-- **Feb 17**: White background theme for partner portal, result card stays dark
 - **Feb 17**: AI determines sneaker condition from photos (removed condition picker)
 
 ## Key Account Info
@@ -73,6 +97,17 @@ bullseyesb.realworth.ai
   -> Share link: realworth.ai/treasure/{appraisalId}
 ```
 
+## March Beta Target Architecture (NEW)
+
+```
+bullseyesb.com (Shopify)
+  -> Embedded widget/page served from RealWorth
+  -> User stays on bullseyesb.com (trust factor)
+  -> Simple offer display (no methodology shown)
+  -> Bot protection / whitelisting layer
+  -> Transaction fee model per appraisal
+```
+
 ## Partner Portal Assets
 - `public/partners/bullseye-logo.png` - Black logo, transparent bg
 - `public/partners/bullseye-logo-white.png` - White logo, transparent bg
@@ -84,10 +119,8 @@ bullseyesb.realworth.ai
 
 ## Partnership Documents (legal/partnership/)
 All rewritten Feb 24 per Michael & Scott's advisor guidance:
-- `COUNTER_PROPOSAL_FOR_ADVISORS.md` - Main strategy doc with meeting summary
+- `COUNTER_PROPOSAL_FOR_ADVISORS.md` - Main strategy doc
 - `COUNTER_PROPOSAL_TERMS.md` - Term sheet (10-20% equity for $30-50K)
-- `MEETING_AGENDA.md` - Wed Feb 26 meeting prep
 - `30_DAY_MILESTONE_PLAN.md` - 6-month beta evaluation plan
 - `PATENT_RESEARCH_FOR_JAMES.md` - Patents owned by WNU LLC
 - `IP_SUMMARY_ONE_PAGER.md` - IP position summary
-- All PDFs generated in same directory

@@ -3,10 +3,41 @@
 ## Current Session
 *Updated at end of each session*
 
+**Date:** March 3, 2026
+**Focus:** Status check, infra health verification, March beta priority synthesis
+
+### Completed
+- [x] Synced local to production (`git reset --hard origin/main` — was 9 commits behind)
+- [x] Vercel status check: all deployments Ready, no failures
+- [x] Supabase status check: ACTIVE_HEALTHY, flagged security advisors (6 tables missing RLS, `partner_configs` exposed `api_key`)
+- [x] Reviewed Granola meeting notes from Feb 25 meeting with James
+- [x] Synthesized March beta priority list from meeting outcomes
+- [x] Updated CURRENT_CONTEXT.md with new partnership status and priorities
+
+### Commits
+- None (status/planning session only)
+
+### Key Decisions
+- Partnership: 30-day beta trial agreed (not equity), transaction fee model
+- Deployment: Shopify embed on bullseyesb.com (not just subdomain)
+- IP protection: Must hide methodology from partner-facing tool
+- Confirmed: `wnu-platform` is active DB, `realworth-db` is legacy
+
+### Next Session Should
+1. **Shopify embed** — research Shopify app/widget integration for bullseyesb.com
+2. **Hide methodology** — strip rationale from partner results (simple offer only)
+3. **Bot protection** — whitelisting / rate limiting for beta
+4. **Accept offer -> signup flow** — account creation flow
+5. **30-day beta agreement** — draft formal doc if not done externally
+6. Check if Slack workspace set up with James
+
+---
+
+## Previous Session
+
 **Date:** February 24, 2026
 **Focus:** Partnership Documents Rewrite — Advisor feedback from Michael & Scott
 
-### Completed
 - [x] Complete rewrite of `COUNTER_PROPOSAL_FOR_ADVISORS.md` — new structure: 10-20% equity for $30-50K, due diligence checklist, vetting questions
 - [x] Complete rewrite of `COUNTER_PROPOSAL_TERMS.md` — term sheet with IP protection, revenue sharing options, confident talking points
 - [x] Complete rewrite of `MEETING_AGENDA.md` — Wed Feb 26 meeting prep with pushback responses
@@ -16,22 +47,11 @@
 - [x] Generated PDFs for all 6 documents
 - [x] Verified: no stale references to old structure (25-30%, $8-10K/mo, personal justifications)
 
-### Commits
-- None (all files in gitignored `legal/` directory)
-
-### Files Changed (6 markdown + 6 PDFs)
-- All in `legal/partnership/` (gitignored)
-
-### Next Session Should
-1. Post-meeting follow-up (after Wed Feb 26 meeting with James)
-2. Verify share links work after `user_id` fix
-3. Accept offer -> signup flow
-4. Share link branding (OG metadata, favicon)
-5. Bullseye Phase 2: partner dashboard
+Commits: None (all files in gitignored `legal/` directory)
 
 ---
 
-## Previous Session
+## Earlier Session
 
 **Date:** February 17, 2026
 **Focus:** Bullseye Portal Polish — RLS fix, logos, share links, white theme
@@ -63,22 +83,6 @@ Commits: `7465149`
 - [x] Build verification: zero TypeScript errors, live and serving HTTP 200
 
 Commits: `0e017f2`, `a261068`
-
----
-
-## Earlier Session
-
-**Date:** February 4, 2026
-**Focus:** Fix Discover feed, verify Stripe integration after WNU Platform migration
-
-- [x] Fixed Discover feed showing empty (Vercel env vars pointed to old database)
-- [x] Updated discover/feed APIs for WNU Platform schema (value_low_cents column)
-- [x] Updated all 3 Supabase env vars in Vercel via CLI
-- [x] Fixed account delete route for WNU Platform (subscriptions table)
-- [x] Comprehensive Stripe integration testing (all flows verified)
-- [x] Synced stale subscription dates from Stripe to database
-
-Commits: `c49d187`, `a28f402`, `2ab9430`
 
 ---
 
