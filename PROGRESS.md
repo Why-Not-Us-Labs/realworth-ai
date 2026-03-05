@@ -4,7 +4,7 @@
 *Updated at end of each session*
 
 **Date:** March 4, 2026
-**Focus:** Super admin fix, isPro() RLS bug, meeting notes processing, action item prioritization
+**Focus:** Super admin fix, sneaker ID improvements, meeting notes, action items
 
 ### Completed
 - [x] Fixed `isPro()` RLS bug — anon client blocked ALL server-side pro checks (certificates, chat)
@@ -16,24 +16,29 @@
 - [x] Processed 3 days of meeting notes (Mon/Tue/Wed March 2-4 with James)
 - [x] Created prioritized action items (18 items, 5 tiers) → `docs/meetings/action-items-prioritized.md`
 - [x] Created 1-pagers for 9 Bullseye side projects → `docs/meetings/side-project-briefs.md`
-- [x] Updated all session scribe docs for portable context
+- [x] Enhanced SNEAKER_GRADING_GUIDE with collab detection (20+ partners, visual signals, pricing rules)
+- [x] Expanded style code extraction (multi-location scan, brand-specific formats)
+- [x] Made sneaker guide available to ALL users (was partner-only)
+- [x] Added photo tips panel to Bullseye portal (auto-shows on first form visit)
+- [x] Added Sneaker category to PhotoGuidanceModal
 
 ### Commits
 - `2c3884f` fix: super admin access + isPro() RLS bug blocking all server-side pro checks
-- (pending) docs: meeting notes, action items, and side project briefs from James calls
+- `aa729de` docs: meeting notes, prioritized action items, and side project briefs
+- `aa21bf3` feat: enhance sneaker identification — collab detection, SKU extraction, photo tips
 
 ### Key Decisions
 - `isPro()` MUST use admin client — anon client has no auth context in API routes
-- James's top priority: ads automation > QuickBooks > customer service AI
-- Team testing blocked on NDA — needs to be sent ASAP
+- Always include sneaker guide for all appraisals (same as coin/collectibles)
+- NDA is on James's side — focus on product improvements, not paperwork
 - B2B pricing target: ~$0.50-1.00/appraisal at volume
 
 ### Next Session Should
-1. **Send NDA to James** — blocks all team testing
-2. **Fix shoe variant ID** — Air Jordan 4 Aman Meniere misidentified
-3. **SKU/size tag detection** — improve extraction from tag photos
-4. **Photo guidelines doc** — prerequisite for team testing
-5. **Start ads automation scoping** — James's #1 side project priority
+1. **Test collab identification** — A Ma Maniere AJ4 through portal
+2. **Test style code extraction** — size tag photo verification
+3. **Batch upload feature** — wire Bullseye dashboard to queue system
+4. **Ads automation scoping** — James's #1 side project priority
+5. **QuickBooks API research** — James's #2 priority
 
 ---
 

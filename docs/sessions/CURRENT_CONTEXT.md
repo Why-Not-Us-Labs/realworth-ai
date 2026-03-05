@@ -6,9 +6,10 @@
 
 | Stream | Status | Last Activity |
 |--------|--------|---------------|
+| Sneaker ID & SKU Detection | **Deployed** | Mar 4 - Collab detection, style code extraction, photo tips shipped |
 | Super Admin / Pro Access Fix | **Deployed** | Mar 4 - isPro() RLS bug fixed, all server-side pro checks working |
 | Bullseye Side Projects (9) | **Prioritized** | Mar 4 - 1-pagers created, James ranked priorities |
-| RealWorth Beta Prep | Blocked (NDA) | Mar 4 - Need NDA before team testing |
+| RealWorth Beta Prep | Blocked (NDA on James) | Mar 4 - NDA is on James's side for his team |
 | March Beta (Bullseye x Shopify) | Planning | Mar 3 - Priorities from meetings |
 | Partnership / Beta Agreement | Pending | NDA needed, pricing TBD |
 | Bullseye Partner Portal | Phase 1 Polished | Feb 17 - White theme, logos, share links |
@@ -24,7 +25,10 @@
 | Super Admin Access | **Fixed** | isPro() uses admin client now |
 | Insurance Certificates | **Fixed** | Was blocked for all users |
 | AI Chat (Pro) | **Fixed** | Was blocked for all users |
-| Vercel | Healthy | Latest deploy: `2c3884f` |
+| Sneaker Collab Detection | **Deployed** | New prompt with 20+ named partners, visual signals |
+| SKU/Style Code Extraction | **Deployed** | Multi-location scan, brand-specific formats |
+| Bullseye Photo Tips | **Deployed** | Auto-show tips panel on first form visit |
+| Vercel | Healthy | Latest deploy: `aa21bf3` |
 | Supabase | Healthy | James's rows manually inserted |
 | Auth | Working | Google, Apple, Email all verified |
 | Payments | Verified | Stripe fully tested Feb 4 |
@@ -54,9 +58,9 @@
 
 ## RealWorth Technical Priorities (Before Team Testing)
 
-1. Fix shoe variant ID (Air Jordan 4 Aman Meniere misidentified)
-2. Improve SKU detection from size tag photos
-3. Create photo guidelines document
+1. ~~Fix shoe variant ID~~ **DONE** — collab detection prompt shipped
+2. ~~Improve SKU detection~~ **DONE** — multi-location scan + brand formats
+3. ~~Photo guidelines~~ **DONE** — Bullseye portal tips panel + PhotoGuidanceModal Sneaker category
 4. Batch upload feature for warehouse intake
 5. Whatnot livestream pricing integration (future)
 
@@ -69,14 +73,14 @@
 ## Next Session Priorities
 
 ### Immediate (This Week)
-1. **Send NDA** to James - blocks team testing
-2. **Fix shoe variant identification** - AJ4 colorway detection
-3. **SKU/size tag detection** improvement
-4. **Photo guidelines doc** for Bullseye team
+1. **Test collab identification** — run A Ma Maniere AJ4 through portal, verify correct pricing
+2. **Test style code extraction** — submit size tag photo, verify extraction
+3. **Batch upload feature** — wire Bullseye dashboard to existing queue system
+4. **NDA** — on James's side for his team
 
 ### Side Projects (Start Next)
-5. **Ads automation scoping** - James's #1 priority
-6. **QuickBooks API research** - James's #2 priority
+5. **Ads automation scoping** — James's #1 priority
+6. **QuickBooks API research** — James's #2 priority
 
 ### Carried Forward
 7. Shopify embed/widget for bullseyesb.com
@@ -89,6 +93,9 @@
 - Fix mutable search_path on 12 functions
 
 ## Recent Technical Decisions
+- **Mar 4**: Always include SNEAKER_GRADING_GUIDE for all users (was partner-only). Same rationale as coin/collectibles guides.
+- **Mar 4**: Collab detection added to prompt — 20+ named partners, visual signals, pricing rules
+- **Mar 4**: Style code multi-location scan — tongue tag, box label, heel, hang tag with brand-specific formats
 - **Mar 4**: `isPro()` must use `getSupabaseAdmin()` - anon client has no auth context in API routes
 - **Mar 4**: Super admin email fallback: `can-create` route uses `authUser.email` when users table row missing
 - **Mar 4**: `handle_new_user()` trigger can silently fail - need manual row insertion as fallback
