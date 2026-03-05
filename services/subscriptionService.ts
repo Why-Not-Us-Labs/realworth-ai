@@ -8,9 +8,11 @@ export type SubscriptionSource = 'stripe' | 'apple_iap';
 // Super admin emails - always have Pro features
 const SUPER_ADMIN_EMAILS = [
   'gavin@realworth.ai',
+  'gavin@whynotus.ai',
   'ann.mcnamara01@icloud.com',
   'sammy@whynotus.ai',
   'james@bullseyesb.com',
+  'james@whynotus.ai',
 ];
 
 /**
@@ -85,38 +87,53 @@ class SubscriptionService {
   /**
    * Check if user is Pro or Unlimited (by userId)
    * Supports both Stripe and Apple IAP subscriptions
+   * NOTE: Uses admin client — safe to call from API routes (anon client is blocked by RLS)
+   * @param email - Optional auth email to skip users table lookup for super admin check
    */
-  async isPro(userId: string): Promise<boolean> {
-    const subscription = await this.getUserSubscription(userId);
+  async isPro(userId: string, email?: string): Promise<boolean> {
+    // Check super admin first (fastest path, no DB query needed if email provided)
+    if (email && this.isSuperAdmin(email)) {
+      return true;
+    }
 
-    if (subscription) {
-      const isPaidTier = subscription.tierId === 'pro' || subscription.tierId === 'unlimited';
+    const supabaseAdmin = getSupabaseAdmin();
+
+    // Check subscription using admin client (anon client has no auth context in API routes)
+    const { data, error } = await supabaseAdmin
+      .from('subscriptions')
+      .select('tier_id, status, iap_product_id, iap_expires_at')
+      .eq('user_id', userId)
+      .single();
+
+    if (!error && data) {
+      const isPaidTier = data.tier_id === 'pro' || data.tier_id === 'unlimited';
 
       // Check Stripe subscription
-      if (subscription.source === 'stripe' && isPaidTier && subscription.status === 'active') {
+      if (!data.iap_product_id && isPaidTier && data.status === 'active') {
         return true;
       }
 
       // Check Apple IAP subscription
-      if (subscription.source === 'apple_iap' && isPaidTier) {
-        if (subscription.status === 'active') return true;
-        // Fallback: check expiration date directly
-        if (subscription.iapExpiresAt) {
-          const expiresAt = new Date(subscription.iapExpiresAt);
+      if (data.iap_product_id && isPaidTier) {
+        if (data.status === 'active') return true;
+        if (data.iap_expires_at) {
+          const expiresAt = new Date(data.iap_expires_at);
           if (expiresAt > new Date()) return true;
         }
       }
     }
 
-    // Check super admin by getting user email
-    const { data: user } = await supabase
-      .from('users')
-      .select('email')
-      .eq('id', userId)
-      .single();
+    // If no email was provided, look it up for super admin check
+    if (!email) {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('email')
+        .eq('id', userId)
+        .single();
 
-    if (user?.email && this.isSuperAdmin(user.email)) {
-      return true;
+      if (user?.email && this.isSuperAdmin(user.email)) {
+        return true;
+      }
     }
 
     return false;
@@ -389,7 +406,7 @@ class SubscriptionService {
 
       return {
         canCreate,
-        remaining: isPro ? Infinity : balance,
+        remaining: isPro ? 999999 : balance,
         isPro,
         tokenBalance: balance,
       };

@@ -34,14 +34,19 @@ export async function GET(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Get user email
+    // Get user email (fall back to auth email if users row is missing)
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
       .select('email')
       .eq('id', authUser.id)
       .single();
 
-    if (userError || !user) {
+    const userEmail = user?.email || authUser.email;
+
+    // Check super admin status early (before blocking on missing users row)
+    const isSuperAdmin = userEmail ? subscriptionService.isSuperAdmin(userEmail) : false;
+
+    if ((userError || !user) && !isSuperAdmin) {
       console.error('[CanCreate] Failed to fetch user:', userError);
       return NextResponse.json({ canCreate: false, remaining: 0, isPro: false, tokenBalance: 0 });
     }
@@ -61,9 +66,6 @@ export async function GET(request: NextRequest) {
       .single();
 
     const tokenBalance = tokenData?.balance || 0;
-
-    // Check if Pro (super admin, Stripe Pro, or Apple IAP)
-    const isSuperAdmin = user.email ? subscriptionService.isSuperAdmin(user.email) : false;
     const isStripePro = subscription?.tier_id === 'pro' && subscription?.status === 'active';
     const isIAPPro = subscription?.iap_product_id && subscription?.iap_expires_at &&
       new Date(subscription.iap_expires_at) > new Date();

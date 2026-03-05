@@ -39,8 +39,8 @@ export async function GET(
 
   const userId = user.id;
 
-  // Check if user is Pro
-  const isPro = await subscriptionService.isPro(userId);
+  // Check if user is Pro (pass auth email for reliable super admin check)
+  const isPro = await subscriptionService.isPro(userId, user.email);
 
   if (!isPro) {
     return NextResponse.json(
