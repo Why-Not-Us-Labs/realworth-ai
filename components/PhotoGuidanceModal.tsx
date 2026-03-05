@@ -68,6 +68,17 @@ const categoryGuidance: Record<string, { title: string; tips: string[] }> = {
       'Any damage, repairs, or refinishing',
     ],
   },
+  Sneaker: {
+    title: 'Sneakers & Athletic Shoes',
+    tips: [
+      'Both shoes side-by-side — lateral and medial views',
+      'Size tag inside shoe — for style code and size confirmation',
+      'Box label (if you have the box) — shows exact colorway code',
+      'Sole/outsole — shows wear level and condition',
+      'Tongue and heel — look for special branding or collab logos',
+      'Any hang tags, extra laces, or original accessories',
+    ],
+  },
   default: {
     title: 'General Collectibles',
     tips: [

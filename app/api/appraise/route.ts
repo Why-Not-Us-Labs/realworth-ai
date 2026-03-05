@@ -302,9 +302,21 @@ const SNEAKER_GRADING_GUIDE = `
 IDENTIFICATION:
 - Brand (Nike, Jordan, adidas, New Balance, etc.)
 - Model (Air Jordan 1, Dunk Low, Yeezy 350, 550, etc.)
-- Colorway (official name: "Chicago", "Bred", "University Blue")
-- Style Code (found on size tag inside shoe, e.g., "DQ8426-100")
+- Colorway (official name — CRITICAL: include collaboration partner name if applicable, e.g., "A Ma Maniere" not just "Violet Ore")
 - Size (US sizing from tag)
+
+STYLE CODE EXTRACTION (HIGH PRIORITY — enables precise eBay pricing):
+Check ALL of these locations in the photos:
+1. Inside tongue tag: Pull-tab label sewn inside shoe tongue
+2. Box label: Sticker on shoe box exterior with full details
+3. Heel exterior: Some models print style code on the heel
+4. Hang tag: Attached tag with product details
+Brand-specific formats to look for:
+- Nike/Jordan: XXXXXX-XXX (6 digits, hyphen, 3 digits, e.g., DQ8426-100, DO9392-100)
+- adidas: Letter + 5-6 alphanumeric (e.g., B37241, GX3607, HQ7045)
+- New Balance: Model number + width (e.g., M990GL5, U550BB1)
+- Yeezy (adidas): Same adidas format (e.g., GW0092, HP6895)
+If a style code is visible in ANY photo, extract the exact characters. Never guess — use 'unknown' only if no code is visible in any photo.
 
 CONDITION GRADES (sneaker-industry standard):
 - DS (Deadstock): Brand new, never worn, no flaws. Original packaging intact.
@@ -334,7 +346,26 @@ MARKET CONTEXT:
 - Release type: General Release (GR), Limited, Collab, Exclusive
 - Size liquidity: Men's 8-12 most liquid; small/large sizes slower
 - Platform pricing: StockX, GOAT, eBay for sold comps
-- Seasonal factors: Jordan 1s spike during back-to-school and holidays`;
+- Seasonal factors: Jordan 1s spike during back-to-school and holidays
+
+COLLABORATION & LIMITED EDITION DETECTION (CRITICAL — collabs can be 5-20x GR price):
+Visual signals to scan for in every photo:
+- Co-branding logos on tongue, heel tab, insole, or hang tag
+- Non-standard materials: suede/satin on normally leather models, premium textiles, special embossing
+- Design deviations: reversed Swoosh (Travis Scott), exposed foam (Off-White), deconstructed elements
+- Custom lace shapes, colors, or extra lace sets not on standard releases
+- Unique colorways that don't match any known general release
+
+Known high-value collaboration partners (NOT exhaustive):
+Travis Scott, Off-White/Virgil Abloh, A Ma Maniere, Fragment (Hiroshi Fujiwara), Union LA, Sacai, Concepts, Bodega, Social Status, CLOT, Eminem, Trophy Room, Aleali May, SoleFly, J Balvin, Billie Eilish, Bad Bunny, Comme des Garcons, Supreme
+
+RELEASE TYPE RULES:
+- 'collab': Designer/brand/artist partnership shoe — ALWAYS name the partner in colorway field
+- 'exclusive': Raffle-only or single-retailer release, very limited quantity
+- 'limited': Limited production run but no named partner (e.g., OG Jordan retros, special colorways)
+- 'general_release': Widely available at retail, restockable
+
+PRICING RULE: NEVER blend collab/limited pricing with general release pricing. A collab shoe's priceRange must reflect collab market value. Example: Air Jordan 4 GR = $100-200, Air Jordan 4 x A Ma Maniere = $300-500+.`;
 
 // Validation function to catch face-value errors for collectibles
 interface AppraisalData {
@@ -710,11 +741,8 @@ ITEM IDENTIFICATION:
 
 REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listings, auction houses, price guides) with real URLs.`;
 
-    // Always include both guides to avoid category pre-detection latency
-    let appraisalSystemInstruction = baseSystemInstruction + '\n\n' + COIN_GRADING_GUIDE + '\n\n' + COLLECTIBLES_GUIDE;
-    if (partnerId) {
-      appraisalSystemInstruction += '\n\n' + SNEAKER_GRADING_GUIDE;
-    }
+    // Always include all guides to avoid category pre-detection latency
+    let appraisalSystemInstruction = baseSystemInstruction + '\n\n' + COIN_GRADING_GUIDE + '\n\n' + COLLECTIBLES_GUIDE + '\n\n' + SNEAKER_GRADING_GUIDE;
     if (collectionContext) {
       appraisalSystemInstruction += '\n\n' + collectionContext;
     }
@@ -723,7 +751,16 @@ REFERENCE SOURCES: Provide 2-3 references from trusted sources (eBay sold listin
     let promptText = '';
     if (partnerId) {
       // Partner mode: sneaker-focused prompt
-      promptText = `IMPORTANT: This is a SNEAKER appraisal for a buy/sell partner. You MUST populate the sneakerDetails field with full sneaker-specific data including brand, model, colorway, style code, size, condition grade, flaws, and authenticity score. Set category to "Sneaker".`;
+      promptText = `IMPORTANT: This is a SNEAKER appraisal for a buy/sell partner.
+
+You MUST:
+1. Populate sneakerDetails FULLY — brand, model, colorway, styleCode, size, conditionGrade, flaws, authenticityScore
+2. CRITICALLY examine ALL photos for collaboration markers (co-branding logos, special materials, hang tags, box labels, design deviations)
+3. Set releaseType accurately — collabs command 5-20x GR price. If ANY collaboration evidence exists, set releaseType to 'collab' and name the partner in colorway
+4. Extract styleCode from ANY visible tag, box label, or heel marking — this enables precise market pricing
+5. Set category to "Sneaker"
+
+The accuracy of the buy offer depends entirely on correct model/colorway/collaboration identification.`;
       if (condition) promptText += `\nUser-specified condition: ${condition}`;
     } else if (condition) {
       promptText = `User-specified Condition: ${condition}`;

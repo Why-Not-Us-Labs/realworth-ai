@@ -13,6 +13,15 @@ const supabase = createClient(
 
 type AppState = 'landing' | 'form' | 'loading' | 'result' | 'accepted' | 'declined';
 
+const SNEAKER_PHOTO_TIPS = [
+  'Both shoes side-by-side — lateral and medial views',
+  'Size tag inside shoe — critical for style code and accurate pricing',
+  'Box label if available — shows exact style code and colorway',
+  'Sole (outsole) — shows wear level and authenticity markers',
+  'Tongue and heel tab — look for collab logos or special branding',
+  'Any hang tags, extra laces, or original accessories',
+];
+
 const LOADING_STEPS = [
   { label: 'Uploading photos...', delay: 0 },
   { label: 'Identifying sneaker model...', delay: 4000 },
@@ -99,6 +108,7 @@ export default function BullseyePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<AppState>('landing');
+  const [showTips, setShowTips] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -330,6 +340,23 @@ export default function BullseyePage() {
                 ? `${photoCount} photo${photoCount > 1 ? 's' : ''} added \u2014 more angles = better offer`
                 : `${photoCount} photos added \u2014 great coverage!`}
           </p>
+
+          {/* Photo tips — shown on first visit, dismissable */}
+          {showTips && photoCount === 0 && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-red-800">For the best offer, include photos of:</p>
+                <button onClick={() => setShowTips(false)} className="text-red-400 text-xs underline shrink-0 ml-2">Got it</button>
+              </div>
+              <ul className="space-y-1">
+                {SNEAKER_PHOTO_TIPS.map((tip, i) => (
+                  <li key={i} className="text-xs text-red-700 flex items-start gap-2">
+                    <span className="text-red-400 shrink-0">{i + 1}.</span>{tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Mobile: Camera button — same pattern as main RealWorth FileUpload */}
           {photoCount < maxFiles && (
