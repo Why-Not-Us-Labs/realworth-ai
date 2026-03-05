@@ -1,21 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { SneakerDetails, BuyOffer } from '@/lib/types';
 import type { EbayMarketData } from '@/services/ebayPriceService';
 import BuyOfferCard from '@/components/partner/BuyOfferCard';
+import GuidedCapture from '@/components/partner/GuidedCapture';
 import { uploadFile, compressImage } from '@/lib/imageUtils';
 
-type AppState = 'landing' | 'form' | 'loading' | 'result' | 'accepted' | 'declined';
-
-const SNEAKER_PHOTO_TIPS = [
-  'Both shoes side-by-side — lateral and medial views',
-  'Size tag inside shoe — critical for style code and accurate pricing',
-  'Box label if available — shows exact style code and colorway',
-  'Sole (outsole) — shows wear level and authenticity markers',
-  'Tongue and heel tab — look for collab logos or special branding',
-  'Any hang tags, extra laces, or original accessories',
-];
+type AppState = 'landing' | 'capture' | 'loading' | 'result' | 'accepted' | 'declined';
 
 const LOADING_STEPS = [
   { label: 'Uploading photos...', delay: 0 },
@@ -40,12 +32,7 @@ function clearUrls() {
 }
 
 export default function BullseyePage() {
-  // Refs — same pattern as main RealWorth FileUpload
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [state, setState] = useState<AppState>('landing');
-  const [showTips, setShowTips] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +65,6 @@ export default function BullseyePage() {
     const savedUrls = loadUrls();
     if (savedUrls.length > 0) {
       setUploadedUrls(savedUrls);
-      setState('form');
     }
   }, []);
 
@@ -102,33 +88,15 @@ export default function BullseyePage() {
     return () => clearInterval(interval);
   }, [state]);
 
-  // When files are added, store them for preview (upload happens at submit time, like main app)
-  const handleFiles = useCallback((fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    setState(prev => prev === 'landing' ? 'form' : prev);
-    const newFiles = Array.from(fileList);
-    setFiles(prev => [...prev, ...newFiles].slice(0, 5));
-  }, []);
-
-  const removePhoto = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    setUploadedUrls(prev => {
-      const updated = prev.filter((_, i) => i !== index);
-      saveUrls(updated);
-      return updated;
-    });
+  const handleCaptureComplete = (capturedFiles: File[]) => {
+    setFiles(capturedFiles);
+    submitFiles(capturedFiles);
   };
 
-  // Same onChange pattern as main app FileUpload
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFiles(e.target.files);
-    if (e.target) e.target.value = '';
-  };
-
-  const submit = async () => {
-    // Need either File objects or previously uploaded URLs (from sessionStorage restore)
-    if (files.length === 0 && uploadedUrls.length === 0) {
+  const submitFiles = async (filesToUpload: File[]) => {
+    if (filesToUpload.length === 0) {
       setError('Please add at least one photo');
+      setState('landing');
       return;
     }
 
@@ -138,23 +106,18 @@ export default function BullseyePage() {
 
     try {
       // Upload files to storage at submit time (same pattern as main RealWorth app)
-      let urls = uploadedUrls;
-
-      if (files.length > 0) {
-        const uploaded: string[] = [];
-        for (const file of files) {
-          const compressed = await compressImage(file);
-          const url = await uploadFile(compressed);
-          if (url) uploaded.push(url);
-        }
-        if (uploaded.length === 0) {
-          throw new Error('Failed to upload images. Please try again.');
-        }
-        urls = uploaded;
-        // Save URLs immediately so they survive if the API call fails
-        setUploadedUrls(urls);
-        saveUrls(urls);
+      const uploaded: string[] = [];
+      for (const file of filesToUpload) {
+        const compressed = await compressImage(file);
+        const url = await uploadFile(compressed);
+        if (url) uploaded.push(url);
       }
+      if (uploaded.length === 0) {
+        throw new Error('Failed to upload images. Please try again.');
+      }
+      const urls = uploaded;
+      setUploadedUrls(urls);
+      saveUrls(urls);
 
       const res = await fetch('/api/appraise', {
         method: 'POST',
@@ -187,7 +150,7 @@ export default function BullseyePage() {
       } else {
         setError(msg);
       }
-      setState('form');
+      setState('landing');
     } finally {
       setIsSubmitting(false);
     }
@@ -201,32 +164,8 @@ export default function BullseyePage() {
     clearUrls();
   };
 
-  const maxFiles = 5;
-  const photoCount = Math.max(files.length, uploadedUrls.length);
-
-  // --- Single return — inputs are ALWAYS in the DOM ---
   return (
     <div className="min-h-screen bg-white">
-      {/* Hidden file inputs — always mounted, same pattern as main RealWorth FileUpload */}
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={onFileChange}
-        className="hidden"
-        aria-label="Take photo"
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,.heic,.heif"
-        onChange={onFileChange}
-        className="hidden"
-        aria-label="Upload photos"
-      />
-
       {/* Landing */}
       {state === 'landing' && (
         <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
@@ -249,7 +188,7 @@ export default function BullseyePage() {
             Snap a few photos, get an AI-powered valuation and buy offer in seconds. Bring them to any Bullseye location to get paid.
           </p>
           <button
-            onClick={() => setState('form')}
+            onClick={() => setState('capture')}
             className="px-10 py-4 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded-xl text-xl transition-colors shadow-lg shadow-red-500/20"
           >
             Get Your Offer
@@ -264,111 +203,19 @@ export default function BullseyePage() {
         </div>
       )}
 
-      {/* Form */}
-      {state === 'form' && (
-        <div className="min-h-screen px-4 py-8 max-w-lg mx-auto">
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center gap-2">
-              <img src="/partners/bullseye-logo.png" alt="Bullseye" className="h-7" />
-              <span className="text-slate-300 text-sm">x</span>
-              <img src="/partners/realworth-collab-logo.png" alt="RealWorth" className="h-7" />
-            </div>
-          </div>
+      {/* Guided Capture */}
+      {state === 'capture' && (
+        <GuidedCapture
+          onComplete={handleCaptureComplete}
+          onCancel={() => setState('landing')}
+        />
+      )}
 
-          <h2 className="text-lg font-bold text-slate-900 mb-1">Take sneaker photos</h2>
-          <p className="text-xs text-slate-500 mb-4">
-            {photoCount === 0
-              ? 'Up to 5 photos \u00B7 Multiple angles help accuracy'
-              : photoCount < 3
-                ? `${photoCount} photo${photoCount > 1 ? 's' : ''} added \u2014 more angles = better offer`
-                : `${photoCount} photos added \u2014 great coverage!`}
-          </p>
-
-          {/* Photo tips — shown on first visit, dismissable */}
-          {showTips && photoCount === 0 && (
-            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-red-800">For the best offer, include photos of:</p>
-                <button onClick={() => setShowTips(false)} className="text-red-400 text-xs underline shrink-0 ml-2">Got it</button>
-              </div>
-              <ul className="space-y-1">
-                {SNEAKER_PHOTO_TIPS.map((tip, i) => (
-                  <li key={i} className="text-xs text-red-700 flex items-start gap-2">
-                    <span className="text-red-400 shrink-0">{i + 1}.</span>{tip}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Mobile: Camera button — same pattern as main RealWorth FileUpload */}
-          {photoCount < maxFiles && (
-            <button
-              type="button"
-              onClick={() => cameraInputRef.current?.click()}
-              className="sm:hidden flex flex-col justify-center items-center w-full px-4 py-10 border-2 border-dashed rounded-xl cursor-pointer transition-colors touch-manipulation min-h-[140px] border-red-500 bg-red-500/5 active:bg-red-500/20"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              <p className="mt-3 text-sm font-semibold text-red-400">
-                Take Photos
-              </p>
-              <p className="mt-1 text-xs text-slate-500">Tap to open camera</p>
-            </button>
-          )}
-
-          {/* Desktop: Upload area */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={photoCount >= maxFiles}
-            className="hidden sm:flex flex-col justify-center items-center w-full px-6 py-10 border-2 border-dashed rounded-xl cursor-pointer min-h-[140px] border-red-500 bg-red-500/5 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-            <p className="mt-3 text-sm font-semibold text-red-400">Upload Photos</p>
-            <p className="mt-1 text-xs text-slate-500">Click to browse</p>
-          </button>
-
-          {/* Image previews — show from File objects (instant) with URL fallback (persisted) */}
-          {photoCount > 0 && (
-            <div className="mt-4">
-              <div className="text-xs text-slate-500 mb-2">{photoCount} of {maxFiles} photos</div>
-              <div className="grid grid-cols-3 gap-2">
-                {(files.length > 0 ? files : []).map((file, i) => (
-                  <FilePreview key={`${file.name}-${file.lastModified}-${i}`} file={file} index={i} onRemove={() => removePhoto(i)} />
-                ))}
-                {/* Show URL-based previews for restored photos (after page reload) */}
-                {files.length === 0 && uploadedUrls.map((url, i) => (
-                  <div key={url} className="relative group aspect-square">
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover rounded-lg border border-slate-200" />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(i)}
-                      className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-                    >
-                      &times;
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-600">
-              <p>{error}</p>
-              {uploadedUrls.length > 0 && (
-                <p className="text-xs text-slate-500 mt-1">Your photos have been saved — tap &quot;Get My Offer&quot; to try again.</p>
-              )}
-            </div>
-          )}
-
-          <button
-            onClick={submit}
-            disabled={photoCount === 0 || isSubmitting}
-            className="mt-6 w-full py-3 bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-lg transition-colors"
-          >
-            {isSubmitting ? 'Analyzing...' : 'Get My Offer'}
-          </button>
+      {/* Error banner — shown on landing after a failed submission */}
+      {state === 'landing' && error && (
+        <div className="fixed bottom-6 left-4 right-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-600 text-center z-40">
+          <p>{error}</p>
+          <button onClick={() => setError(null)} className="text-xs text-slate-500 underline mt-1">Dismiss</button>
         </div>
       )}
 
@@ -467,30 +314,3 @@ export default function BullseyePage() {
   );
 }
 
-// File preview component — same pattern as main RealWorth ImagePreview
-function FilePreview({ file, index, onRemove }: { file: File; index: number; onRemove: () => void }) {
-  const [imageUrl, setImageUrl] = useState('');
-
-  useEffect(() => {
-    const objectUrl = URL.createObjectURL(file);
-    setImageUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
-
-  return (
-    <div className="relative group aspect-square">
-      <img
-        src={imageUrl}
-        alt={`Photo ${index + 1}`}
-        className="w-full h-full object-cover rounded-lg border border-slate-200"
-      />
-      <button
-        type="button"
-        onClick={onRemove}
-        className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs"
-      >
-        &times;
-      </button>
-    </div>
-  );
-}

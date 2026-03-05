@@ -557,7 +557,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Limit number of images to prevent abuse
-    const MAX_IMAGES = 5;
+    const MAX_IMAGES = 10;
     if (imageUrls.length > MAX_IMAGES) {
       return NextResponse.json(
         { error: `Maximum ${MAX_IMAGES} images allowed per appraisal.` },

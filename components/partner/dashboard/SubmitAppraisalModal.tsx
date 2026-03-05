@@ -52,7 +52,7 @@ export default function SubmitAppraisalModal({ onSuccess, onClose }: Props) {
 
   const handleFiles = useCallback((fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
-    setFiles(prev => [...prev, ...Array.from(fileList)].slice(0, 5));
+    setFiles(prev => [...prev, ...Array.from(fileList)].slice(0, 10));
   }, []);
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +114,7 @@ export default function SubmitAppraisalModal({ onSuccess, onClose }: Props) {
     }
   };
 
-  const maxFiles = 5;
+  const maxFiles = 10;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
