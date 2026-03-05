@@ -3,37 +3,52 @@
 ## Current Session
 *Updated at end of each session*
 
-**Date:** March 3, 2026
-**Focus:** Status check, infra health verification, March beta priority synthesis
+**Date:** March 4, 2026
+**Focus:** Super admin fix, isPro() RLS bug, meeting notes processing, action item prioritization
 
 ### Completed
-- [x] Synced local to production (`git reset --hard origin/main` — was 9 commits behind)
-- [x] Vercel status check: all deployments Ready, no failures
-- [x] Supabase status check: ACTIVE_HEALTHY, flagged security advisors (6 tables missing RLS, `partner_configs` exposed `api_key`)
-- [x] Reviewed Granola meeting notes from Feb 25 meeting with James
-- [x] Synthesized March beta priority list from meeting outcomes
-- [x] Updated CURRENT_CONTEXT.md with new partnership status and priorities
+- [x] Fixed `isPro()` RLS bug — anon client blocked ALL server-side pro checks (certificates, chat)
+- [x] Rewrote `isPro()` to use `getSupabaseAdmin()` with optional email param
+- [x] Fixed `can-create` route — auth email fallback when users table row missing
+- [x] Inserted James's missing DB rows (users, subscriptions, token_balances)
+- [x] Added `gavin@whynotus.ai` and `james@whynotus.ai` to super admin list
+- [x] Fixed `Infinity` JSON serialization → `999999`
+- [x] Processed 3 days of meeting notes (Mon/Tue/Wed March 2-4 with James)
+- [x] Created prioritized action items (18 items, 5 tiers) → `docs/meetings/action-items-prioritized.md`
+- [x] Created 1-pagers for 9 Bullseye side projects → `docs/meetings/side-project-briefs.md`
+- [x] Updated all session scribe docs for portable context
 
 ### Commits
-- None (status/planning session only)
+- `2c3884f` fix: super admin access + isPro() RLS bug blocking all server-side pro checks
+- (pending) docs: meeting notes, action items, and side project briefs from James calls
 
 ### Key Decisions
-- Partnership: 30-day beta trial agreed (not equity), transaction fee model
-- Deployment: Shopify embed on bullseyesb.com (not just subdomain)
-- IP protection: Must hide methodology from partner-facing tool
-- Confirmed: `wnu-platform` is active DB, `realworth-db` is legacy
+- `isPro()` MUST use admin client — anon client has no auth context in API routes
+- James's top priority: ads automation > QuickBooks > customer service AI
+- Team testing blocked on NDA — needs to be sent ASAP
+- B2B pricing target: ~$0.50-1.00/appraisal at volume
 
 ### Next Session Should
-1. **Shopify embed** — research Shopify app/widget integration for bullseyesb.com
-2. **Hide methodology** — strip rationale from partner results (simple offer only)
-3. **Bot protection** — whitelisting / rate limiting for beta
-4. **Accept offer -> signup flow** — account creation flow
-5. **30-day beta agreement** — draft formal doc if not done externally
-6. Check if Slack workspace set up with James
+1. **Send NDA to James** — blocks all team testing
+2. **Fix shoe variant ID** — Air Jordan 4 Aman Meniere misidentified
+3. **SKU/size tag detection** — improve extraction from tag photos
+4. **Photo guidelines doc** — prerequisite for team testing
+5. **Start ads automation scoping** — James's #1 side project priority
 
 ---
 
 ## Previous Session
+
+**Date:** March 3, 2026
+**Focus:** Status check, infra health, March beta priorities
+
+- [x] Synced local to production, Vercel healthy, Supabase healthy
+- [x] Synthesized March beta priority list from Feb 25 meeting
+- [x] Updated CURRENT_CONTEXT.md
+
+---
+
+## Earlier Session
 
 **Date:** February 24, 2026
 **Focus:** Partnership Documents Rewrite — Advisor feedback from Michael & Scott

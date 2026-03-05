@@ -1,17 +1,19 @@
 # RealWorth.ai - Current Context
 
-**Last Updated:** March 3, 2026
+**Last Updated:** March 4, 2026
 
 ## Active Work Streams
 
 | Stream | Status | Last Activity |
 |--------|--------|---------------|
-| March Beta (Bullseye x Shopify) | Planning | Mar 3 - Priorities synthesized from Feb 25 meeting |
-| Partnership / Beta Agreement | Pending | Feb 25 - 30-day beta agreed, formal doc needed |
+| Super Admin / Pro Access Fix | **Deployed** | Mar 4 - isPro() RLS bug fixed, all server-side pro checks working |
+| Bullseye Side Projects (9) | **Prioritized** | Mar 4 - 1-pagers created, James ranked priorities |
+| RealWorth Beta Prep | Blocked (NDA) | Mar 4 - Need NDA before team testing |
+| March Beta (Bullseye x Shopify) | Planning | Mar 3 - Priorities from meetings |
+| Partnership / Beta Agreement | Pending | NDA needed, pricing TBD |
 | Bullseye Partner Portal | Phase 1 Polished | Feb 17 - White theme, logos, share links |
-| WNU Platform Migration | Complete | Feb 4 - Vercel env vars fixed, Discover working |
-| Stripe Integration | Verified | Feb 4 - All payment flows tested |
-| iOS App / Apple Review | Active | Jan 29 - Capacitor loads from production |
+| WNU Platform Migration | Complete | Feb 4 |
+| Stripe Integration | Verified | Feb 4 |
 
 ## Quick Status
 
@@ -19,43 +21,67 @@
 |-----------|-------|-------|
 | Web App | Stable | Production at realworth.ai |
 | Partner Portal | Live + Polished | bullseyesb.realworth.ai |
-| Vercel | Healthy | All deployments Ready, no failures |
-| Supabase | Healthy | ACTIVE_HEALTHY, some security advisors flagged |
+| Super Admin Access | **Fixed** | isPro() uses admin client now |
+| Insurance Certificates | **Fixed** | Was blocked for all users |
+| AI Chat (Pro) | **Fixed** | Was blocked for all users |
+| Vercel | Healthy | Latest deploy: `2c3884f` |
+| Supabase | Healthy | James's rows manually inserted |
 | Auth | Working | Google, Apple, Email all verified |
 | Payments | Verified | Stripe fully tested Feb 4 |
 | Database | WNU Platform | `ahwensdtjsvuqxbjgkgv` (wnu-platform) |
 
-## Partnership Status (Post Feb 25 Meeting)
+## James Meeting Notes (March 2-4, 2026)
 
-**Agreed with James:**
-- 30-day beta trial (no equity during beta)
-- 2-year exclusivity on footwear/streetwear
-- Transaction fee model once live
-- RealWorth can opt out anytime
-- Deploy directly on bullseyesb.com (Shopify embed)
+3 days of calls documented in `docs/meetings/`:
+- `2026-03-02_james-monday.md` - Product feedback, shoe ID issues, batch upload
+- `2026-03-03_james-tuesday.md` - Operations deep dive, Whatnot, security
+- `2026-03-04_james-wednesday.md` - Side project prioritization (9 projects ranked)
 
-**Working cadence:** Twice-weekly check-ins, weekly sprints
-**Team Slack:** Pending (James sending invite)
+**Prioritized action items**: See `docs/meetings/action-items-prioritized.md`
+**Side project 1-pagers**: See `docs/meetings/side-project-briefs.md`
+
+## James's Side Project Priority Ranking
+
+1. Media buying/ads automation (Google & Meta) - 3-4 weeks
+2. QuickBooks categorization for real-time profitability - 2-3 weeks
+3. Customer service automation (IG, email, FB, TikTok) - 3-4 weeks
+4. Customer outreach for new arrivals (CRM + IG DM) - 2-3 weeks
+5. GA4 refund data to Google/Meta - 1-2 weeks
+6. Fraud call prevention with text follow-up - 1 week
+7. Chargeback response automation - 2 weeks
+8. Security at Capital City store (AI cameras) - 4-6 weeks
+9. Social media content posting automation - 2-3 weeks
+
+## RealWorth Technical Priorities (Before Team Testing)
+
+1. Fix shoe variant ID (Air Jordan 4 Aman Meniere misidentified)
+2. Improve SKU detection from size tag photos
+3. Create photo guidelines document
+4. Batch upload feature for warehouse intake
+5. Whatnot livestream pricing integration (future)
 
 ## Pending Questions
+- NDA: Has it been sent to James?
+- Pricing model: ~$0.50-1.00/appraisal at volume - finalized?
+- Which side project to start building first?
 - Shopify embed approach: widget vs full page integration?
-- Bot protection: whitelisting vs rate limiting vs both?
-- Accept offer -> create account flow: what auth providers?
-- Share link branding: partner-specific OG image needed?
 
 ## Next Session Priorities
 
-### March Beta — Technical
-1. **Shopify embed/widget** for bullseyesb.com — James providing dev access
-2. **Hide methodology** — strip rationale from partner-facing results, show simple offer only
-3. **Bot protection** — prevent algorithm reverse-engineering, whitelisting system
-4. **Accept offer -> signup flow** — account creation on "Accept Offer"
+### Immediate (This Week)
+1. **Send NDA** to James - blocks team testing
+2. **Fix shoe variant identification** - AJ4 colorway detection
+3. **SKU/size tag detection** improvement
+4. **Photo guidelines doc** for Bullseye team
+
+### Side Projects (Start Next)
+5. **Ads automation scoping** - James's #1 priority
+6. **QuickBooks API research** - James's #2 priority
 
 ### Carried Forward
-5. **Verify share links** — re-test after `user_id` nullable fix
-6. **Share link branding** — OG metadata, favicon, partner detection
-7. **Test main app regression** — normal appraisal on realworth.ai
-8. **Bullseye Phase 2** — partner dashboard (pipeline, metrics, rules editor)
+7. Shopify embed/widget for bullseyesb.com
+8. Bot protection / whitelisting
+9. Bullseye Phase 2 - partner dashboard
 
 ### Supabase Security (Noted, Not Urgent)
 - Enable RLS on `partner_configs` (exposed `api_key` column)
@@ -63,13 +89,23 @@
 - Fix mutable search_path on 12 functions
 
 ## Recent Technical Decisions
+- **Mar 4**: `isPro()` must use `getSupabaseAdmin()` - anon client has no auth context in API routes
+- **Mar 4**: Super admin email fallback: `can-create` route uses `authUser.email` when users table row missing
+- **Mar 4**: `handle_new_user()` trigger can silently fail - need manual row insertion as fallback
 - **Mar 3**: Confirmed `wnu-platform` is active DB; `realworth-db` is legacy/unused
-- **Feb 25**: Partnership shifted to 30-day beta trial (not equity deal) per meeting with James
-- **Feb 25**: Shopify embed deployment agreed (vs subdomain approach for public beta)
+- **Feb 25**: Partnership shifted to 30-day beta trial (not equity deal)
+- **Feb 25**: Shopify embed deployment agreed (vs subdomain for public beta)
 - **Feb 25**: Must hide appraisal methodology from partner-facing tool (IP protection)
-- **Feb 24**: Partnership docs rewritten per advisor guidance
-- **Feb 17**: Made `rw_appraisals.user_id` nullable for partner appraisals
-- **Feb 17**: AI determines sneaker condition from photos (removed condition picker)
+
+## Super Admin Emails
+```
+gavin@realworth.ai
+gavin@whynotus.ai      (Gavin's actual Google OAuth login)
+ann.mcnamara01@icloud.com
+sammy@whynotus.ai
+james@bullseyesb.com
+james@whynotus.ai
+```
 
 ## Key Account Info
 
@@ -80,9 +116,10 @@
 | **Vercel Project** | `real-worth` |
 | **Stripe Product** | `prod_TTQ9nVd9uSkgvu` |
 | **Test Account** | `gav.mcnamara01@gmail.com` (free tier) |
-| **Admin Account** | `gavin@realworth.ai` (super admin) |
+| **Admin Account** | `gavin@whynotus.ai` (super admin, actual login) |
 | **Bullseye Partner ID** | `bullseye` (in `partner_configs` table) |
 | **Bullseye Subdomain** | `bullseyesb.realworth.ai` |
+| **James's User ID** | `419093e5-12ea-425f-9662-2ad513eefe64` |
 
 ## Partner Portal Architecture
 
@@ -97,25 +134,10 @@ bullseyesb.realworth.ai
   -> Share link: realworth.ai/treasure/{appraisalId}
 ```
 
-## March Beta Target Architecture (NEW)
-
-```
-bullseyesb.com (Shopify)
-  -> Embedded widget/page served from RealWorth
-  -> User stays on bullseyesb.com (trust factor)
-  -> Simple offer display (no methodology shown)
-  -> Bot protection / whitelisting layer
-  -> Transaction fee model per appraisal
-```
-
 ## Partner Portal Assets
 - `public/partners/bullseye-logo.png` - Black logo, transparent bg
 - `public/partners/bullseye-logo-white.png` - White logo, transparent bg
 - `public/partners/realworth-collab-logo.png` - Gemini-generated RealWorth script logo
-
-## Storage RLS Policies (appraisal-images bucket)
-1. `"Users can upload to own folder"` - authenticated, `foldername[1] = auth.uid()`
-2. `"Partners can upload to partner folder"` - anon, `foldername[1] = 'partner'`
 
 ## Partnership Documents (legal/partnership/)
 All rewritten Feb 24 per Michael & Scott's advisor guidance:
