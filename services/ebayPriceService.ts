@@ -82,6 +82,7 @@ function calculateConfidence(sampleSize: number): number {
  * Default excluded keywords to filter out damaged/bulk items
  */
 const DEFAULT_EXCLUDED_KEYWORDS = 'broken damaged parts lot bulk junk repair as-is for-parts';
+const SNEAKER_EXCLUDED_KEYWORDS = 'broken damaged parts lot bulk junk repair as-is for-parts custom painted restoration replica fake';
 
 /**
  * Check cache for existing eBay data
@@ -241,6 +242,57 @@ export async function getEbayMarketValue(params: EbaySearchParams): Promise<Ebay
     console.error('eBay API fetch error:', error);
     return null;
   }
+}
+
+/**
+ * Sneaker-specific eBay search with fallback.
+ * Primary: style code (most precise). Fallback: brand + model + colorway if < 5 results.
+ */
+export async function getEbayMarketValueForSneaker(sneakerDetails: {
+  brand?: string;
+  model?: string;
+  colorway?: string;
+  styleCode?: string;
+}, itemName: string): Promise<EbayMarketData | null> {
+  const sd = sneakerDetails;
+  const hasStyleCode = sd.styleCode && sd.styleCode !== 'unknown';
+
+  // Primary search: style code if available, else brand+model+colorway
+  const primaryKeywords = hasStyleCode
+    ? sd.styleCode!
+    : [sd.brand, sd.model, sd.colorway].filter(Boolean).join(' ');
+
+  if (!primaryKeywords) return null;
+
+  let result = await getEbayMarketValue({
+    keywords: primaryKeywords,
+    excludedKeywords: SNEAKER_EXCLUDED_KEYWORDS,
+    categoryId: '93427',
+    maxResults: 120,
+    removeOutliers: true,
+  });
+
+  // Fallback: if style code search returned < 5 results, try brand + model + colorway
+  if (hasStyleCode && (!result || result.sampleSize < 5)) {
+    const fallbackParts = [sd.brand, sd.model, sd.colorway].filter(Boolean);
+    if (fallbackParts.length >= 2) {
+      const fallbackKeywords = fallbackParts.join(' ');
+      console.log(`[eBay] Style code "${primaryKeywords}" got ${result?.sampleSize || 0} results, trying fallback: "${fallbackKeywords}"`);
+      const fallback = await getEbayMarketValue({
+        keywords: fallbackKeywords,
+        excludedKeywords: SNEAKER_EXCLUDED_KEYWORDS,
+        categoryId: '93427',
+        maxResults: 120,
+        removeOutliers: true,
+      });
+      // Use fallback if it has more results
+      if (fallback && (!result || fallback.sampleSize > result.sampleSize)) {
+        result = fallback;
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

@@ -12,7 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { notificationService } from '@/services/notificationService';
 import { FutureValuePrediction, SneakerDetails, BuyOfferRules } from '@/lib/types';
 import { calculateBuyOffer } from '@/services/buyOfferService';
-import { getEbayMarketValue, buildSearchKeywords, type EbayMarketData } from '@/services/ebayPriceService';
+import { getEbayMarketValue, getEbayMarketValueForSneaker, buildSearchKeywords, type EbayMarketData } from '@/services/ebayPriceService';
 
 // App Router config - extend timeout for AI processing
 // Requires Vercel Pro plan for > 60 seconds
@@ -933,20 +933,10 @@ The accuracy of the buy offer depends entirely on correct model/colorway/collabo
     if (partnerId && partnerConfig && appraisalData.sneakerDetails) {
       sneakerDetailsResult = appraisalData.sneakerDetails as SneakerDetails;
 
-      // Fetch eBay sold data for real market comps
+      // Fetch eBay sold data for real market comps (with sneaker-specific fallback)
       try {
-        const keywords = buildSearchKeywords({
-          itemName: appraisalData.itemName,
-          category: appraisalData.category,
-          sneakerDetails: sneakerDetailsResult,
-        });
-        console.log(`[Appraise API] eBay lookup for partner: "${keywords}"`);
-        ebayMarketData = await getEbayMarketValue({
-          keywords,
-          categoryId: '93427', // Athletic Shoes
-          maxResults: 120,
-          removeOutliers: true,
-        });
+        console.log(`[Appraise API] eBay sneaker lookup: style=${sneakerDetailsResult.styleCode}, brand=${sneakerDetailsResult.brand}, model=${sneakerDetailsResult.model}`);
+        ebayMarketData = await getEbayMarketValueForSneaker(sneakerDetailsResult, appraisalData.itemName);
         if (ebayMarketData) {
           console.log(`[Appraise API] eBay: ${ebayMarketData.sampleSize} results, median $${ebayMarketData.median.toFixed(2)}, confidence ${ebayMarketData.confidence.toFixed(2)}`);
         }

@@ -136,9 +136,12 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
       {ebayMarketData && ebayMarketData.sampleSize >= 2 && (
         <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-white text-base">Market Data</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-white text-base">Market Data</h3>
+              <ConfidenceBadge sampleSize={ebayMarketData.sampleSize} />
+            </div>
             <span className="text-xs text-slate-400">
-              Based on {ebayMarketData.sampleSize} recent sales
+              {ebayMarketData.sampleSize} recent sales
             </span>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
@@ -159,7 +162,7 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
             <div className="border-t border-slate-700 pt-3">
               <div className="text-xs text-slate-500 mb-2">Recent sold comps</div>
               <div className="space-y-1.5">
-                {ebayMarketData.comparables.slice(0, 3).map((comp, i) => (
+                {ebayMarketData.comparables.slice(0, 5).map((comp, i) => (
                   <div key={i} className="flex justify-between text-xs">
                     <span className="text-slate-400 truncate mr-3">{comp.title}</span>
                     <span className="shrink-0">
@@ -176,11 +179,24 @@ export default function BuyOfferCard({ offer, sneakerDetails, itemName, images, 
         </div>
       )}
 
+      {/* No eBay data fallback */}
+      {(!ebayMarketData || ebayMarketData.sampleSize < 2) && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-white text-base">Market Data</h3>
+            <ConfidenceBadge sampleSize={0} />
+          </div>
+          <p className="text-xs text-slate-400">
+            No recent eBay sales found — price based on AI analysis of similar models
+          </p>
+        </div>
+      )}
+
       {/* Breakdown */}
       <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4 space-y-2 text-sm">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-white text-base">Offer Breakdown</h3>
-          <span className="text-xs text-slate-500">{SOURCE_LABELS[breakdown.marketSource] || breakdown.marketSource}</span>
+          <SourceBadge source={breakdown.marketSource} />
         </div>
         <Row label="Market value" value={formatMoney(breakdown.marketValue)} />
         {breakdown.releaseAdjustment !== 0 && (
@@ -299,4 +315,25 @@ function Row({ label, value, negative }: { label: string; value: string; negativ
       <span className={negative ? 'text-red-400' : 'text-slate-300'}>{value}</span>
     </div>
   );
+}
+
+function ConfidenceBadge({ sampleSize }: { sampleSize: number }) {
+  if (sampleSize >= 10) {
+    return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">High confidence</span>;
+  }
+  if (sampleSize >= 5) {
+    return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-400 border border-yellow-500/30">Moderate</span>;
+  }
+  return <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">AI Estimate</span>;
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const colors: Record<string, string> = {
+    ebay: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    hybrid: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    gemini: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  };
+  const label = SOURCE_LABELS[source] || source;
+  const colorClass = colors[source] || 'bg-slate-500/20 text-slate-400 border-slate-500/30';
+  return <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${colorClass}`}>{label}</span>;
 }

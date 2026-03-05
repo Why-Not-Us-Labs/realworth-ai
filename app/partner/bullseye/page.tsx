@@ -1,15 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import type { SneakerDetails, BuyOffer } from '@/lib/types';
 import type { EbayMarketData } from '@/services/ebayPriceService';
 import BuyOfferCard from '@/components/partner/BuyOfferCard';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { uploadFile, compressImage } from '@/lib/imageUtils';
 
 type AppState = 'landing' | 'form' | 'loading' | 'result' | 'accepted' | 'declined';
 
@@ -29,64 +24,6 @@ const LOADING_STEPS = [
   { label: 'Looking up market prices...', delay: 22000 },
   { label: 'Calculating your offer...', delay: 35000 },
 ];
-
-// --- Helpers ---
-
-async function uploadFile(file: File): Promise<string | null> {
-  const ts = Date.now();
-  const rand = Math.random().toString(36).substring(7);
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-  const path = `partner/bullseye/${ts}-${rand}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from('appraisal-images')
-    .upload(path, file, { contentType: file.type, cacheControl: '3600' });
-
-  if (error) {
-    console.error('Upload error:', error);
-    return null;
-  }
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('appraisal-images')
-    .getPublicUrl(path);
-
-  return publicUrl;
-}
-
-async function compressImage(file: File): Promise<File> {
-  if (file.size <= 1.5 * 1024 * 1024) return file;
-
-  return new Promise((resolve) => {
-    const img = new Image();
-    const timeout = setTimeout(() => resolve(file), 3000);
-
-    img.onload = () => {
-      clearTimeout(timeout);
-      let { width, height } = img;
-      const max = 1600;
-      if (width > max || height > max) {
-        if (width > height) { height = (height / width) * max; width = max; }
-        else { width = (width / height) * max; height = max; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => {
-          if (blob && blob.size < file.size) {
-            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
-          } else resolve(file);
-        },
-        'image/jpeg',
-        0.8
-      );
-    };
-    img.onerror = () => { clearTimeout(timeout); resolve(file); };
-    img.src = URL.createObjectURL(file);
-  });
-}
 
 // Persist uploaded image URLs to sessionStorage so they survive page reloads
 function saveUrls(urls: string[]) {
@@ -318,6 +255,12 @@ export default function BullseyePage() {
             Get Your Offer
           </button>
           <p className="text-xs text-slate-400 mt-6">No sign-up required</p>
+          <a
+            href="/partner/bullseye/batch"
+            className="inline-block mt-4 text-xs text-slate-400 hover:text-red-500 underline transition-colors"
+          >
+            Staff? Upload multiple sneakers at once
+          </a>
         </div>
       )}
 
