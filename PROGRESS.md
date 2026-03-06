@@ -3,46 +3,49 @@
 ## Current Session
 *Updated at end of each session*
 
-**Date:** March 4, 2026
-**Focus:** Super admin fix, sneaker ID improvements, meeting notes, action items
+**Date:** March 5, 2026
+**Focus:** GOAT-style SVG mask cutout guide overlays for Bullseye GuidedCapture
 
 ### Completed
-- [x] Fixed `isPro()` RLS bug — anon client blocked ALL server-side pro checks (certificates, chat)
-- [x] Rewrote `isPro()` to use `getSupabaseAdmin()` with optional email param
-- [x] Fixed `can-create` route — auth email fallback when users table row missing
-- [x] Inserted James's missing DB rows (users, subscriptions, token_balances)
-- [x] Added `gavin@whynotus.ai` and `james@whynotus.ai` to super admin list
-- [x] Fixed `Infinity` JSON serialization → `999999`
-- [x] Processed 3 days of meeting notes (Mon/Tue/Wed March 2-4 with James)
-- [x] Created prioritized action items (18 items, 5 tiers) → `docs/meetings/action-items-prioritized.md`
-- [x] Created 1-pagers for 9 Bullseye side projects → `docs/meetings/side-project-briefs.md`
-- [x] Enhanced SNEAKER_GRADING_GUIDE with collab detection (20+ partners, visual signals, pricing rules)
-- [x] Expanded style code extraction (multi-location scan, brand-specific formats)
-- [x] Made sneaker guide available to ALL users (was partner-only)
-- [x] Added photo tips panel to Bullseye portal (auto-shows on first form visit)
-- [x] Added Sneaker category to PhotoGuidanceModal
+- [x] Upgraded `Silhouette` component in `GuidedCapture.tsx` — SVG mask cutout technique
+- [x] Dark semi-transparent overlay with clear guide shape windows (GOAT-style)
+- [x] White dashed stroke `12px dash, 8px gap` on all 7 guide shapes
+- [x] Clean cubic bezier curves — geometric/iconic shapes replacing hand-drawn paths
+- [x] Removed busy detail lines (midsole, tread, pull tabs) for cleaner look
+- [x] Resolved git conflict — dropped local monolithic edits, applied to remote's extracted component
+- [x] Build verified, pushed to production
 
 ### Commits
-- `2c3884f` fix: super admin access + isPro() RLS bug blocking all server-side pro checks
-- `aa729de` docs: meeting notes, prioritized action items, and side project briefs
-- `aa21bf3` feat: enhance sneaker identification — collab detection, SKU extraction, photo tips
+- `828e0e3` feat: GOAT-style SVG mask cutout guide overlays for GuidedCapture
 
 ### Key Decisions
-- `isPro()` MUST use admin client — anon client has no auth context in API routes
-- Always include sneaker guide for all appraisals (same as coin/collectibles)
-- NDA is on James's side — focus on product improvements, not paperwork
-- B2B pricing target: ~$0.50-1.00/appraisal at volume
+- SVG `<mask>` technique: white rect + black shape = dark overlay with clear window
+- Kept existing shape paths simplified to geometric/iconic (not anatomically accurate)
+- Issues/extra step keeps corner brackets (no mask — different visual intent)
+- Aligned with remote's refactored architecture (extracted GuidedCapture + imageUtils)
 
 ### Next Session Should
-1. **Test collab identification** — A Ma Maniere AJ4 through portal
-2. **Test style code extraction** — size tag photo verification
-3. **Batch upload feature** — wire Bullseye dashboard to queue system
-4. **Ads automation scoping** — James's #1 side project priority
-5. **QuickBooks API research** — James's #2 priority
+1. **Test guide overlays on production mobile** — verify rendering over live camera feed
+2. **Iterate on guide shapes** — tune bezier curves after real-device testing
+3. **Test full appraisal flow** — submit photos, verify sneaker ID + buy offer
+4. **Batch upload feature** — wire Bullseye dashboard to queue system
+5. **Side project scoping** — ads automation (#1) or QuickBooks (#2)
 
 ---
 
 ## Previous Session
+
+**Date:** March 4, 2026
+**Focus:** Super admin fix, sneaker ID improvements, meeting notes, action items
+
+- [x] Fixed `isPro()` RLS bug — anon client blocked ALL server-side pro checks
+- [x] Enhanced SNEAKER_GRADING_GUIDE with collab detection (20+ partners)
+- [x] Expanded style code extraction (multi-location scan, brand-specific formats)
+- [x] Processed 3 days of meeting notes, created prioritized action items + 1-pagers
+
+---
+
+## Earlier Session
 
 **Date:** March 3, 2026
 **Focus:** Status check, infra health, March beta priorities
