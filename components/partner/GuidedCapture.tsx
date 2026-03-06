@@ -526,177 +526,95 @@ export default function GuidedCapture({ onComplete, onCancel }: Props) {
   );
 }
 
-// --- Silhouette overlays (large, detailed, GOAT-style) ---
+// --- GOAT-style guide overlays with SVG mask cutout ---
+// Dark semi-transparent overlay covers the viewfinder; the guide shape is a clear window.
+// White dashed stroke (12px dash, 8px gap) outlines the guide shape.
+// All shapes use smooth cubic bezier curves for clean, geometric, iconic look.
+
+const GUIDE_SHAPES: Record<string, string> = {
+  // Tag: centered rectangle frame (~65% wide, ~55% tall) with rounded corners
+  tag: 'M 62,58 Q 52,58 52,68 L 52,232 Q 52,242 62,242 L 238,242 Q 248,242 248,232 L 248,68 Q 248,58 238,58 Z',
+
+  // Lateral/outer: two simplified shoe profiles, toes pointing right
+  outer: [
+    'M 18,192 L 148,192 C 165,192 172,178 170,164 C 168,155 160,149 150,146',
+    'L 75,135 C 48,129 28,135 25,152 C 22,165 20,178 18,192 Z',
+    'M 130,218 L 260,218 C 277,218 284,204 282,190 C 280,181 272,175 262,172',
+    'L 187,161 C 160,155 140,161 137,178 C 134,191 132,204 130,218 Z',
+  ].join(' '),
+
+  // Medial/inner: two shoe profiles mirrored, toes pointing left
+  inner: [
+    'M 282,192 L 152,192 C 135,192 128,178 130,164 C 132,155 140,149 150,146',
+    'L 225,135 C 252,129 272,135 275,152 C 278,165 280,178 282,192 Z',
+    'M 170,218 L 40,218 C 23,218 16,204 18,190 C 20,181 28,175 38,172',
+    'L 113,161 C 140,155 160,161 163,178 C 166,191 168,204 170,218 Z',
+  ].join(' '),
+
+  // Top down: two elongated teardrop/oval shapes (bird's-eye), wider at toe
+  top: [
+    'M 105,32 C 132,32 142,52 142,75 L 142,220 C 142,252 126,270 105,270',
+    'C 84,270 68,252 68,220 L 68,75 C 68,52 78,32 105,32 Z',
+    'M 195,32 C 222,32 232,52 232,75 L 232,220 C 232,252 216,270 195,270',
+    'C 174,270 158,252 158,220 L 158,75 C 158,52 168,32 195,32 Z',
+  ].join(' '),
+
+  // Back/heels: two U-shapes (tombstone) side by side
+  back: [
+    'M 35,252 L 35,118 C 35,68 60,52 90,52 C 120,52 145,68 145,118 L 145,252 Z',
+    'M 155,252 L 155,118 C 155,68 180,52 210,52 C 240,52 265,68 265,118 L 265,252 Z',
+  ].join(' '),
+
+  // Outsoles: two elongated sole outlines side by side
+  soles: [
+    'M 100,30 C 125,25 140,42 142,62 L 144,225 C 142,252 126,268 105,268',
+    'C 84,268 68,252 66,225 L 68,62 C 70,42 82,25 100,30 Z',
+    'M 200,30 C 225,25 240,42 242,62 L 244,225 C 242,252 226,268 205,268',
+    'C 184,268 168,252 166,225 L 168,62 C 170,42 182,25 200,30 Z',
+  ].join(' '),
+};
 
 function Silhouette({ stepId }: { stepId: string }) {
-  const strokeProps = {
-    stroke: 'rgba(255,255,255,0.5)',
-    strokeWidth: 2,
-    strokeDasharray: '6 4',
-    fill: 'none' as const,
-  };
+  const shapePath = GUIDE_SHAPES[stepId];
 
-  switch (stepId) {
-    case 'tag':
-      // Large rectangular tag with text lines — fills ~60% of frame
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          <rect x="55" y="65" width="190" height="170" rx="10" {...strokeProps} />
-          {/* Text line placeholders */}
-          <line x1="80" y1="110" x2="220" y2="110" {...strokeProps} />
-          <line x1="80" y1="140" x2="200" y2="140" {...strokeProps} />
-          <line x1="80" y1="170" x2="210" y2="170" {...strokeProps} />
-          <line x1="80" y1="200" x2="160" y2="200" {...strokeProps} />
-        </svg>
-      );
-
-    case 'outer':
-      // Two detailed lateral sneaker profiles facing right — fills ~75%
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Front shoe */}
-          <path d={`
-            M30,195 L30,140 Q30,120 40,108 Q50,95 65,88 L95,78 Q115,72 130,70 L160,68
-            Q180,68 195,75 L205,82 Q215,90 220,100 L228,115
-            Q232,125 245,130 L258,135 Q268,140 270,150 L270,165 L270,195
-            Q270,200 265,200 L35,200 Q30,200 30,195 Z
-          `} {...strokeProps} />
-          {/* Midsole line front shoe */}
-          <path d="M30,195 Q150,190 270,195" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-
-          {/* Back shoe (offset down and right) */}
-          <path d={`
-            M45,225 L45,170 Q45,150 55,138 Q65,125 80,118 L110,108 Q130,102 145,100 L175,98
-            Q195,98 210,105 L220,112 Q230,120 235,130 L243,145
-            Q247,155 260,160 L273,165 Q283,170 285,180 L285,195 L285,225
-            Q285,230 280,230 L50,230 Q45,230 45,225 Z
-          `} {...strokeProps} />
-          <path d="M45,225 Q165,220 285,225" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-        </svg>
-      );
-
-    case 'inner':
-      // Two detailed medial profiles facing left (mirrored) — fills ~75%
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Front shoe (mirrored) */}
-          <path d={`
-            M270,195 L270,140 Q270,120 260,108 Q250,95 235,88 L205,78 Q185,72 170,70 L140,68
-            Q120,68 105,75 L95,82 Q85,90 80,100 L72,115
-            Q68,125 55,130 L42,135 Q32,140 30,150 L30,165 L30,195
-            Q30,200 35,200 L265,200 Q270,200 270,195 Z
-          `} {...strokeProps} />
-          <path d="M270,195 Q150,190 30,195" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-
-          {/* Back shoe (mirrored, offset) */}
-          <path d={`
-            M255,225 L255,170 Q255,150 245,138 Q235,125 220,118 L190,108 Q170,102 155,100 L125,98
-            Q105,98 90,105 L80,112 Q70,120 65,130 L57,145
-            Q53,155 40,160 L27,165 Q17,170 15,180 L15,195 L15,225
-            Q15,230 20,230 L250,230 Q255,230 255,225 Z
-          `} {...strokeProps} />
-          <path d="M255,225 Q135,220 15,225" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-        </svg>
-      );
-
-    case 'top':
-      // Two elongated foot/insole shapes from above — fills ~80% vertically
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Left insole */}
-          <path d={`
-            M70,40 Q75,25 90,20 L105,18 Q118,18 122,28 L125,45
-            Q128,80 127,120 Q126,160 123,195
-            Q120,225 112,250 Q105,268 88,272
-            Q70,272 63,252 Q56,228 55,195
-            Q53,155 54,120 Q55,75 60,50 Q63,42 70,40 Z
-          `} {...strokeProps} />
-
-          {/* Right insole */}
-          <path d={`
-            M230,40 Q225,25 210,20 L195,18 Q182,18 178,28 L175,45
-            Q172,80 173,120 Q174,160 177,195
-            Q180,225 188,250 Q195,268 212,272
-            Q230,272 237,252 Q244,228 245,195
-            Q247,155 246,120 Q245,75 240,50 Q237,42 230,40 Z
-          `} {...strokeProps} />
-        </svg>
-      );
-
-    case 'back':
-      // Two heel counters from behind with pull tabs — fills ~70%
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Left heel */}
-          <path d={`
-            M35,245 L35,120 Q35,80 55,60 L72,48 Q88,40 100,40 L110,40
-            Q125,42 130,60 L130,120 L130,245
-            Q130,255 82,255 Q35,255 35,245 Z
-          `} {...strokeProps} />
-          {/* Left pull tab */}
-          <rect x="65" y="30" width="35" height="15" rx="4" {...strokeProps} />
-          {/* Left heel counter detail */}
-          <path d="M50,180 Q82,170 115,180" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-
-          {/* Right heel */}
-          <path d={`
-            M170,245 L170,120 Q170,80 190,60 L207,48 Q223,40 235,40 L245,40
-            Q260,42 265,60 L265,120 L265,245
-            Q265,255 217,255 Q170,255 170,245 Z
-          `} {...strokeProps} />
-          {/* Right pull tab */}
-          <rect x="200" y="30" width="35" height="15" rx="4" {...strokeProps} />
-          {/* Right heel counter detail */}
-          <path d="M185,180 Q217,170 250,180" {...strokeProps} strokeWidth={1.5} opacity={0.4} />
-        </svg>
-      );
-
-    case 'soles':
-      // Two large sole outlines stacked/angled — fills most of frame
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Bottom sole */}
-          <path d={`
-            M25,240 Q20,230 18,200 L18,100 Q18,55 50,38 L80,28
-            Q100,22 140,20 L200,20 Q240,22 258,38 L272,55
-            Q282,75 282,100 L282,200 Q282,235 270,245 L250,252
-            Q230,258 190,260 L100,258 Q55,255 38,248 Q28,244 25,240 Z
-          `} {...strokeProps} />
-          {/* Tread lines */}
-          <line x1="50" y1="90" x2="250" y2="90" {...strokeProps} strokeWidth={1.5} opacity={0.3} />
-          <line x1="45" y1="140" x2="255" y2="140" {...strokeProps} strokeWidth={1.5} opacity={0.3} />
-          <line x1="48" y1="190" x2="252" y2="190" {...strokeProps} strokeWidth={1.5} opacity={0.3} />
-
-          {/* Top sole (overlapping, slightly offset up-left) */}
-          <path d={`
-            M20,220 Q15,210 13,180 L13,85 Q13,42 45,26 L72,16
-            Q92,10 130,8 L188,8 Q228,10 246,26 L260,42
-            Q270,60 270,85 L270,180 Q270,215 258,225 L238,232
-            Q218,238 178,240 L90,238 Q48,235 33,228 Q23,224 20,220 Z
-          `} {...strokeProps} />
-        </svg>
-      );
-
-    case 'issues':
-    case 'extra':
-    default:
-      // Corner brackets frame — "put anything here"
-      return (
-        <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
-          {/* Top-left bracket */}
-          <path d="M40,90 L40,50 Q40,40 50,40 L90,40" {...strokeProps} />
-          {/* Top-right bracket */}
-          <path d="M210,40 L250,40 Q260,40 260,50 L260,90" {...strokeProps} />
-          {/* Bottom-left bracket */}
-          <path d="M40,210 L40,250 Q40,260 50,260 L90,260" {...strokeProps} />
-          {/* Bottom-right bracket */}
-          <path d="M210,260 L250,260 Q260,260 260,250 L260,210" {...strokeProps} />
-          {/* Small plus in center */}
-          <line x1="150" y1="130" x2="150" y2="170" {...strokeProps} strokeWidth={2.5} />
-          <line x1="130" y1="150" x2="170" y2="150" {...strokeProps} strokeWidth={2.5} />
-        </svg>
-      );
+  // Steps with mask cutout overlay
+  if (shapePath) {
+    const maskId = `guide-mask-${stepId}`;
+    return (
+      <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <mask id={maskId}>
+            <rect width="300" height="300" fill="white" />
+            <path d={shapePath} fill="black" />
+          </mask>
+        </defs>
+        {/* Dark overlay with clear cutout window */}
+        <rect width="300" height="300" fill="rgba(0,0,0,0.4)" mask={`url(#${maskId})`} />
+        {/* White dashed outline around the guide shape */}
+        <path
+          d={shapePath}
+          fill="none"
+          stroke="white"
+          strokeWidth="2"
+          strokeDasharray="12 8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
   }
+
+  // Issues/extra: corner brackets frame (no mask needed)
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
+      <path d="M40,90 L40,50 Q40,40 50,40 L90,40" fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 8" strokeLinecap="round" />
+      <path d="M210,40 L250,40 Q260,40 260,50 L260,90" fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 8" strokeLinecap="round" />
+      <path d="M40,210 L40,250 Q40,260 50,260 L90,260" fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 8" strokeLinecap="round" />
+      <path d="M210,260 L250,260 Q260,260 260,250 L260,210" fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 8" strokeLinecap="round" />
+      <line x1="150" y1="130" x2="150" y2="170" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+      <line x1="130" y1="150" x2="170" y2="150" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 // --- Step icon for thumbnail strip ---
