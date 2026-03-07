@@ -534,11 +534,8 @@ export default function GuidedCapture({ onComplete, onCancel }: Props) {
 const GUIDE_SHAPES: Record<string, string> = {
   // Traced from GOAT app capture flow — simple outer contours only
 
-  // Tag (GOAT Photo 1/7): dashed rectangle with text line hints
-  tag: [
-    'M 75,90 Q 70,90 70,95 L 70,210 Q 70,215 75,215 L 225,215 Q 230,215 230,210 L 230,95 Q 230,90 225,90 Z',
-    'M 95,125 L 195,125', 'M 95,152 L 210,152', 'M 95,179 L 175,179',
-  ].join(' '),
+  // Tag: large plain rectangle filling most of the viewfinder
+  tag: 'M 20,30 Q 18,28 16,30 L 16,225 Q 16,227 18,228 L 284,228 Q 286,228 286,225 L 286,30 Q 286,28 284,28 L 18,28 Z',
 
   // Outer (GOAT Photo 2/7): ONE right-facing sneaker profile — flat sole, smooth dome upper
   outer: [
