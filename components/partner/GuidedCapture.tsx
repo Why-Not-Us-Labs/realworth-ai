@@ -537,26 +537,28 @@ const GUIDE_SHAPES: Record<string, string> = {
   // Tag: large plain rectangle filling most of the viewfinder
   tag: 'M 20,30 Q 18,28 16,30 L 16,225 Q 16,227 18,228 L 284,228 Q 286,228 286,225 L 286,30 Q 286,28 284,28 L 18,28 Z',
 
-  // Outer: two right-facing sneaker profiles stacked vertically (top-left, bottom-right offset)
+  // Outer: two sneaker profiles stacked — top faces RIGHT, bottom faces LEFT (mirrored, as laid out showing outer sides)
   outer: [
-    // --- Top shoe (heel left, toe right) ---
+    // --- Top shoe (heel left, toe right) — with collar bump ---
     'M 18,140 L 242,140', // flat sole
     'C 254,140 260,130 257,118', // toe front rounds up
     'C 254,106 244,96 232,90', // toe box top
     'C 200,74 166,62 130,54', // upper/vamp sweeps toward collar
-    'C 100,47 76,44 62,46', // collar peak (~y44)
-    'C 46,48 36,58 30,76', // heel counter upper
+    'C 108,48 82,42 55,40', // approach collar peak
+    'C 44,39 36,42 34,48', // collar bump peak (~y39-40, highest point)
+    'C 32,54 30,62 30,76', // collar notch dip, then heel counter
     'C 24,96 20,120 18,138', // heel counter lower
     'L 18,140 Z',
-    // --- Bottom shoe (same shape, offset right+38 down+118) ---
-    'M 56,258 L 280,258', // flat sole
-    'C 292,258 298,248 295,236', // toe front
-    'C 292,224 282,214 270,208', // toe box
-    'C 238,192 204,180 168,172', // upper/vamp
-    'C 138,165 114,162 100,164', // collar peak
-    'C 84,166 74,176 68,194', // heel upper
-    'C 62,214 58,238 56,256', // heel lower
-    'L 56,258 Z',
+    // --- Bottom shoe (MIRRORED: heel right, toe left) — with collar bump ---
+    'M 282,258 L 58,258', // flat sole (reversed direction)
+    'C 46,258 40,248 43,236', // toe front rounds up (left side)
+    'C 46,224 56,214 68,208', // toe box top
+    'C 100,192 134,180 170,172', // upper/vamp sweeps toward collar
+    'C 192,166 218,160 245,158', // approach collar peak
+    'C 256,157 264,160 266,166', // collar bump peak (~y157-158, highest point)
+    'C 268,172 270,180 270,194', // collar notch dip, then heel counter
+    'C 276,214 280,238 282,256', // heel counter lower
+    'L 282,258 Z',
   ].join(' '),
 
   // Inner (mirror of outer): ONE left-facing sneaker profile
@@ -673,11 +675,11 @@ function StepIcon({ stepId, size, color }: { stepId: string; size: number; color
         </svg>
       );
     case 'outer':
-      // Two shoes stacked, facing right
+      // Two shoes stacked — top faces right, bottom faces left (mirrored)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M1,10 L15,10 C16,10 16.5,9 16,8 C15.5,7 14,6.5 12,6 C9,5 6,4.5 4,5 C2.5,5.5 2,6.5 1.5,8 L1,10 Z" stroke={c} strokeWidth="1.2" fill="none" />
-          <path d="M5,19 L19,19 C20,19 20.5,18 20,17 C19.5,16 18,15.5 16,15 C13,14 10,13.5 8,14 C6.5,14.5 6,15.5 5.5,17 L5,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M1,10 L15,10 C16,10 16.5,9 16,8 C15.5,7 14,6.5 12,6 C9,5 6,4.5 4,5 C3,5.2 2.5,5.5 2.3,6 C2.1,6.5 2,7 1.5,8 L1,10 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M21,19 L7,19 C6,19 5.5,18 6,17 C6.5,16 8,15.5 10,15 C13,14 16,13.5 18,14 C19,14.2 19.5,14.5 19.7,15 C19.9,15.5 20,16 20.5,17 L21,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
         </svg>
       );
     case 'inner':
