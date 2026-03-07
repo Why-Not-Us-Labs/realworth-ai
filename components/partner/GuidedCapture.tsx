@@ -537,16 +537,26 @@ const GUIDE_SHAPES: Record<string, string> = {
   // Tag: large plain rectangle filling most of the viewfinder
   tag: 'M 20,30 Q 18,28 16,30 L 16,225 Q 16,227 18,228 L 284,228 Q 286,228 286,225 L 286,30 Q 286,28 284,28 L 18,28 Z',
 
-  // Outer (GOAT Photo 2/7): ONE right-facing sneaker profile — flat sole, smooth dome upper
+  // Outer: two right-facing sneaker profiles stacked vertically (top-left, bottom-right offset)
   outer: [
-    'M 30,210 L 265,210', // flat sole
-    'C 278,210 285,200 282,186', // toe front curve
-    'C 278,172 266,162 248,156', // toe box top
-    'L 160,138', // vamp
-    'C 125,130 95,126 72,130', // mid-upper toward collar
-    'C 55,136 44,148 40,165', // collar bump
-    'C 36,180 34,195 32,206', // heel counter
-    'L 30,210 Z',
+    // --- Top shoe (heel left, toe right) ---
+    'M 18,140 L 242,140', // flat sole
+    'C 254,140 260,130 257,118', // toe front rounds up
+    'C 254,106 244,96 232,90', // toe box top
+    'C 200,74 166,62 130,54', // upper/vamp sweeps toward collar
+    'C 100,47 76,44 62,46', // collar peak (~y44)
+    'C 46,48 36,58 30,76', // heel counter upper
+    'C 24,96 20,120 18,138', // heel counter lower
+    'L 18,140 Z',
+    // --- Bottom shoe (same shape, offset right+38 down+118) ---
+    'M 56,258 L 280,258', // flat sole
+    'C 292,258 298,248 295,236', // toe front
+    'C 292,224 282,214 270,208', // toe box
+    'C 238,192 204,180 168,172', // upper/vamp
+    'C 138,165 114,162 100,164', // collar peak
+    'C 84,166 74,176 68,194', // heel upper
+    'C 62,214 58,238 56,256', // heel lower
+    'L 56,258 Z',
   ].join(' '),
 
   // Inner (mirror of outer): ONE left-facing sneaker profile
@@ -663,10 +673,11 @@ function StepIcon({ stepId, size, color }: { stepId: string; size: number; color
         </svg>
       );
     case 'outer':
-      // Single shoe profile facing right (matches GOAT)
+      // Two shoes stacked, facing right
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M2,16 L20,16 C21,16 21.5,14.5 21,13 C20.5,11.5 19,10.5 17,9.5 L11,7.5 C8,6.5 5.5,6.5 4,7.5 C3,8.5 2.5,10 2.2,12 L2,16 Z" stroke={c} strokeWidth="1.3" fill="none" />
+          <path d="M1,10 L15,10 C16,10 16.5,9 16,8 C15.5,7 14,6.5 12,6 C9,5 6,4.5 4,5 C2.5,5.5 2,6.5 1.5,8 L1,10 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M5,19 L19,19 C20,19 20.5,18 20,17 C19.5,16 18,15.5 16,15 C13,14 10,13.5 8,14 C6.5,14.5 6,15.5 5.5,17 L5,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
         </svg>
       );
     case 'inner':
