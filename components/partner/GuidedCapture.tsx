@@ -12,7 +12,7 @@ type StepDef = {
 };
 
 const STEPS: StepDef[] = [
-  { id: 'tag', instruction: 'Take a photo of the sneaker tag.', skippable: true, skipLabel: 'No Tag?' },
+  { id: 'tag', instruction: 'Pull back the tongue and photograph the tag.', skippable: true, skipLabel: 'No Tag?' },
   { id: 'outer', instruction: 'Lay the sneakers flat and photograph the outer sides.' },
   { id: 'inner', instruction: 'Lay the sneakers flat and photograph the inner sides.' },
   { id: 'top', instruction: 'Take a photo of the top of the sneakers.' },
@@ -532,45 +532,116 @@ export default function GuidedCapture({ onComplete, onCancel }: Props) {
 // All shapes use smooth cubic bezier curves for clean, geometric, iconic look.
 
 const GUIDE_SHAPES: Record<string, string> = {
-  // Tag: centered rectangle frame (~65% wide, ~55% tall) with rounded corners
-  tag: 'M 62,58 Q 52,58 52,68 L 52,232 Q 52,242 62,242 L 238,242 Q 248,242 248,232 L 248,68 Q 248,58 238,58 Z',
+  // Tag: sneaker tongue pulled back showing tag area — rectangle with tongue flap
+  tag: [
+    // Main tag area (rectangle with rounded corners)
+    'M 80,75 Q 75,75 75,80 L 75,220 Q 75,225 80,225 L 220,225 Q 225,225 225,220 L 225,80 Q 225,75 220,75 Z',
+    // Tongue flap above (pulled back to reveal tag)
+    'M 95,75 L 95,55 C 95,42 110,35 150,35 C 190,35 205,42 205,55 L 205,75',
+    // Tag detail lines inside
+    'M 100,110 L 200,110 M 100,130 L 180,130 M 100,150 L 190,150 M 100,170 L 160,170',
+  ].join(' '),
 
-  // Lateral/outer: two simplified shoe profiles, toes pointing right
+  // Lateral/outer: two realistic sneaker profiles (right-facing), one offset behind
   outer: [
-    'M 18,192 L 148,192 C 165,192 172,178 170,164 C 168,155 160,149 150,146',
-    'L 75,135 C 48,129 28,135 25,152 C 22,165 20,178 18,192 Z',
-    'M 130,218 L 260,218 C 277,218 284,204 282,190 C 280,181 272,175 262,172',
-    'L 187,161 C 160,155 140,161 137,178 C 134,191 132,204 130,218 Z',
+    // Back shoe (offset up-left) — full AF1-style profile
+    'M 20,168 L 20,175 L 155,175',
+    'C 162,175 168,172 172,166 C 175,160 174,153 170,148', // toe box curve
+    'L 155,138 C 148,132 130,125 115,123', // vamp/throat
+    'L 90,120 C 75,118 60,119 50,124', // tongue base area
+    'C 38,130 28,142 24,155 C 22,162 20,166 20,168 Z', // heel counter
+    // Front shoe (offset down-right) — same profile
+    'M 60,198 L 60,205 L 195,205',
+    'C 202,205 208,202 212,196 C 215,190 214,183 210,178', // toe box
+    'L 195,168 C 188,162 170,155 155,153', // vamp
+    'L 130,150 C 115,148 100,149 90,154', // tongue
+    'C 78,160 68,172 64,185 C 62,192 60,196 60,198 Z', // heel
+    // Midsole lines
+    'M 20,175 L 155,175 M 60,205 L 195,205',
   ].join(' '),
 
-  // Medial/inner: two shoe profiles mirrored, toes pointing left
+  // Medial/inner: two sneaker profiles mirrored (left-facing)
   inner: [
-    'M 282,192 L 152,192 C 135,192 128,178 130,164 C 132,155 140,149 150,146',
-    'L 225,135 C 252,129 272,135 275,152 C 278,165 280,178 282,192 Z',
-    'M 170,218 L 40,218 C 23,218 16,204 18,190 C 20,181 28,175 38,172',
-    'L 113,161 C 140,155 160,161 163,178 C 166,191 168,204 170,218 Z',
+    // Back shoe (right side)
+    'M 280,168 L 280,175 L 145,175',
+    'C 138,175 132,172 128,166 C 125,160 126,153 130,148',
+    'L 145,138 C 152,132 170,125 185,123',
+    'L 210,120 C 225,118 240,119 250,124',
+    'C 262,130 272,142 276,155 C 278,162 280,166 280,168 Z',
+    // Front shoe (left side)
+    'M 240,198 L 240,205 L 105,205',
+    'C 98,205 92,202 88,196 C 85,190 86,183 90,178',
+    'L 105,168 C 112,162 130,155 145,153',
+    'L 170,150 C 185,148 200,149 210,154',
+    'C 222,160 232,172 236,185 C 238,192 240,196 240,198 Z',
+    // Midsole lines
+    'M 280,175 L 145,175 M 240,205 L 105,205',
   ].join(' '),
 
-  // Top down: two elongated teardrop/oval shapes (bird's-eye), wider at toe
+  // Top down: two sneakers from above with lacing detail, wider at toe
   top: [
-    'M 105,32 C 132,32 142,52 142,75 L 142,220 C 142,252 126,270 105,270',
-    'C 84,270 68,252 68,220 L 68,75 C 68,52 78,32 105,32 Z',
-    'M 195,32 C 222,32 232,52 232,75 L 232,220 C 232,252 216,270 195,270',
-    'C 174,270 158,252 158,220 L 158,75 C 158,52 168,32 195,32 Z',
+    // Left shoe — wider toe, narrower heel, slight toe-out angle
+    'M 85,265 C 65,260 55,245 52,225 L 48,120 C 46,80 55,50 70,38',
+    'C 80,30 92,28 100,30 C 108,32 115,38 118,48',
+    'L 122,120 L 126,225 C 128,245 120,260 108,265 C 100,268 90,268 85,265 Z',
+    // Left shoe lacing (3 cross-laces)
+    'M 72,80 L 102,85 M 70,105 L 104,108 M 68,130 L 106,132',
+    // Left shoe tongue
+    'M 78,55 L 78,38 C 78,30 88,26 93,30 L 93,55',
+    // Right shoe — mirror
+    'M 215,265 C 235,260 245,245 248,225 L 252,120 C 254,80 245,50 230,38',
+    'C 220,30 208,28 200,30 C 192,32 185,38 182,48',
+    'L 178,120 L 174,225 C 172,245 180,260 192,265 C 200,268 210,268 215,265 Z',
+    // Right shoe lacing
+    'M 228,80 L 198,85 M 230,105 L 196,108 M 232,130 L 194,132',
+    // Right shoe tongue
+    'M 222,55 L 222,38 C 222,30 212,26 207,30 L 207,55',
   ].join(' '),
 
-  // Back/heels: two U-shapes (tombstone) side by side
+  // Back/heels: two heel counters with recognizable heel cup, pull tabs, midsole
   back: [
-    'M 35,252 L 35,118 C 35,68 60,52 90,52 C 120,52 145,68 145,118 L 145,252 Z',
-    'M 155,252 L 155,118 C 155,68 180,52 210,52 C 240,52 265,68 265,118 L 265,252 Z',
+    // Left heel — rounded heel cup shape
+    'M 40,245 L 40,175 C 40,140 50,110 65,90 C 75,78 85,72 95,70',
+    'L 95,55 L 85,55 L 85,48 L 105,48 L 105,55 L 95,55', // Pull tab
+    'C 105,72 115,78 125,90 C 140,110 150,140 150,175 L 150,245 Z',
+    // Left heel collar
+    'M 50,110 C 60,95 80,85 95,84 C 110,85 130,95 140,110',
+    // Left midsole
+    'M 38,245 L 152,245 L 152,255 L 38,255 Z',
+    // Right heel
+    'M 160,245 L 160,175 C 160,140 170,110 185,90 C 195,78 205,72 215,70',
+    'L 215,55 L 205,55 L 205,48 L 225,48 L 225,55 L 215,55',
+    'C 225,72 235,78 245,90 C 260,110 270,140 270,175 L 270,245 Z',
+    // Right heel collar
+    'M 170,110 C 180,95 200,85 215,84 C 230,85 250,95 260,110',
+    // Right midsole
+    'M 158,245 L 272,245 L 272,255 L 158,255 Z',
   ].join(' '),
 
-  // Outsoles: two elongated sole outlines side by side
+  // Outsoles: two shoe soles tilted/stacked, showing tread outline — forefoot wider, waist narrow
   soles: [
-    'M 100,30 C 125,25 140,42 142,62 L 144,225 C 142,252 126,268 105,268',
-    'C 84,268 68,252 66,225 L 68,62 C 70,42 82,25 100,30 Z',
-    'M 200,30 C 225,25 240,42 242,62 L 244,225 C 242,252 226,268 205,268',
-    'C 184,268 168,252 166,225 L 168,62 C 170,42 182,25 200,30 Z',
+    // Left sole — tilted, tread visible
+    'M 85,28 C 108,24 125,35 130,55 L 136,110',
+    'C 138,125 134,135 128,140', // waist narrows
+    'L 132,180 C 136,210 130,245 110,262',
+    'C 96,272 78,268 68,252',
+    'L 56,200 C 48,178 46,155 50,140',
+    'C 52,130 56,122 62,118', // waist
+    'L 58,65 C 56,42 65,28 85,28 Z',
+    // Tread pattern lines on left sole
+    'M 72,70 L 110,60 M 68,100 L 118,92 M 62,140 L 118,138',
+    'M 65,185 L 120,178 M 78,225 L 118,215',
+    // Right sole — offset, tilted
+    'M 185,38 C 208,34 225,45 230,65 L 236,120',
+    'C 238,135 234,145 228,150',
+    'L 232,190 C 236,220 230,255 210,272',
+    'C 196,282 178,278 168,262',
+    'L 156,210 C 148,188 146,165 150,150',
+    'C 152,140 156,132 162,128',
+    'L 158,75 C 156,52 165,38 185,38 Z',
+    // Tread lines on right sole
+    'M 172,80 L 210,70 M 168,110 L 218,102 M 162,150 L 218,148',
+    'M 165,195 L 220,188 M 178,235 L 218,225',
   ].join(' '),
 };
 
@@ -625,44 +696,57 @@ function StepIcon({ stepId, size, color }: { stepId: string; size: number; color
 
   switch (stepId) {
     case 'tag':
+      // Tongue pulled back with tag visible
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <rect x="3" y="5" width="16" height="12" rx="2" stroke={c} strokeWidth="1.5" />
-          <line x1="6" y1="9" x2="16" y2="9" stroke={c} strokeWidth="1" />
-          <line x1="6" y1="12" x2="13" y2="12" stroke={c} strokeWidth="1" />
+          <rect x="4" y="7" width="14" height="12" rx="1.5" stroke={c} strokeWidth="1.4" />
+          <path d="M7,7 L7,4 C7,3 9,2 11,2 C13,2 15,3 15,4 L15,7" stroke={c} strokeWidth="1.2" fill="none" />
+          <line x1="7" y1="11" x2="15" y2="11" stroke={c} strokeWidth="0.8" />
+          <line x1="7" y1="14" x2="13" y2="14" stroke={c} strokeWidth="0.8" />
         </svg>
       );
     case 'outer':
+      // Sneaker profile facing right
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M3,16 L3,10 Q3,5 8,4 L14,4 Q17,4 18,7 L19,10 Q20,13 20,15 L20,16 Z" stroke={c} strokeWidth="1.5" fill="none" />
+          <path d="M2,16 L2,17 L19,17 C20,17 21,16 20,14 L18,12 C16,10 13,9 10,8.5 L7,8 C5,8 3,10 2.5,13 Z" stroke={c} strokeWidth="1.4" fill="none" />
+          <line x1="2" y1="17" x2="19" y2="17" stroke={c} strokeWidth="0.8" />
         </svg>
       );
     case 'inner':
+      // Sneaker profile facing left (mirrored)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M19,16 L19,10 Q19,5 14,4 L8,4 Q5,4 4,7 L3,10 Q2,13 2,15 L2,16 Z" stroke={c} strokeWidth="1.5" fill="none" />
+          <path d="M20,16 L20,17 L3,17 C2,17 1,16 2,14 L4,12 C6,10 9,9 12,8.5 L15,8 C17,8 19,10 19.5,13 Z" stroke={c} strokeWidth="1.4" fill="none" />
+          <line x1="20" y1="17" x2="3" y2="17" stroke={c} strokeWidth="0.8" />
         </svg>
       );
     case 'top':
+      // Two shoes from above with lace hints
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <ellipse cx="8" cy="11" rx="4" ry="8" stroke={c} strokeWidth="1.3" />
-          <ellipse cx="14" cy="11" rx="4" ry="8" stroke={c} strokeWidth="1.3" />
+          <path d="M6,19 C4,18 3,15 3,11 L3.5,5 C4,3 5,2 7,2 C9,2 9.5,3 9.5,5 L10,11 C10,15 9,18 8,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M16,19 C18,18 19,15 19,11 L18.5,5 C18,3 17,2 15,2 C13,2 12.5,3 12.5,5 L12,11 C12,15 13,18 14,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <line x1="4.5" y1="7" x2="8" y2="7.5" stroke={c} strokeWidth="0.6" />
+          <line x1="17.5" y1="7" x2="14" y2="7.5" stroke={c} strokeWidth="0.6" />
         </svg>
       );
     case 'back':
+      // Two heel cups with pull tabs
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <rect x="3" y="5" width="6" height="13" rx="2" stroke={c} strokeWidth="1.3" />
-          <rect x="13" y="5" width="6" height="13" rx="2" stroke={c} strokeWidth="1.3" />
+          <path d="M2,19 L2,12 C2,7 4,5 6,5 L6,3 L8,3 L8,5 C10,5 12,7 12,12 L12,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M11,19 L11,12 C11,7 13,5 15,5 L15,3 L17,3 L17,5 C19,5 21,7 21,12 L21,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <line x1="1" y1="19" x2="13" y2="19" stroke={c} strokeWidth="0.8" />
+          <line x1="10" y1="19" x2="22" y2="19" stroke={c} strokeWidth="0.8" />
         </svg>
       );
     case 'soles':
+      // Two sole outlines, tilted/stacked
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <ellipse cx="11" cy="9" rx="8" ry="4" stroke={c} strokeWidth="1.3" />
-          <ellipse cx="11" cy="13" rx="8" ry="4" stroke={c} strokeWidth="1.3" />
+          <path d="M6,2 C9,1.5 10,3 10.5,6 L11,10 C11,11.5 10.5,12 10,12.5 L10.5,17 C10.5,19 9,21 7,21 C5,21 4,19 3.5,17 L3,12.5 C2.5,12 2,11 2.5,10 L3,6 C3,3.5 4,2 6,2 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M16,3 C19,2.5 20,4 20.5,7 L21,11 C21,12.5 20.5,13 20,13.5 L20.5,18 C20.5,20 19,22 17,22 C15,22 14,20 13.5,18 L13,13.5 C12.5,13 12,12 12.5,11 L13,7 C13,4.5 14,3 16,3 Z" stroke={c} strokeWidth="1.2" fill="none" />
         </svg>
       );
     case 'issues':
