@@ -6,14 +6,14 @@
 
 | Stream | Status | Last Activity |
 |--------|--------|---------------|
-| Bullseye Guided Capture Overlays | **Deployed** | Mar 5 - GOAT-style SVG mask cutout overlays shipped |
-| Bullseye GuidedCapture v2 | **Deployed** | Mar 5 - Live camera, 7 steps, extracted component |
+| GuidedCapture v2 (Live Camera) | **Deployed** | Mar 5 - WebRTC camera, large silhouettes, free nav — needs iPhone testing |
 | Sneaker ID & SKU Detection | **Deployed** | Mar 4 - Collab detection, style code extraction, photo tips shipped |
 | Super Admin / Pro Access Fix | **Deployed** | Mar 4 - isPro() RLS bug fixed, all server-side pro checks working |
 | Bullseye Side Projects (9) | **Prioritized** | Mar 4 - 1-pagers created, James ranked priorities |
 | RealWorth Beta Prep | Blocked (NDA on James) | Mar 4 - NDA is on James's side for his team |
 | March Beta (Bullseye x Shopify) | Planning | Mar 3 - Priorities from meetings |
 | Partnership / Beta Agreement | Pending | NDA needed, pricing TBD |
+| Bullseye Partner Portal | Phase 1 Polished | Feb 17 - White theme, logos, share links |
 | WNU Platform Migration | Complete | Feb 4 |
 | Stripe Integration | Verified | Feb 4 |
 
@@ -22,14 +22,14 @@
 | Component | State | Notes |
 |-----------|-------|-------|
 | Web App | Stable | Production at realworth.ai |
-| Partner Portal | Live + Guide Overlays | bullseyesb.realworth.ai |
-| GuidedCapture | **Upgraded** | GOAT-style SVG mask cutout guides, live camera, 7 steps |
+| Partner Portal | Live + Polished | bullseyesb.realworth.ai |
 | Super Admin Access | **Fixed** | isPro() uses admin client now |
 | Insurance Certificates | **Fixed** | Was blocked for all users |
 | AI Chat (Pro) | **Fixed** | Was blocked for all users |
 | Sneaker Collab Detection | **Deployed** | New prompt with 20+ named partners, visual signals |
 | SKU/Style Code Extraction | **Deployed** | Multi-location scan, brand-specific formats |
-| Vercel | Healthy | Latest deploy: `828e0e3` |
+| Bullseye Photo Tips | **Deployed** | Auto-show tips panel on first form visit |
+| Vercel | Healthy | Latest deploy: `9571b6c` |
 | Supabase | Healthy | James's rows manually inserted |
 | Auth | Working | Google, Apple, Email all verified |
 | Payments | Verified | Stripe fully tested Feb 4 |
@@ -61,25 +61,9 @@
 
 1. ~~Fix shoe variant ID~~ **DONE** — collab detection prompt shipped
 2. ~~Improve SKU detection~~ **DONE** — multi-location scan + brand formats
-3. ~~Photo guidelines~~ **DONE** — GOAT-style guided capture with mask overlays
+3. ~~Photo guidelines~~ **DONE** — Bullseye portal tips panel + PhotoGuidanceModal Sneaker category
 4. Batch upload feature for warehouse intake
 5. Whatnot livestream pricing integration (future)
-
-## Bullseye Portal Architecture (Current)
-
-```
-bullseyesb.realworth.ai
-  -> middleware.ts rewrites to /partner/bullseye
-  -> app/partner/bullseye/layout.tsx (white bg, no RealWorth chrome)
-  -> app/partner/bullseye/page.tsx (state machine: landing -> capture -> loading -> result)
-     Uses GuidedCapture component for capture state
-  -> components/partner/GuidedCapture.tsx (live camera, 7 steps, SVG mask guides)
-  -> lib/imageUtils.ts (uploadFile, compressImage - shared utilities)
-  -> /api/appraise with partnerId=bullseye (skips auth, injects sneaker prompt)
-  -> buyOfferService.ts calculates offer from partner_configs rules
-  -> Saved to rw_appraisals with partner_id, sneaker_details, buy_offer
-  -> Share link: realworth.ai/treasure/{appraisalId}
-```
 
 ## Pending Questions
 - NDA: Has it been sent to James?
@@ -90,10 +74,10 @@ bullseyesb.realworth.ai
 ## Next Session Priorities
 
 ### Immediate (This Week)
-1. **Test guide overlays on production** — verify rendering over live camera on mobile
-2. **Iterate on guide shapes** — tune bezier curves after real-device testing
-3. **Test full appraisal flow** — submit photos, verify sneaker ID, buy offer, accept/decline
-4. **Batch upload feature** — wire Bullseye dashboard to existing queue system
+1. **Test GuidedCapture v2 on iPhone** — camera permission, live overlay, silhouettes, capture flow
+2. **Iterate silhouettes if needed** — SVG paths may need refinement after real-device testing
+3. **Batch upload feature** — wire Bullseye dashboard to existing queue system
+4. **NDA** — on James's side for his team
 
 ### Side Projects (Start Next)
 5. **Ads automation scoping** — James's #1 priority
@@ -110,15 +94,18 @@ bullseyesb.realworth.ai
 - Fix mutable search_path on 12 functions
 
 ## Recent Technical Decisions
-- **Mar 5**: SVG mask cutout technique for guide overlays — dark overlay with clear shape window, white dashed stroke (12 8)
-- **Mar 5**: Dropped local monolithic page.tsx edits in favor of remote's extracted component architecture
-- **Mar 4**: Always include SNEAKER_GRADING_GUIDE for all users (was partner-only)
+- **Mar 5**: GuidedCapture v2 — WebRTC live camera, large SVG silhouettes, free thumbnail nav, shutter flash
+- **Mar 5**: User preference: always push after committing (no confirmation needed)
+- **Mar 4**: Always include SNEAKER_GRADING_GUIDE for all users (was partner-only). Same rationale as coin/collectibles guides.
 - **Mar 4**: Collab detection added to prompt — 20+ named partners, visual signals, pricing rules
 - **Mar 4**: Style code multi-location scan — tongue tag, box label, heel, hang tag with brand-specific formats
 - **Mar 4**: `isPro()` must use `getSupabaseAdmin()` - anon client has no auth context in API routes
+- **Mar 4**: Super admin email fallback: `can-create` route uses `authUser.email` when users table row missing
+- **Mar 4**: `handle_new_user()` trigger can silently fail - need manual row insertion as fallback
 - **Mar 3**: Confirmed `wnu-platform` is active DB; `realworth-db` is legacy/unused
 - **Feb 25**: Partnership shifted to 30-day beta trial (not equity deal)
 - **Feb 25**: Shopify embed deployment agreed (vs subdomain for public beta)
+- **Feb 25**: Must hide appraisal methodology from partner-facing tool (IP protection)
 
 ## Super Admin Emails
 ```
@@ -143,6 +130,19 @@ james@whynotus.ai
 | **Bullseye Partner ID** | `bullseye` (in `partner_configs` table) |
 | **Bullseye Subdomain** | `bullseyesb.realworth.ai` |
 | **James's User ID** | `419093e5-12ea-425f-9662-2ad513eefe64` |
+
+## Partner Portal Architecture
+
+```
+bullseyesb.realworth.ai
+  -> middleware.ts rewrites to /partner/bullseye
+  -> app/partner/bullseye/layout.tsx (white bg, no RealWorth chrome)
+  -> app/partner/bullseye/page.tsx (upload -> AI appraisal -> buy offer -> share)
+  -> /api/appraise with partnerId=bullseye (skips auth, injects sneaker prompt)
+  -> buyOfferService.ts calculates offer from partner_configs rules
+  -> Saved to rw_appraisals with partner_id, sneaker_details, buy_offer, is_public=true
+  -> Share link: realworth.ai/treasure/{appraisalId}
+```
 
 ## Partner Portal Assets
 - `public/partners/bullseye-logo.png` - Black logo, transparent bg

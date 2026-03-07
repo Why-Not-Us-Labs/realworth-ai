@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+**At the start of every session, run `/session-scribe start` before doing anything else.**
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

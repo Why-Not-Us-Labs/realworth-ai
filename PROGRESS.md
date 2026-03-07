@@ -4,32 +4,28 @@
 *Updated at end of each session*
 
 **Date:** March 5, 2026
-**Focus:** GOAT-style SVG mask cutout guide overlays for Bullseye GuidedCapture
+**Focus:** GuidedCapture v2 — live camera overlay, better silhouettes, free navigation
 
 ### Completed
-- [x] Upgraded `Silhouette` component in `GuidedCapture.tsx` — SVG mask cutout technique
-- [x] Dark semi-transparent overlay with clear guide shape windows (GOAT-style)
-- [x] White dashed stroke `12px dash, 8px gap` on all 7 guide shapes
-- [x] Clean cubic bezier curves — geometric/iconic shapes replacing hand-drawn paths
-- [x] Removed busy detail lines (midsole, tread, pull tabs) for cleaner look
-- [x] Resolved git conflict — dropped local monolithic edits, applied to remote's extracted component
-- [x] Build verified, pushed to production
+- [x] GuidedCapture v2: WebRTC `getUserMedia` for live camera viewfinder
+- [x] SVG silhouettes overlaid on live camera feed (large, detailed, GOAT-style)
+- [x] Unrestricted thumbnail navigation — tap any step anytime
+- [x] Shutter flash animation, retake button, camera error fallback
+- [x] Pushed to production (auto-deploy via Vercel)
 
 ### Commits
-- `828e0e3` feat: GOAT-style SVG mask cutout guide overlays for GuidedCapture
+- `9571b6c` feat: GuidedCapture v2 — live camera overlay, better silhouettes, free nav
 
 ### Key Decisions
-- SVG `<mask>` technique: white rect + black shape = dark overlay with clear window
-- Kept existing shape paths simplified to geometric/iconic (not anatomically accurate)
-- Issues/extra step keeps corner brackets (no mask — different visual intent)
-- Aligned with remote's refactored architecture (extracted GuidedCapture + imageUtils)
+- WebRTC getUserMedia for live camera (replaces native `<input capture>`)
+- Fallback to native camera if getUserMedia fails (permission denied, no camera)
+- Always push after committing (user preference)
 
 ### Next Session Should
-1. **Test guide overlays on production mobile** — verify rendering over live camera feed
-2. **Iterate on guide shapes** — tune bezier curves after real-device testing
-3. **Test full appraisal flow** — submit photos, verify sneaker ID + buy offer
-4. **Batch upload feature** — wire Bullseye dashboard to queue system
-5. **Side project scoping** — ads automation (#1) or QuickBooks (#2)
+1. **Test GuidedCapture v2 on iPhone** — camera permission, live overlay, capture flow
+2. **Iterate silhouettes if needed** — may need SVG path refinement after testing
+3. **Batch upload feature** — wire Bullseye dashboard to queue system
+4. **Ads automation scoping** — James's #1 side project priority
 
 ---
 
@@ -38,14 +34,11 @@
 **Date:** March 4, 2026
 **Focus:** Super admin fix, sneaker ID improvements, meeting notes, action items
 
-- [x] Fixed `isPro()` RLS bug — anon client blocked ALL server-side pro checks
-- [x] Enhanced SNEAKER_GRADING_GUIDE with collab detection (20+ partners)
-- [x] Expanded style code extraction (multi-location scan, brand-specific formats)
-- [x] Processed 3 days of meeting notes, created prioritized action items + 1-pagers
+- [x] Fixed `isPro()` RLS bug, sneaker collab detection, SKU extraction, photo tips
+- [x] Processed 3 days of meeting notes, created action items and side project briefs
+- Commits: `2c3884f`, `aa729de`, `aa21bf3`
 
----
-
-## Earlier Session
+## Older Session
 
 **Date:** March 3, 2026
 **Focus:** Status check, infra health, March beta priorities

@@ -262,27 +262,78 @@ Gavin recapped the full Bullseye story to a friend before the afternoon call wit
 
 ---
 
+### 10. RealWorth Finalizing Next Steps (THE CALL)
+**Date:** February 25, 2026, 6:10 PM
+**Participants:** Gavin, Graham, James (from Florence, Italy)
+
+The formal decision meeting. All three parties on the call. James had just arrived in Italy (Newark to Zurich to Florence). **They agreed on Path 1 -- the 30-day Beta.**
+
+**Deal Structure Agreed:**
+- **30-day beta trial** starting March 1, 2026
+- **2-year exclusivity** on footwear + streetwear for James -- RealWorth holds the opt-out (can end exclusivity anytime to expand)
+- **Transaction fee model** starts once product goes live (no upfront investment during beta)
+- Path 2 ($50k equity) stays on the table for later -- could come from accelerator/VC instead
+- James made key distinction: **separate equity from salary** -- learned from past partnership failures
+- James offered to sign whatever terms are drafted for the 30-day commitment
+
+**Technical Decisions:**
+- Deploy **directly on bullseyesb.com (Shopify)** -- not the external subdomain. Maintains user trust
+- James to provide developer access to Shopify
+- API costs: ~$0.0025/appraisal (negligible)
+- **Hide the rationale/methodology** from public view -- show offer only, not how it works (IP protection)
+- Bot protection needed to prevent algorithm reverse-engineering
+- Consider whitelisting to James's customer list initially
+- First month: bring-to-store only. Shipping/checkout infrastructure is month 2+ scope
+
+**Time Commitments:**
+- Gavin: 50% RealWorth (2-3 days/week, Fri/Sat/Sun/Mon), 50% job hunting
+- Graham: 10+ hours/week, weeknights best for meetings
+- James: TBD after settling in Italy, weeknights for working sessions, mornings for solo brainstorming
+- Twice-weekly check-ins, weekly sprint cadence (goals to execution to review to adjust)
+
+**James's Consulting Offer:**
+- Offered to find short-term consulting work at Bullseye for Gavin -- process improvement projects
+- Separate from RealWorth partnership, paid work
+- "I'm sure there are things within my business that could be helped process-wise"
+- No long-term commitment -- month-to-month tasks
+
+**IP Strategy Discussion:**
+- Patent vs. trade secrets both viable
+- Won't patent just to patent -- wait for key differentiating data points
+- James: "The less the outside can see and try to build their model around, the better"
+- Consider filing after identifying what specific data/process changes accuracy significantly
+
+**Action Items:**
+1. Gavin: Draft formal 30-day beta agreement by Friday (include exclusivity, transaction fees, roles)
+2. James: Send Slack email for team channel setup
+3. All: First working session to define March sprint goals
+4. Separate brainstorming time from execution/flow state
+
+---
+
 ## Current Status (as of February 25, 2026)
 
-**Where Things Stand:**
-- James is in Florence, Italy for approximately one month
-- Wednesday 1:00 PM Zoom call scheduled to discuss path forward
-- Gavin preparing counterproposal based on advisory input
-- Proof of concept for Bullseye website integration already built and functional
-- Bullseye partner portal live at bullseyesb.realworth.ai
+**DEAL AGREED: 30-Day Beta starting March 1, 2026**
 
-**Open Questions:**
-1. What partnership structure will James agree to? (Beta vs. equity)
-2. Can financial terms support Gavin going full-time on RealWorth?
-3. How does James's travel schedule affect day-to-day collaboration?
-4. What does the due diligence process look like over the next 6 months?
+**Terms:**
+- 30-day exclusive beta trial
+- 2-year exclusivity on footwear/streetwear (RealWorth holds opt-out)
+- Transaction fee model (no upfront equity exchange)
+- Path to full partnership evaluated at end of beta
+- Formal agreement due by Friday, Feb 27
 
 **Technical Integration Status:**
-- Partner portal: Live and functional
+- Partner portal: Live at bullseyesb.realworth.ai (will migrate to bullseyesb.com Shopify)
 - Dashboard: Built with appraisal tracking, metrics, fulfillment statuses
-- API: Fully operational with Gemini AI + eBay price comparables
-- White-label: Architecture supports any website integration
+- API: Fully operational with Gemini AI + eBay price comparables (~$0.0025/appraisal)
+- White-label: Architecture supports Shopify integration
 - Admin access: james@bullseyesb.com, gavin@realworth.ai, gavin@whynotus.ai, g@whynotus.ai, sammy@whynotus.ai
+
+**Next Milestones:**
+1. Friday Feb 27: Formal 30-day beta agreement signed
+2. Week of March 2: First working session -- define March sprint goals
+3. March: Deploy on bullseyesb.com, staff testing, first real transactions
+4. End of March: Review results, evaluate path to full partnership
 
 ---
 
@@ -298,7 +349,11 @@ Gavin recapped the full Bullseye story to a friend before the afternoon call wit
 
 > "Building is the easy part. Building what makes money is the hard part." -- Gavin & Graham
 
-> "There's no CarMax, Carvana for used items, particularly for brand new... someone maybe has a whole collection they wanna sell, and they don't wanna do shipping. They wanna just take it locally." -- James Adzani
+> "The less the outside can see and try to build their model around, the better." -- James Adzani
+
+> "We can't do this without you, James." -- Graham McNamara
+
+> "Separate equity and salary... equity is things the business can't run without. Salary is ongoing things that can be transitioned." -- James Adzani
 
 > "More people selling shoes than ever before in the last two weeks... I do think it has to do with the economy." -- James Adzani
 
