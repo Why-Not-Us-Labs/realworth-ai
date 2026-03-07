@@ -532,148 +532,68 @@ export default function GuidedCapture({ onComplete, onCancel }: Props) {
 // All shapes use smooth cubic bezier curves for clean, geometric, iconic look.
 
 const GUIDE_SHAPES: Record<string, string> = {
-  // Tag: clean rectangular frame — "center the tag in this box"
+  // Traced from GOAT app capture flow — simple outer contours only
+
+  // Tag (GOAT Photo 1/7): dashed rectangle with text line hints
   tag: [
-    // Rounded rectangle frame
-    'M 65,40 Q 60,40 60,45 L 60,255 Q 60,260 65,260 L 235,260 Q 240,260 240,255 L 240,45 Q 240,40 235,40 Z',
-    // Text line hints inside
-    'M 82,80 L 218,80', 'M 82,108 L 198,108', 'M 82,136 L 210,136', 'M 82,164 L 178,164',
-    // Small QR code block hint (bottom-left)
-    'M 82,195 L 128,195 L 128,240 L 82,240 Z',
+    'M 75,90 Q 70,90 70,95 L 70,210 Q 70,215 75,215 L 225,215 Q 230,215 230,210 L 230,95 Q 230,90 225,90 Z',
+    'M 95,125 L 195,125', 'M 95,152 L 210,152', 'M 95,179 L 175,179',
   ].join(' '),
 
-  // Lateral/outer: two right-facing sneaker profiles, stacked vertically
-  // Proportions: long and low (~3.5:1), flat sole, defined toe box, midsole band, collar notch
+  // Outer (GOAT Photo 2/7): ONE right-facing sneaker profile — flat sole, smooth dome upper
   outer: [
-    // --- Top shoe (y: 55–135) ---
-    'M 30,135 L 260,135', // sole
-    'C 270,135 276,128 276,118', // toe box front curve
-    'C 276,108 268,100 258,97', // toe box top
-    'L 185,80', // vamp
-    'C 155,74 120,72 95,76', // mid-upper
-    'L 62,85', // toward collar
-    'C 53,90 48,86 45,82', // collar notch dip
-    'C 41,78 38,82 37,88', // heel top
-    'C 34,100 32,115 31,128', // heel counter
-    'L 30,135 Z',
-    // Midsole band
-    'M 30,128 L 260,128',
-
-    // --- Bottom shoe (y: 165–245) ---
-    'M 30,245 L 260,245',
-    'C 270,245 276,238 276,228',
-    'C 276,218 268,210 258,207',
-    'L 185,190',
-    'C 155,184 120,182 95,186',
-    'L 62,195',
-    'C 53,200 48,196 45,192',
-    'C 41,188 38,192 37,198',
-    'C 34,210 32,225 31,238',
-    'L 30,245 Z',
-    'M 30,238 L 260,238',
+    'M 30,210 L 265,210', // flat sole
+    'C 278,210 285,200 282,186', // toe front curve
+    'C 278,172 266,162 248,156', // toe box top
+    'L 160,138', // vamp
+    'C 125,130 95,126 72,130', // mid-upper toward collar
+    'C 55,136 44,148 40,165', // collar bump
+    'C 36,180 34,195 32,206', // heel counter
+    'L 30,210 Z',
   ].join(' '),
 
-  // Medial/inner: two left-facing sneaker profiles (mirror of outer)
+  // Inner (mirror of outer): ONE left-facing sneaker profile
   inner: [
-    // --- Top shoe (y: 55–135) ---
-    'M 270,135 L 40,135',
-    'C 30,135 24,128 24,118',
-    'C 24,108 32,100 42,97',
-    'L 115,80',
-    'C 145,74 180,72 205,76',
-    'L 238,85',
-    'C 247,90 252,86 255,82',
-    'C 259,78 262,82 263,88',
-    'C 266,100 268,115 269,128',
-    'L 270,135 Z',
-    'M 270,128 L 40,128',
-
-    // --- Bottom shoe (y: 165–245) ---
-    'M 270,245 L 40,245',
-    'C 30,245 24,238 24,228',
-    'C 24,218 32,210 42,207',
-    'L 115,190',
-    'C 145,184 180,182 205,186',
-    'L 238,195',
-    'C 247,200 252,196 255,192',
-    'C 259,188 262,192 263,198',
-    'C 266,210 268,225 269,238',
-    'L 270,245 Z',
-    'M 270,238 L 40,238',
+    'M 270,210 L 35,210',
+    'C 22,210 15,200 18,186',
+    'C 22,172 34,162 52,156',
+    'L 140,138',
+    'C 175,130 205,126 228,130',
+    'C 245,136 256,148 260,165',
+    'C 264,180 266,195 268,206',
+    'L 270,210 Z',
   ].join(' '),
 
-  // Top-down: two sneakers from above, side by side — wide toe, narrow heel, lacing
+  // Top-down: two shoe outlines from above, wide toe / narrow heel
   top: [
-    // Left shoe — wider toe, narrower heel, slight toe-out angle
+    // Left shoe
     'M 82,268 C 62,262 50,245 48,222 L 44,125 C 42,85 52,50 68,38',
     'C 78,30 92,27 100,30 C 108,33 115,40 118,52',
     'L 122,125 L 126,222 C 128,245 118,262 104,268 C 96,271 88,271 82,268 Z',
-    // Left shoe lacing
-    'M 66,78 L 100,82', 'M 64,103 L 102,106', 'M 62,128 L 104,130',
-    // Left shoe toe cap line
-    'M 56,240 C 65,252 90,255 112,245',
-
-    // Right shoe — mirror
+    // Right shoe
     'M 218,268 C 238,262 250,245 252,222 L 256,125 C 258,85 248,50 232,38',
     'C 222,30 208,27 200,30 C 192,33 185,40 182,52',
     'L 178,125 L 174,222 C 172,245 182,262 196,268 C 204,271 212,271 218,268 Z',
-    // Right shoe lacing
-    'M 234,78 L 200,82', 'M 236,103 L 198,106', 'M 238,128 L 196,130',
-    // Right shoe toe cap line
-    'M 244,240 C 235,252 210,255 188,245',
   ].join(' '),
 
-  // Back/heels: two NARROW heel counters — hourglass shape, pull tabs, collar, midsole
-  // Each heel ~27% of frame width (80px), with gap between
+  // Back (GOAT Photo 5/7): two rounded-top rectangles (tombstone shapes)
   back: [
-    // --- Left heel (x: 55–145) ---
-    // Outer shape: hourglass — wider at heel cup + collar, narrower at ankle
-    'M 60,250 L 60,195',
-    'C 60,170 65,150 72,138', // heel cup curves in (narrower at ankle)
-    'C 78,128 84,118 88,108', // ankle area (narrowest)
-    'C 92,98 96,90 100,82', // up toward collar
-    // Pull tab
-    'L 100,68 L 93,68 L 93,58 L 107,58 L 107,68 L 100,68',
-    // Right side back down
-    'C 104,90 108,98 112,108',
-    'C 116,118 122,128 128,138',
-    'C 135,150 140,170 140,195',
-    'L 140,250 Z',
-    // Collar opening (U shape at top)
-    'M 72,120 C 80,105 92,98 100,97 C 108,98 120,105 128,120',
-    // Midsole
-    'M 56,250 L 144,250 L 144,262 L 56,262 Z',
-
-    // --- Right heel (x: 160–250) ---
-    'M 165,250 L 165,195',
-    'C 165,170 170,150 177,138',
-    'C 183,128 189,118 193,108',
-    'C 197,98 201,90 205,82',
-    'L 205,68 L 198,68 L 198,58 L 212,58 L 212,68 L 205,68',
-    'C 209,90 213,98 217,108',
-    'C 221,118 227,128 233,138',
-    'C 240,150 245,170 245,195',
-    'L 245,250 Z',
-    // Collar opening
-    'M 177,120 C 185,105 197,98 205,97 C 213,98 225,105 233,120',
-    // Midsole
-    'M 161,250 L 249,250 L 249,262 L 161,262 Z',
+    // Left heel
+    'M 25,255 L 25,115 C 25,72 55,55 80,55 C 105,55 135,72 135,115 L 135,255 Z',
+    // Right heel
+    'M 165,255 L 165,115 C 165,72 195,55 220,55 C 245,55 275,72 275,115 L 275,255 Z',
   ].join(' '),
 
-  // Outsoles: two soles stacked with offset — forefoot wider, arch narrows, heel narrower
+  // Soles (GOAT Photo 6/7): two sole outlines tilted/stacked — wide forefoot, narrow waist
   soles: [
     // Top sole
     'M 85,25 C 110,20 128,34 133,55 L 138,108',
-    'C 140,122 136,132 130,137', // waist narrows at arch
+    'C 140,122 136,132 130,137',
     'L 134,178 C 138,208 132,242 112,260',
     'C 98,270 80,266 70,250',
     'L 58,198 C 50,178 48,155 52,140',
-    'C 54,131 58,124 64,120', // waist
+    'C 54,131 58,124 64,120',
     'L 60,62 C 58,40 68,25 85,25 Z',
-    // Tread lines
-    'M 72,65 L 115,55', 'M 68,95 L 120,88', 'M 64,137 L 120,134',
-    'M 68,182 L 122,176', 'M 78,222 L 120,212',
-
     // Bottom sole (offset right)
     'M 192,38 C 217,33 235,47 240,68 L 245,118',
     'C 247,132 243,142 237,147',
@@ -682,9 +602,6 @@ const GUIDE_SHAPES: Record<string, string> = {
     'L 165,208 C 157,188 155,165 159,150',
     'C 161,141 165,134 171,130',
     'L 167,72 C 165,50 174,38 192,38 Z',
-    // Tread lines
-    'M 179,75 L 222,66', 'M 175,105 L 227,98', 'M 171,147 L 227,144',
-    'M 175,192 L 229,186', 'M 185,232 L 227,222',
   ].join(' '),
 };
 
@@ -739,53 +656,47 @@ function StepIcon({ stepId, size, color }: { stepId: string; size: number; color
 
   switch (stepId) {
     case 'tag':
-      // Clean rectangle frame (tag label)
+      // Rectangle with text lines (matches GOAT)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <rect x="4" y="3" width="14" height="16" rx="1.5" stroke={c} strokeWidth="1.4" />
-          <line x1="7" y1="7" x2="15" y2="7" stroke={c} strokeWidth="0.8" />
-          <line x1="7" y1="10" x2="13" y2="10" stroke={c} strokeWidth="0.8" />
-          <rect x="7" y="13" width="4" height="4" rx="0.5" stroke={c} strokeWidth="0.7" />
+          <rect x="3" y="5" width="16" height="12" rx="1.5" stroke={c} strokeWidth="1.4" />
+          <line x1="6" y1="9" x2="14" y2="9" stroke={c} strokeWidth="0.8" />
+          <line x1="6" y1="12" x2="16" y2="12" stroke={c} strokeWidth="0.8" />
+          <line x1="6" y1="15" x2="12" y2="15" stroke={c} strokeWidth="0.8" />
         </svg>
       );
     case 'outer':
-      // Low-profile sneaker facing right with flat sole
+      // Single shoe profile facing right (matches GOAT)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M2,15 L19,15 C20.5,15 21,13.5 21,12.5 C21,11 20,10 19,9.5 L13,7.5 C10,6.5 7,6.5 5,7.2 C3.5,8 2.8,7.5 2.5,7 C2.2,6.5 2,7 2,7.8 C2,9.5 2,13 2,15 Z" stroke={c} strokeWidth="1.3" fill="none" />
-          <line x1="2" y1="14" x2="19" y2="14" stroke={c} strokeWidth="0.7" />
+          <path d="M2,16 L20,16 C21,16 21.5,14.5 21,13 C20.5,11.5 19,10.5 17,9.5 L11,7.5 C8,6.5 5.5,6.5 4,7.5 C3,8.5 2.5,10 2.2,12 L2,16 Z" stroke={c} strokeWidth="1.3" fill="none" />
         </svg>
       );
     case 'inner':
-      // Low-profile sneaker facing left with flat sole
+      // Single shoe profile facing left (mirror, matches GOAT)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M20,15 L3,15 C1.5,15 1,13.5 1,12.5 C1,11 2,10 3,9.5 L9,7.5 C12,6.5 15,6.5 17,7.2 C18.5,8 19.2,7.5 19.5,7 C19.8,6.5 20,7 20,7.8 C20,9.5 20,13 20,15 Z" stroke={c} strokeWidth="1.3" fill="none" />
-          <line x1="20" y1="14" x2="3" y2="14" stroke={c} strokeWidth="0.7" />
+          <path d="M20,16 L2,16 C1,16 0.5,14.5 1,13 C1.5,11.5 3,10.5 5,9.5 L11,7.5 C14,6.5 16.5,6.5 18,7.5 C19,8.5 19.5,10 19.8,12 L20,16 Z" stroke={c} strokeWidth="1.3" fill="none" />
         </svg>
       );
     case 'top':
-      // Two shoes from above — wide toe, narrow heel
+      // Two shoes from above
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
           <path d="M6,19 C4,18 3,15 3,11 L3.5,5 C4,3 5,2 7,2 C9,2 9.5,3 9.5,5 L10,11 C10,15 9,18 8,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
           <path d="M16,19 C18,18 19,15 19,11 L18.5,5 C18,3 17,2 15,2 C13,2 12.5,3 12.5,5 L12,11 C12,15 13,18 14,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
-          <line x1="4.5" y1="7" x2="8" y2="7.5" stroke={c} strokeWidth="0.6" />
-          <line x1="17.5" y1="7" x2="14" y2="7.5" stroke={c} strokeWidth="0.6" />
         </svg>
       );
     case 'back':
-      // Two narrow heel counters with hourglass shape and pull tabs
+      // Two simple rounded-top rectangles (tombstone shapes, matches GOAT)
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
-          <path d="M3,19 L3,13 C3,10 4,8 5.5,7 C6,6.5 6.5,5.5 7,4 L7,3 L6.5,3 L6.5,2 L8.5,2 L8.5,3 L8,3 L8,4 C8.5,5.5 9,6.5 9.5,7 C11,8 12,10 12,13 L12,19 Z" stroke={c} strokeWidth="1.1" fill="none" />
-          <path d="M11,19 L11,13 C11,10 12,8 13.5,7 C14,6.5 14.5,5.5 15,4 L15,3 L14.5,3 L14.5,2 L16.5,2 L16.5,3 L16,3 L16,4 C16.5,5.5 17,6.5 17.5,7 C19,8 20,10 20,13 L20,19 Z" stroke={c} strokeWidth="1.1" fill="none" />
-          <line x1="2" y1="19" x2="13" y2="19" stroke={c} strokeWidth="0.8" />
-          <line x1="10" y1="19" x2="21" y2="19" stroke={c} strokeWidth="0.8" />
+          <path d="M2,19 L2,8 C2,4 4,2 6.5,2 C9,2 11,4 11,8 L11,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
+          <path d="M12,19 L12,8 C12,4 14,2 16.5,2 C19,2 21,4 21,8 L21,19 Z" stroke={c} strokeWidth="1.2" fill="none" />
         </svg>
       );
     case 'soles':
-      // Two sole outlines — wide forefoot, narrow waist
+      // Two sole outlines
       return (
         <svg width={s} height={s} viewBox="0 0 22 22" fill="none">
           <path d="M6,2 C9,1.5 10,3 10.5,6 L11,10 C11,11.5 10.5,12 10,12.5 L10.5,17 C10.5,19 9,21 7,21 C5,21 4,19 3.5,17 L3,12.5 C2.5,12 2,11 2.5,10 L3,6 C3,3.5 4,2 6,2 Z" stroke={c} strokeWidth="1.2" fill="none" />
